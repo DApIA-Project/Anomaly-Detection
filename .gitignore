@@ -1,0 +1,9 @@
+.vscode/
+scpScript.py
+
+mlruns/
+Output_artefact/
+
+__pycache__/
+
+*.csv
