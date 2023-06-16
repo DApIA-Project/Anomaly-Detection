@@ -5,27 +5,45 @@ import numpy as np
 
 class Model():
     """
-    Abstrac Class representing a model
-    /!\ your model must always contain all the following methods /!\
-    (but not inherit from this class)
+    Abstract class representing a model
+
+    /!\ Your model must always inherit from this class
+    and implement the methods marked "MENDATORY" below
+
+    Parameters:
+    ------------
+
+    CTX: dict
+        The hyperparameters context
+
+
+    Attributes:
+    ------------
+
+    name: str (MENDATORY)
+        The name of the model for mlflow logs
     
-    Methods :
+    Methods:
     ---------
 
-    predict(x):
+    predict(x): (MENDATORY)
         return the prediction of the model
 
-    compute_loss(x, y):
+    compute_loss(x, y): (MENDATORY)
         return the loss and the prediction associated to x, y and y_
 
-    training_step(x, y):
+    training_step(x, y): (MENDATORY)
         do one training step.
         return the loss and the prediction of the model for this batch
+
+    visualize(save_path):
+        Generate a visualization of the model's architecture
+        (Optional : some models are too complex to be visualized)
     """
 
-    name = "AbstractModel"
+    name = "AbstractModel (TO OVERRIDE)"
 
-    def __init__(self, CTX:dict, name="Model"):
+    def __init__(self, CTX:dict):
         """ 
         Generate model architecture
         Define loss function
@@ -33,48 +51,48 @@ class Model():
         """
         pass
 
-    def predict(self, x):
-        """
-        Make prediction for x (comming from the dataloader)
 
-        you can use this function to make the 
-        conversion from the format needed by the model
-        and the format given by the dataloader
+    def predict(self, x:np.ndarray):
         """
-        
+        Make prediction for x 
+        """
         raise NotImplementedError
-
-    # call directly the layers of the model
-    # only usefull for printing the model with tensorflow
-    def __raw_call__(self, x):
-        raise NotImplementedError
-        
-    # call the model with all tensorflow optimisation and stuff
-    def __call__(self, x):
-        return self.__raw_call__(x)
 
     def compute_loss(self, x, y):
+        """
+        Make a prediction and compute the loss
+        that will be used for training
+        """
         raise NotImplementedError
         y_ = self.predict(x)
         return 0.0, y_
 
     def training_step(self, x, y):
+        """
+        Do one forward pass and gradient descent
+        for the given batch
+        """
         raise NotImplementedError
         loss, out = self.compute_loss(x, y)
         # compute and apply gradient
         return loss, out
 
 
-    def visualize(self, filename="./Output_artefact/model.png"):
+    def visualize(self, save_path="./_Artefact/"):
         """
-        Generate a visualization of the model
+        Generate a visualization of the model's architecture
+        """
+        pass
+
+
+
+    def getVariables(self):
+        """
+        Return the variables of the model
         """
         raise NotImplementedError
-        input_shape=(0, 0, 0)
-    
-        # get a keras.plot_model image
-        input = tf.keras.Input(shape=input_shape, dtype='int32', name='input')
-        output = self.__call__(input)
-        
-        model = tf.keras.Model(inputs=[input], outputs=[output])
-        tf.keras.utils.plot_model(model, to_file=filename, show_shapes=True)
+    def setVariables(self, variables):
+        """
+        Set the variables of the model
+        """
+        raise NotImplementedError

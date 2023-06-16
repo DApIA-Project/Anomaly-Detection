@@ -2,8 +2,10 @@
 scpScript.py
 
 mlruns/
-Output_artefact/
+_Artefact/
 
 __pycache__/
 
 *.csv
+
+scp_back

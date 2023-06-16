@@ -7,8 +7,10 @@ class MinMaxScaler3D:
         self.maxs = []
         self.min = min
         self.max = max
+        self.__isFitted__ = False
 
     def fit(self, X):
+        self.__isFitted__ = True
 
         # check if 3dr channel is allways the same size
         size = -1
@@ -24,13 +26,11 @@ class MinMaxScaler3D:
         self.maxs = np.full(size, -np.inf)
 
         for b in range(len(X)):
-            for t in range(len(X[b])):
-                for f in range(len(X[b][t])):
-                    if (X[b][t][f] < self.mins[f]):
-                        self.mins[f] = X[b][t][f]
-                    if (X[b][t][f] > self.maxs[f]):
-                        self.maxs[f] = X[b][t][f]
-
+            # for f in range(len(X[b][0])):
+            _min = np.min(X[b], axis=0)
+            _max = np.max(X[b], axis=0)
+            self.mins = np.min([self.mins, _min], axis=0)
+            self.maxs = np.max([self.maxs, _max], axis=0)
         return self
 
     def transform(self, X):
@@ -38,13 +38,14 @@ class MinMaxScaler3D:
         X = X.copy()
 
         for b in range(len(X)):
-            for t in range(len(X[b])):
-                for f in range(len(X[b][t])):
-                    if (self.maxs[f] == self.mins[f]):
-                        X[b][t][f] = self.min
-                    else:
-                        X[b][t][f] = (X[b][t][f] - self.mins[f]) / (self.maxs[f] - self.mins[f])
-                        X[b][t][f] = X[b][t][f] * (self.max - self.min) + self.min
+            for f in range(len(X[b][0])):
+                if (self.maxs[f] == self.mins[f]):
+                    X[b][:, f] = self.min
+                else:
+                    X[b][:, f] = (X[b][:, f] - self.mins[f]) / (self.maxs[f] - self.mins[f])
+                    X[b][:, f] = X[b][:, f] * (self.max - self.min) + self.min
+
+
 
         return X
 
@@ -55,13 +56,16 @@ class MinMaxScaler3D:
 
         X = X.copy()
 
+        # check if is numpy array
         for b in range(len(X)):
-            for t in range(len(X[b])):
-                for f in range(len(X[b][t])):
-                    if (self.maxs[f] == self.mins[f]):
-                        X[b][t][f] = self.mins[f]
-                    else:
-                        X[b][t][f] = (X[b][t][f] - self.min) / (self.max - self.min)
-                        X[b][t][f] = X[b][t][f] * (self.maxs[f] - self.mins[f]) + self.mins[f]
+            for f in range(len(X[b][0])):
+                X[b][:, f] = (X[b][:, f] - self.min) / (self.max - self.min)
+                X[b][:, f] = X[b][:, f] * (self.maxs[f] - self.mins[f]) + self.mins[f]
     
         return X
+    
+    def isFitted(self):
+        return self.__isFitted__
+
+
+
