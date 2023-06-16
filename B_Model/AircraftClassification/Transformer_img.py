@@ -116,9 +116,9 @@ class Model(AbstactModel):
         z = Concatenate()([z, z_img])
         z = DenseModule(1024, dropout=self.dropout)(z)
         
-        for dim in range(CTX["LAYERS"]):
-            z = Dense(self.CTX["FF_DIM"], activation="relu")(z)
-            z = Dropout(self.CTX["DROPOUT"])(z)
+        z = Dense(self.CTX["FF_DIM"], activation="relu")(z)
+        z = Dropout(self.CTX["DROPOUT"])(z)
+
         y = Dense(self.CTX["FEATURES_OUT"], activation="softmax")(z)
 
 
