@@ -4,7 +4,7 @@
 #############################
 # Choose your model here    #
 #############################
-model = "Transformer"
+model = "Transformer_img"
 #############################
 
 
