@@ -91,7 +91,7 @@ class Trainer(AbstractTrainer):
             ##############################
             batch_x, img_x, batch_y = self.dl.genEpochTrain(self.CTX["NB_BATCH"], self.CTX["BATCH_SIZE"])
 
-            print("batch_x.shape: ", batch_x.shape)
+            # print("batch_x.shape: ", batch_x.shape)
 
             train_loss = 0
             train_y_ = []
@@ -169,8 +169,11 @@ class Trainer(AbstractTrainer):
         fig.savefig("./_Artefact/loss.png")
 
         # load back best model
-        print("load best model, epoch : ", np.argmin(history[1]) + 1, " with loss : ", np.min(history[1]), flush=True)
-        self.model.setVariables(best_variables)
+        if (len(history[1]) > 0):
+            print("load best model, epoch : ", np.argmin(history[1]) + 1, " with loss : ", np.min(history[1]), flush=True)
+            self.model.setVariables(best_variables)
+        else:
+            print("WARNING : no history of training has been saved")
 
 
     def eval(self):
@@ -186,47 +189,49 @@ class Trainer(AbstractTrainer):
         """
 
 
-        x_batches, x_batch_lat_lon, y_batches, associated_files = self.dl.genEval("./A_Dataset/AircraftClassification/Eval")
+        x_batches, x_batches_lat_lon, y_batches, associated_files = self.dl.genEval("./A_Dataset/AircraftClassification/Eval")
         nb_classes = self.dl.yScaler.classes_.shape[0]
 
         global_confusion_matrix = np.zeros((nb_classes, nb_classes), dtype=int)
 
-        i = 0
 
         global_nb = 0
         global_correct_mean = 0
         global_correct_count = 0
         global_correct_max = 0
 
-        FEATURE_MAP = self.CTX["FEATURE_MAP"]
 
         failed_files = []
 
+        i = 0
         while i < len(x_batches):
 
             # make a batch with all the time windows of the same file
             batch_length = 1
             i += 1
-            while i < len(x_batches) and (i==0 or associated_files[i-1] == associated_files[i]):
+            while i < len(x_batches) and (associated_files[i-1] == associated_files[i]):
                 batch_length += 1
                 i += 1
-
 
             # get the batch
             file = associated_files[i-1]
             batch_x = x_batches[i-batch_length:i]
-
-            batch_img_x = np.zeros((len(batch_x), self.CTX["IMG_SIZE"], self.CTX["IMG_SIZE"], 3), dtype=np.float32)
-
-            for k in range(len(batch_x)):
-                batch_img_x[k] = self.dl.genImg(x_batch_lat_lon[i-batch_length+k, 0], x_batch_lat_lon[i-batch_length+k, 1])/255.0
-            
+            batch_x_lat_lon = x_batches_lat_lon[i-batch_length:i]
             batch_y = y_batches[i-batch_length:i]
 
-            # predict
-            batch_y_ = self.model.predict(batch_x, batch_img_x)
-            global_confusion_matrix = global_confusion_matrix + Metrics.confusionMatrix(batch_y, batch_y_)
 
+            # predict with sub batches to avoid memory issues
+            batch_y_ = np.zeros((len(batch_x), nb_classes), dtype=np.float32)
+            MAX_BATCH_SIZE = self.CTX["BATCH_SIZE"]
+            for b in range(0, len(batch_x), MAX_BATCH_SIZE):
+                batch_img_x = np.zeros((len(batch_x[b:b+MAX_BATCH_SIZE]), self.CTX["IMG_SIZE"], self.CTX["IMG_SIZE"], 3), dtype=np.float32)
+                for k in range(len(batch_img_x)):
+                    batch_img_x[k] = self.dl.genImg(batch_x_lat_lon[b+k, 0], batch_x_lat_lon[b+k, 1])/255.0
+
+                batch_y_[b:b+MAX_BATCH_SIZE] = self.model.predict(batch_x[b:b+MAX_BATCH_SIZE], batch_img_x).numpy()
+            
+
+            global_confusion_matrix = global_confusion_matrix + Metrics.confusionMatrix(batch_y, batch_y_)
 
             global_pred_mean = np.argmax(np.mean(batch_y_, axis=0))
             global_pred_count = np.argmax(np.bincount(np.argmax(batch_y_, axis=1), minlength=nb_classes))
@@ -253,8 +258,8 @@ class Trainer(AbstractTrainer):
             for t in range(0, len(batch_x)):
                 correct_predict[t] = np.argmax(batch_y_[t]) == np.argmax(batch_y[t])
             # check if A_dataset/output/ doesn't exist, create it
-            if not os.path.exists("./A_Dataset/AircraftClassification/Output"):
-                os.makedirs("./A_Dataset/AircraftClassification/Output")
+            if not os.path.exists("./A_Dataset/AircraftClassification/Outputs/Eval"):
+                os.makedirs("./A_Dataset/AircraftClassification/Outputs/Eval")
 
 
             # save the input df + prediction in A_dataset/output/
@@ -275,10 +280,13 @@ class Trainer(AbstractTrainer):
 
                 # remove missing timestep from correct_predict
                 correct_predict = np.delete(correct_predict, missing_timestep_i)
+                batch_y_ = np.delete(batch_y_, missing_timestep_i, axis=0)
 
             correct_predict = ["" if np.isnan(x) else "True" if x else "False" for x in correct_predict]
+            df_y_ = [";".join([str(x) for x in y]) for y in batch_y_]
             df["prediction"] = correct_predict
-            df.to_csv(os.path.join("./A_Dataset/AircraftClassification/Output", file), index=False)
+            df["y_"] = df_y_
+            df.to_csv(os.path.join("./A_Dataset/AircraftClassification/Outputs/Eval", file), index=False)
 
 
         print(global_confusion_matrix)
@@ -302,6 +310,9 @@ class Trainer(AbstractTrainer):
 
         print("", flush=True)
 
+
+        self.eval_alterated()
+
         return {
             "accuracy": accuracy, 
             "mean accuracy":global_correct_mean / global_nb,
@@ -315,6 +326,101 @@ class Trainer(AbstractTrainer):
     
 
 
+    def eval_alterated(self):
+
+        # get folder list in A_Dataset/AircraftClassification/Alterations/
+        alterations = os.listdir("./A_Dataset/AircraftClassification/Alterations/")
+
+        # keep only folder
+        alterations = [x for x in alterations if os.path.isdir(os.path.join("./A_Dataset/AircraftClassification/Alterations/", x))]
+
+        # for each folder
+        for alteration in alterations:
+            
+            print(alteration, " : ", flush=True)
+            x_batches, x_batches_lat_lon, y_batches, associated_files = self.dl.genEval(os.path.join("./A_Dataset/AircraftClassification/Alterations/", alteration))
+            nb_classes = self.dl.yScaler.classes_.shape[0]
+
+
+            i = 0
+            while i < len(x_batches):
+
+                # make a batch with all the time windows of the same file
+                batch_length = 1
+                i += 1
+                while i < len(x_batches) and (associated_files[i-1] == associated_files[i]):
+                    batch_length += 1
+                    i += 1
+
+                # get the batch
+                file = associated_files[i-1]
+                batch_x = x_batches[i-batch_length:i]
+                batch_x_lat_lon = x_batches_lat_lon[i-batch_length:i]
+                batch_y = y_batches[i-batch_length:i]
+
+
+                # predict with sub batches to avoid memory issues
+                batch_y_ = np.zeros((len(batch_x), nb_classes), dtype=np.float32)
+                MAX_BATCH_SIZE = self.CTX["BATCH_SIZE"]
+                for b in range(0, len(batch_x), MAX_BATCH_SIZE):
+                    batch_img_x = np.zeros((len(batch_x[b:b+MAX_BATCH_SIZE]), self.CTX["IMG_SIZE"], self.CTX["IMG_SIZE"], 3), dtype=np.float32)
+                    for k in range(len(batch_img_x)):
+                        batch_img_x[k] = self.dl.genImg(batch_x_lat_lon[b+k, 0], batch_x_lat_lon[b+k, 1])/255.0
+
+                    batch_y_[b:b+MAX_BATCH_SIZE] = self.model.predict(batch_x[b:b+MAX_BATCH_SIZE], batch_img_x).numpy()
+                
+
+                # compute binary (0/1) correct prediction
+                correct_predict = np.full((len(batch_x)), np.nan, dtype=np.float32)
+                #   start at history to remove padding
+                for t in range(0, len(batch_x)):
+                    correct_predict[t] = np.argmax(batch_y_[t]) == np.argmax(batch_y[t])
+                # check if A_dataset/output/ doesn't exist, create it
+                if not os.path.exists("./A_Dataset/AircraftClassification/Outputs/Alterations/"+alteration):
+                    os.makedirs("./A_Dataset/AircraftClassification/Outputs/Alterations/"+alteration)
+
+                # save the input df + prediction in A_dataset/output/
+                df = pd.read_csv(os.path.join("./A_Dataset/AircraftClassification/Alterations/"+alteration, file))
+
+                print(batch_y_.shape, batch_y.shape, flush=True)
+
+                if (self.CTX["PAD_MISSING_TIMESTEPS"]):
+                    # list all missing timestep in df["time"] (sec)
+                    print("pad missing timesteps for ", file, " ...")
+                    missing_timestep_i = []
+                    ind = 0
+                    for t in range(1, len(df["time"])):
+                        if df["time"][t - 1] != df["time"][t] - 1:
+                            nb_missing_timestep = df["time"][t] - df["time"][t - 1] - 1
+                            for _ in range(nb_missing_timestep):
+                                missing_timestep_i.append(ind)
+                                ind += 1
+                        ind += 1
+
+                    # remove missing timestep from correct_predict
+                    correct_predict = np.delete(correct_predict, missing_timestep_i)
+                    batch_y_ = np.delete(batch_y_, missing_timestep_i, axis=0)
+
+
+                correct_predict = ["" if np.isnan(x) else "True" if x else "False" for x in correct_predict]
+                df_y_ = [";".join([str(x) for x in y]) for y in batch_y_]
+                df["prediction"] = correct_predict
+                df["y_"] = df_y_
+                df.to_csv(os.path.join("./A_Dataset/AircraftClassification/Outputs/Alterations/"+alteration, file), index=False)
+
+                global_true = np.argmax(np.mean(batch_y, axis=0))
+                global_pred_mean = np.argmax(np.mean(batch_y_, axis=0))
+                global_pred_count = np.argmax(np.bincount(np.argmax(batch_y_, axis=1), minlength=nb_classes))
+                global_pred_max = np.argmax(batch_y_[np.argmax(np.max(batch_y_, axis=1))])
+
+                print("File : ", file)
+                print("Expected class : ", self.dl.yScaler.classes_[global_true])
+                print("Ŷ: ", np.mean(batch_y_, axis=0))
+                print("Label : mean :", self.dl.yScaler.classes_[global_pred_mean], "   count :", self.dl.yScaler.classes_[global_pred_count], "   max :", self.dl.yScaler.classes_[global_pred_max]) 
+
+                print("Annomaly ?")
+                print("mean :", (global_pred_mean != global_true), "   count :", (global_pred_count != global_true), "   max :", (global_pred_max != global_true))
+                print()
 
 
 

@@ -1,22 +1,28 @@
 
-LEARNING_RATE = 0.00005
+LEARNING_RATE = 0.00006
 EPOCHS = 80
 BATCH_SIZE = 128
 NB_BATCH = 32
 
 
-HISTORY = 512
-DILATION_RATE = 4
+HISTORY = 128
+DILATION_RATE = 1
 TIMESTEPS = HISTORY // DILATION_RATE
 
+RELATIVE_POSITION = True
+RELATIVE_HEADING = False
+RANDOM_HEADING = False
+TRAINING_NOISE = 0.0
 
-LAYERS = 2
+USE_CONTEXT = True
+
+# PAD_MISSING_TIMESTEPS = 
+
+
+LAYERS = 5
+UNITS = 128
+RESIDUAL = 2
 DROPOUT = 0.3
-
-
-HEAD_SIZE = 6
-NUM_HEADS = 2
-FF_DIM = 64
 
 
 USED_FEATURES = [
@@ -25,14 +31,9 @@ USED_FEATURES = [
     "vertrate", "onground",
     "alert", "spi", "squawk",
     "baroaltitude", "geoaltitude",
-    
 ]
 FEATURES_IN = len(USED_FEATURES)
 FEATURE_MAP = dict([[USED_FEATURES[i], i] for i in range(len(USED_FEATURES))])
-
-
-
-# PAD_MISSING_TIMESTEPS = True TODO
 
 
 
@@ -41,4 +42,8 @@ FEATURE_MAP = dict([[USED_FEATURES[i], i] for i in range(len(USED_FEATURES))])
 # each element of a batch start at [t, t+STEP, t+2*STEP, ...]
 TRAIN_WINDOW = 8
 STEP = 2
+
+
+
+IMG_SIZE = 128
 

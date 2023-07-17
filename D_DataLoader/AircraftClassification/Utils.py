@@ -123,7 +123,7 @@ def add_noise(flight, label, noise, noised_label_min=0.5):
         print("ERROR: noise must be between 0 and 1")
         # throw error
         raise ValueError
-    if (noise <= 0):
+    if (noise <= 0.0):
         return flight, label
 
     noise_strength = np.random.uniform(0, noise)

@@ -15,7 +15,7 @@ USED_FEATURES = [
     "vertrate", "onground",
     "alert", "spi", "squawk",
     "baroaltitude", "geoaltitude",
-    "sec", "min", "hour", "day"
+    
 ]
 FEATURES_IN = len(USED_FEATURES)
 FEATURE_MAP = dict([[USED_FEATURES[i], i] for i in range(len(USED_FEATURES))])

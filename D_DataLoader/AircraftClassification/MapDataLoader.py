@@ -151,16 +151,8 @@ class DataLoader(AbstractDataLoader):
 
         # Load the labelisation.
         # Associate Icao imatriculation to a flight type
-        # Labels are :
-        # -1 : unknown
-        # 0 : unspecified
-        # 1 : airplane
-        # 2 : "jet"
-        # 3 : small aircraft
-        # 4 : "glider"
-        # 5 : helicopter
-        # 6 : very light aircraft
-        labels_file = os.path.join(os.path.dirname(path), "labels.csv")
+
+        labels_file = os.path.join("./A_Dataset/AircraftClassification/labels.csv")
         labels = pd.read_csv(labels_file, sep=",", header=None, dtype={"icao24":str})
         labels.columns = ["icao24", "label"]
         labels = labels.fillna("NULL")
@@ -175,6 +167,7 @@ class DataLoader(AbstractDataLoader):
 
         # List files in the folder
         data_files = os.listdir(path)
+        data_files = [f for f in data_files if f.endswith(".csv")]
         x = []
         y = []
 
@@ -185,6 +178,11 @@ class DataLoader(AbstractDataLoader):
             file = data_files[f]
             # set time as index
             df = pd.read_csv(os.path.join(path, file), sep=",",dtype={"callsign":str, "icao24":str})
+
+            # remove each row where lat or lon is nan
+            # df = df.dropna(subset=["lat", "lon"])
+            
+
 
             # between each row, if the time value is not +1,
             # padd the dataframe with the first row
@@ -230,6 +228,7 @@ class DataLoader(AbstractDataLoader):
 
             # If flight label is not a filtered class, skip the flight
             if (label not in CTX["LABEL_FILTER"]):
+                # print("Invalid label for", icao24, ":", label)
                 continue
 
             # Remove interpolated rows (to test the impact of not using interpolation)
@@ -257,9 +256,9 @@ class DataLoader(AbstractDataLoader):
                 files.append(file)
 
 
-            done_20 = int(f/len(data_files)*20)
-            print("\r|"+done_20*"="+(20-done_20)*" "+f"| {f}/{len(data_files)}", end=" "*20)
-        print("\n")
+            done_20 = int(((f+1)/len(data_files)*20))
+            print("\r|"+done_20*"="+(20-done_20)*" "+f"| {(f+1)}/{len(data_files)}", end=" "*20)
+        print("\n", flush=True)
         return x, y
 
 
@@ -531,6 +530,7 @@ class DataLoader(AbstractDataLoader):
         associated_files = []
         x, y = self.__load_dataset__(self.CTX, path, associated_files)
 
+
         y = self.yScaler.transform(y)
 
         # Allocate memory for the batches
@@ -570,7 +570,7 @@ class DataLoader(AbstractDataLoader):
  
         # get the last lat and lon of each batch
         # we're forced to do that because x_batches is too big to store in memory all images
-        x_batch_lat_lon = np.array([x[-1, [self.CTX["FEATURE_MAP"]["lat"],self.CTX["FEATURE_MAP"]["lon"]]] for x in x_batches])
+        x_batches_lat_lon = np.array([x[-1, [self.CTX["FEATURE_MAP"]["lat"],self.CTX["FEATURE_MAP"]["lon"]]] for x in x_batches])
 
 
 
@@ -579,4 +579,4 @@ class DataLoader(AbstractDataLoader):
         x_batches = self.xScaler.transform(x_batches)
         y_batches = np.array(y_batches, dtype=np.float32)
 
-        return x_batches, x_batch_lat_lon, y_batches, associated_files_batches
+        return x_batches, x_batches_lat_lon, y_batches, associated_files_batches
