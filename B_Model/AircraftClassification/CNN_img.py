@@ -69,7 +69,7 @@ class Model(AbstactModel):
         z = x
 
         # stem layer
-        z = Conv1D(32, 7, strides=2, padding="same")(z)
+        z = Conv1D(16, 9, strides=2, padding="same")(z)
 
         n = self.CTX["LAYERS"]
         for _ in range(n):
@@ -91,7 +91,7 @@ class Model(AbstactModel):
         z_img = x_img
 
         # stem layer
-        z_img = Conv2D(32, 8, strides=(2, 2))(z_img)
+        z_img = Conv2D(16, 9, strides=(2, 2), padding="same")(z_img)
 
         for _ in range(n):
             z_img = Conv2DModule(32, 3, padding="same")(z_img)
@@ -110,7 +110,7 @@ class Model(AbstactModel):
         
         z = Concatenate()([z, z_img])
         z = DenseModule(1024, dropout=self.dropout)(z)
-        z = Dense(self.outs, activation="softmax")(z)
+        z = Dense(self.outs, activation=self.CTX["ACTIVATION"])(z)
 
         y = z
 

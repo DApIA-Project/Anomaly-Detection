@@ -90,7 +90,7 @@ class Model(AbstactModel):
         for dim in range(CTX["LAYERS"]):
             z = Dense(self.CTX["FF_DIM"], activation="relu")(z)
             z = Dropout(self.CTX["DROPOUT"])(z)
-        y = Dense(self.CTX["FEATURES_OUT"], activation="softmax")(z)
+        y = Dense(self.CTX["FEATURES_OUT"], activation=self.CTX["ACTIVATION"])(z)
         self.model =  tf.keras.Model(inputs=[x], outputs=[y])
 
 

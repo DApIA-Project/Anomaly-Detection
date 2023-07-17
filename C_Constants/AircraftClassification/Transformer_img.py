@@ -8,10 +8,7 @@ NB_BATCH = 32
 HISTORY = 512
 DILATION_RATE = 4
 TIMESTEPS = HISTORY // DILATION_RATE
-RELATIVE_POSITION = True
-RELATIVE_HEADING = False
-RANDOM_HEADING = False
-TRAINING_NOISE = 0.05
+
 
 LAYERS = 2
 DROPOUT = 0.3
@@ -28,7 +25,7 @@ USED_FEATURES = [
     "vertrate", "onground",
     "alert", "spi", "squawk",
     "baroaltitude", "geoaltitude",
-    "sec", "min", "hour", "day"
+    
 ]
 FEATURES_IN = len(USED_FEATURES)
 FEATURE_MAP = dict([[USED_FEATURES[i], i] for i in range(len(USED_FEATURES))])

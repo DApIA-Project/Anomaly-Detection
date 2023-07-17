@@ -44,7 +44,7 @@ class Model(AbstactModel):
         Generate a visualization of the model's architecture
     """
 
-    name = "CNN"
+    name = "LSTM_img"
 
     def __init__(self, CTX:dict):
         """ 
@@ -69,30 +69,59 @@ class Model(AbstactModel):
         z = x
 
         # stem layer
-        z = Conv1D(32, 7, strides=2, padding="same")(z)
+        z = Conv1D(self.CTX["UNITS"], 9, strides=4, padding="same")(z)
 
         n = self.CTX["LAYERS"]
-        for _ in range(n):
-            z = Conv1DModule(32, 3, padding="same")(z)
-        z = MaxPooling1D()(z)
-        for _ in range(n):
-            z = Conv1DModule(64, 3, padding="same")(z)
-        z = MaxPooling1D()(z)
-        for _ in range(n):
-            z = Conv1DModule(128, 3, padding="same")(z)
+        residual_freq = self.CTX["RESIDUAL"]
+        r = 0
 
+        save = z
+
+        for i in range(n):
+            z = LSTM(self.CTX["UNITS"], dropout=self.dropout, return_sequences=True)(z)
+
+            r += 1
+            if (r == residual_freq):
+                z = Add()([z, save])
+                save = z
+                r = 0
+
+        
         # z = Attention(heads=1)(z)
         # z = GlobalAveragePooling1D()(z)
         z = Flatten()(z)
 
-        z = DenseModule(256, dropout=self.dropout)(z)
-        z = DenseModule(32, dropout=self.dropout)(z)
+
+        input_shape_img = (self.CTX["IMG_SIZE"], self.CTX["IMG_SIZE"], 3)
+        x_img = tf.keras.Input(shape=input_shape_img, name='input_img')
+        z_img = x_img
+
+        # stem layer
+        z_img = Conv2D(16, 9, strides=(2, 2), padding="same")(z_img)
+
+        for _ in range(n):
+            z_img = Conv2DModule(32, 3, padding="same")(z_img)
+        z_img = MaxPooling2D()(z_img)
+
+        for _ in range(n):
+            z_img = Conv2DModule(64, 3, padding="same")(z_img)
+        z_img = MaxPooling2D()(z_img)
+
+        for _ in range(n):
+            z_img = Conv2DModule(128, 3, padding="same")(z_img)
+        z_img = Conv2DModule(32, 3, padding="same")(z_img)
+
+        z_img = Flatten()(z_img)
+
+        
+        z = Concatenate()([z, z_img])
+        z = DenseModule(1024, dropout=self.dropout)(z)
         z = Dense(self.outs, activation=self.CTX["ACTIVATION"])(z)
 
         y = z
 
 
-        self.model = tf.keras.Model(inputs=[x], outputs=[y])
+        self.model = tf.keras.Model(inputs=[x, x_img], outputs=[y])
 
 
         # define loss function
@@ -103,27 +132,27 @@ class Model(AbstactModel):
         self.opt = tf.keras.optimizers.Adam(learning_rate=CTX["LEARNING_RATE"])
 
         
-    def predict(self, x):
+    def predict(self, x, x_img):
         """
         Make prediction for x 
         """
-        return self.model(x)
+        return self.model([x, x_img])
 
-    def compute_loss(self, x, y):
+    def compute_loss(self, x, x_img, y):
         """
         Make a prediction and compute the loss
         that will be used for training
         """
-        y_ = self.model(x)
+        y_ = self.model([x, x_img])
         return self.loss(y_, y), y_
 
-    def training_step(self, x, y):
+    def training_step(self, x, x_img, y):
         """
         Do one forward pass and gradient descent
         for the given batch
         """
         with tf.GradientTape(watch_accessed_variables=True) as tape:
-            loss, output = self.compute_loss(x, y)
+            loss, output = self.compute_loss(x, x_img, y)
 
             gradients = tape.gradient(loss, self.model.trainable_variables)
             self.opt.apply_gradients(zip(gradients, self.model.trainable_variables))
@@ -143,10 +172,8 @@ class Model(AbstactModel):
         # you don't need to check your model's architecture
         device = tf.test.gpu_device_name()
         if "GPU" not in device:
-            
             filename = os.path.join(save_path, self.name+".png")
             tf.keras.utils.plot_model(self.model, to_file=filename, show_shapes=True)
-
 
 
     def getVariables(self):

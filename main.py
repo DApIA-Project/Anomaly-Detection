@@ -4,7 +4,7 @@
 #############################
 # Choose your model here    #
 #############################
-model = "Transformer_img"
+model = "LSTM_img"
 #############################
 
 
@@ -15,6 +15,10 @@ if model== "CNN":
 if model== "CNN_img":
     import G_Main.AircraftClassification.exp_CNN_img as CNN_img
     CNN_img.__main__()
+
+if model== "LSTM_img":
+    import G_Main.AircraftClassification.exp_LSTM_img as LSTM_img
+    LSTM_img.__main__()
 
 elif model== "LSTM":
     import G_Main.AircraftClassification.exp_LSTM as LSTM

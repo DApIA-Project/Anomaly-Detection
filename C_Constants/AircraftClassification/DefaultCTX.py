@@ -26,4 +26,5 @@ BOX_CENTER = (
 
 PAD_MISSING_TIMESTEPS = False
 
+ACTIVATION = "softmax"
 

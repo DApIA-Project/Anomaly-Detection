@@ -70,15 +70,25 @@ class Model(AbstactModel):
         z = x
 
         # stem layer
-        z = Conv1D(units, 7, strides=2, padding="same")(z)
+        z = Conv1D(self.CTX["UNITS"], 9, strides=4, padding="same")(z)
 
         n = self.CTX["LAYERS"]
-        for _ in range(n):
-            z = LSTM(units, return_sequences=True, dropout=CTX["DROPOUT"])(z)
-            z = Attention(heads=3)(z)
-        z = LSTM(units, return_sequences=False, dropout=CTX["DROPOUT"])(z)
+        residual_freq = self.CTX["RESIDUAL"]
+        r = 0
 
-        z = Dense(self.outs, activation="softmax")(z)
+        save = z
+
+        for i in range(n):
+            seq = (i < n-1)
+            z = LSTM(self.CTX["UNITS"], dropout=self.dropout, return_sequences=seq)(z)
+
+            r += 1
+            if (r == residual_freq):
+                z = Add()([z, save])
+                save = z
+                r = 0
+
+        z = Dense(self.outs, activation=self.CTX["ACTIVATION"])(z)
 
         y = z
         self.model = tf.keras.Model(inputs=[x], outputs=[y])

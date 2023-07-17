@@ -155,7 +155,7 @@ class DataLoader(AbstractDataLoader):
         # 4 : "glider"
         # 5 : helicopter
         # 6 : very light aircraft
-        labels_file = os.path.join(os.path.dirname(path), "labels.csv")
+        labels_file = os.path.join("./A_Dataset/AircraftClassification/labels.csv")
         labels = pd.read_csv(labels_file, sep=",", header=None, dtype={"icao24":str})
         labels.columns = ["icao24", "label"]
         labels = labels.fillna("NULL")
@@ -170,6 +170,7 @@ class DataLoader(AbstractDataLoader):
 
         # List files in the folder
         data_files = os.listdir(path)
+        data_files = [f for f in data_files if f.endswith(".csv")]
         x = []
         y = []
 
@@ -180,6 +181,9 @@ class DataLoader(AbstractDataLoader):
             file = data_files[f]
             # set time as index
             df = pd.read_csv(os.path.join(path, file), sep=",",dtype={"callsign":str, "icao24":str})
+
+            # remove each row where lat or lon is nan
+            # df = df.dropna(subset=["lat", "lon"])
 
             # between each row, if the time value is not +1,
             # padd the dataframe with the first row
@@ -252,9 +256,9 @@ class DataLoader(AbstractDataLoader):
                 files.append(file)
 
 
-            done_20 = int(f/len(data_files)*20)
-            print("\r|"+done_20*"="+(20-done_20)*" "+f"| {f}/{len(data_files)}", end=" "*20)
-        print("\n")
+            done_20 = int(((f+1)/len(data_files)*20))
+            print("\r|"+done_20*"="+(20-done_20)*" "+f"| {f+1}/{len(data_files)}", end=" "*20)
+        print("\n", flush=True)
         return x, y
 
 
@@ -295,7 +299,9 @@ class DataLoader(AbstractDataLoader):
         """
 
         # Allocate memory for the batches
-        x_batches = np.zeros((nb_batch * batch_size, self.CTX["TIMESTEPS"],self.CTX["FEATURES_IN"]))
+        use_context = self.CTX["USE_CONTEXT"]
+        features = self.CTX["FEATURES_IN"] * (1 + use_context)
+        x_batches = np.zeros((nb_batch * batch_size, self.CTX["TIMESTEPS"],features))
         y_batches = np.zeros((nb_batch * batch_size, self.yScaler.classes_.shape[0]))
 
         label_i = -1
@@ -325,11 +331,18 @@ class DataLoader(AbstractDataLoader):
             end = time_step + self.CTX["HISTORY"]
 
             # pad = np.zeros(((self.CTX["HISTORY"] - (end - start))//self.CTX["DILATION_RATE"], self.CTX["FEATURES_IN"]))
-            pad = np.full(((self.CTX["HISTORY"] - (end - start))//self.CTX["DILATION_RATE"], self.CTX["FEATURES_IN"]), self.x_train[flight_i][start])
+            pad = np.full(((self.CTX["HISTORY"] - (end - start))//self.CTX["DILATION_RATE"], features), self.x_train[flight_i][start])
+            
+            x__ = [self.x_train[flight_i][start:end:self.CTX["DILATION_RATE"]]]
+            if (use_context):
+                x__.append(
+                    self.x_train[flight_i][0:end-start:self.CTX["DILATION_RATE"]])
+            x__ = np.concatenate(x__, axis=1)
+            print(x__.shape)
 
             x_batches[n, :, :] = np.concatenate([
                 pad,
-                self.x_train[flight_i][start:end:self.CTX["DILATION_RATE"]]
+                x__
             ])
             y_batches[n, :] = self.y_train[flight_i]
 
