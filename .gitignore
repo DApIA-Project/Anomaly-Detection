@@ -15,6 +15,7 @@ scp_back
 
 
 _lib/*
+_dist
 !_lib/build.py
 !_lib/AircraftClassifier/
 _lib/AircraftClassifier/*
