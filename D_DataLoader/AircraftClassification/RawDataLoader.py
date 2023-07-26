@@ -117,7 +117,58 @@ class DataLoader(AbstractDataLoader):
         fragment of sliding window to be able to compute the accuracy
         and the final label for the complete flight
     """
+    def process_df_to_np_array(df, CTX):
 
+        # remove each row where lat or lon is nan
+        # df = df.dropna(subset=["latitude", "longitude"])
+
+        # between each row, if the time value is not +1,
+        # padd the dataframe with the first row
+        # to have a continuous time series
+        if (CTX["PAD_MISSING_TIMESTEPS"]):
+            i = 0
+            while (i < len(df)-1):
+                if (df["timestamp"].iloc[i+1] != df["timestamp"].iloc[i]+1):
+                    nb_row_to_add = df["timestamp"].iloc[i+1] - df["timestamp"].iloc[i] - 1
+
+                    sub_df = pd.DataFrame([df.iloc[i]]*nb_row_to_add)
+                    sub_df["timestamp"] = np.arange(df["timestamp"].iloc[i] + 1, df["timestamp"].iloc[i+1])
+
+                    df = pd.concat([df.iloc[:i+1], sub_df, df.iloc[i+1:]]).reset_index(drop=True)
+
+                    i += nb_row_to_add
+                i += 1
+
+        # add sec (60), min (60), hour (24) and day_of_week (7) features
+        df["timestamp"] = pd.to_datetime(df["timestamp"], unit="s")
+        df["sec"] = df["timestamp"].dt.second
+        df["min"] = df["timestamp"].dt.minute
+        df["hour"] = df["timestamp"].dt.hour
+        df["day"] = df["timestamp"].dt.dayofweek
+
+        # remove too short flights
+        if (len(df) < CTX["HISTORY"]):
+            print(df["callsign"][0], df["icao24"][0], "is too short")
+            return []
+
+        # Remove interpolated rows (to test the impact of not using interpolation)
+        # remplace them by full row of NaN
+        # rows = df[df["interpolated"] == True].index
+        # df.loc[rows] = np.nan
+
+        # Remove useless columns
+        df = df[CTX["USED_FEATURES"]]
+
+
+        # Cast booleans into numeric
+        for col in df.columns:
+            if (df[col].dtype == bool):
+                df.loc[col] = df[col] * 1
+            
+        # Fill NaN with -1
+        df = df.fillna(-1)
+        np_array = df.to_numpy().astype(np.float32)
+        return np_array
 
     @staticmethod
     def __load_dataset__(CTX, path, files:"list[str]"=None):
@@ -161,9 +212,9 @@ class DataLoader(AbstractDataLoader):
         labels = labels.fillna("NULL")
 
 
-        # Labels 2, 3 and 6 distincion is not relevant
-        # so we merge them into one class : 3
-        # labels["label"] = labels["label"].replace([2, 3, 6], 3)
+        # merge labels asked as similar
+        for label in CTX["MERGE_LABELS"]:
+            labels["label"] = labels["label"].replace(CTX["MERGE_LABELS"][label], label)
 
 
         # Loading the flight.
@@ -182,39 +233,6 @@ class DataLoader(AbstractDataLoader):
             # set time as index
             df = pd.read_csv(os.path.join(path, file), sep=",",dtype={"callsign":str, "icao24":str})
 
-            # remove each row where lat or lon is nan
-            # df = df.dropna(subset=["lat", "lon"])
-
-            # between each row, if the time value is not +1,
-            # padd the dataframe with the first row
-            # to have a continuous time series
-            if (CTX["PAD_MISSING_TIMESTEPS"]):
-                i = 0
-                while (i < len(df)-1):
-                    if (df["time"].iloc[i+1] != df["time"].iloc[i]+1):
-                        nb_row_to_add = df["time"].iloc[i+1] - df["time"].iloc[i] - 1
-
-                        sub_df = pd.DataFrame([df.iloc[i]]*nb_row_to_add)
-                        sub_df["time"] = np.arange(df["time"].iloc[i] + 1, df["time"].iloc[i+1])
-
-                        df = pd.concat([df.iloc[:i+1], sub_df, df.iloc[i+1:]]).reset_index(drop=True)
-
-                        i += nb_row_to_add
-                    i += 1
-
-            # add sec (60), min (60), hour (24) and day_of_week (7) features
-            df["time"] = pd.to_datetime(df["time"], unit="s")
-            df["sec"] = df["time"].dt.second
-            df["min"] = df["time"].dt.minute
-            df["hour"] = df["time"].dt.hour
-            df["day"] = df["time"].dt.dayofweek
-
-            # remove too short flights
-            if (len(df) < CTX["HISTORY"]):
-                print(df["callsign"][0], df["icao24"][0], "is too short")
-                continue
-            
-
             # Get the aircraft label for his imatriculation
             icao24 = df["icao24"].iloc[0]
             label = labels[labels["icao24"] == icao24]["label"]
@@ -222,35 +240,18 @@ class DataLoader(AbstractDataLoader):
             # if no label found, skip the flight
             if (len(label) == 0):
                 print("!!! no label for", icao24)
-                print(df)
                 continue
 
             label = label.iloc[0]
-
             # If flight label is not a filtered class, skip the flight
             if (label not in CTX["LABEL_FILTER"]):
                 continue
 
-            # Remove interpolated rows (to test the impact of not using interpolation)
-            # remplace them by full row of NaN
-            # rows = df[df["interpolated"] == True].index
-            # df.loc[rows] = np.nan
+            np_array = DataLoader.process_df_to_np_array(df, CTX)
 
-            # Remove useless columns
-            df = df[CTX["USED_FEATURES"]]
-
-        
-            # Cast booleans into numeric
-            for col in df.columns:
-                if (df[col].dtype == bool):
-                    df[col] = df[col].astype(int)
-                
-            # Fill NaN with -1
-            df = df.fillna(-1)
-            df = df.to_numpy().astype(np.float32)
 
             # Add the flight to the dataset
-            x.append(df)
+            x.append(np_array)
             y.append(label)
             if (files is not None):
                 files.append(file)

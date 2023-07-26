@@ -11,7 +11,7 @@ for file in files:
     if (file.endswith('.csv')):
         df = pandas.read_csv(file, dtype={"icao24":str})
 
-        df["time"] = df['time'] - df['time'][0] + date_ts_sec
+        df["timestamp"] = df['time'] - df['time'][0] + date_ts_sec
 
         df.to_csv(file, index=False)
 

@@ -53,8 +53,8 @@ class Trainer:
             The metrics dictionary of the model's performance
         """
         self.train()
-        metrics = self.eval()
-        return metrics
+        # return {} # leave early
+        return self.eval()
 
 
     def train(self):

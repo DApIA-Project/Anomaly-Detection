@@ -14,3 +14,11 @@ class SparceLabelBinarizer(LabelBinarizer):
             return super().inverse_transform(Y[:, 0], threshold)
         else:
             return super().inverse_transform(Y, threshold)
+        
+
+    def getVariables(self):
+        return self.classes_
+    
+    def setVariables(self, variables):
+        self.fit(variables)
+        

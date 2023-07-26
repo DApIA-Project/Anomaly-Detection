@@ -123,6 +123,64 @@ class DataLoader(AbstractDataLoader):
         and the final label for the complete flight
     """
 
+    def process_df_to_np_array(df, CTX):
+
+        # remove each row where lat or lon is nan
+        # df = df.dropna(subset=["latitude", "longitude"])
+
+        # between each row, if the time value is not +1,
+        # padd the dataframe with the first row
+        # to have a continuous time series
+        if (CTX["PAD_MISSING_TIMESTEPS"]):
+            i = 0
+            while (i < len(df)-1):
+                if (df["timestamp"].iloc[i+1] != df["timestamp"].iloc[i]+1):
+                    nb_row_to_add = df["timestamp"].iloc[i+1] - df["timestamp"].iloc[i] - 1
+
+                    sub_df = pd.DataFrame([df.iloc[i]]*nb_row_to_add)
+                    sub_df["timestamp"] = np.arange(df["timestamp"].iloc[i] + 1, df["timestamp"].iloc[i+1])
+
+                    df = pd.concat([df.iloc[:i+1], sub_df, df.iloc[i+1:]]).reset_index(drop=True)
+
+                    i += nb_row_to_add
+                i += 1
+
+        # add sec (60), min (60), hour (24) and day_of_week (7) features
+        df["timestamp"] = pd.to_datetime(df["timestamp"], unit="s")
+        df["sec"] = df["timestamp"].dt.second
+        df["min"] = df["timestamp"].dt.minute
+        df["hour"] = df["timestamp"].dt.hour
+        df["day"] = df["timestamp"].dt.dayofweek
+
+        # remove too short flights
+        if (len(df) < CTX["HISTORY"]):
+            print(df["callsign"][0], df["icao24"][0], "is too short")
+            return []
+
+        # Remove interpolated rows (to test the impact of not using interpolation)
+        # remplace them by full row of NaN
+        # rows = df[df["interpolated"] == True].index
+        # df.loc[rows] = np.nan
+
+        # Remove useless columns
+        df = df[CTX["USED_FEATURES"]]
+
+
+        # Cast booleans into numeric
+        for col in df.columns:
+            if (df[col].dtype == bool):
+                df[col] = df[col].astype(int)
+
+            
+        # Fill NaN with -1
+        df = df.fillna(-1)
+        np_array = df.to_numpy().astype(np.float32)
+        return np_array
+
+    # load image as numpy array
+    MAP = np.array(Image.open("A_Dataset/AircraftClassification/map.png"), dtype=np.float32)
+
+
 
     @staticmethod
     def __load_dataset__(CTX, path, files:"list[str]"=None):
@@ -158,10 +216,9 @@ class DataLoader(AbstractDataLoader):
         labels = labels.fillna("NULL")
 
 
-        # Labels 2, 3 and 6 distincion is not relevant
-        # so we merge them into one class : 3
-        # labels["label"] = labels["label"].replace([2, 3, 6], 3)
-
+        # merge labels asked as similar
+        for label in CTX["MERGE_LABELS"]:
+            labels["label"] = labels["label"].replace(CTX["MERGE_LABELS"][label], label)
 
         # Loading the flight.
 
@@ -179,78 +236,24 @@ class DataLoader(AbstractDataLoader):
             # set time as index
             df = pd.read_csv(os.path.join(path, file), sep=",",dtype={"callsign":str, "icao24":str})
 
-            # remove each row where lat or lon is nan
-            # df = df.dropna(subset=["lat", "lon"])
-            
-
-
-            # between each row, if the time value is not +1,
-            # padd the dataframe with the first row
-            # to have a continuous time series
-            if (CTX["PAD_MISSING_TIMESTEPS"]):
-                i = 0
-                while (i < len(df)-1):
-                    if (df["time"].iloc[i+1] != df["time"].iloc[i]+1):
-                        nb_row_to_add = df["time"].iloc[i+1] - df["time"].iloc[i] - 1
-
-                        sub_df = pd.DataFrame([df.iloc[i]]*nb_row_to_add)
-                        sub_df["time"] = np.arange(df["time"].iloc[i] + 1, df["time"].iloc[i+1])
-
-                        df = pd.concat([df.iloc[:i+1], sub_df, df.iloc[i+1:]]).reset_index(drop=True)
-
-                        i += nb_row_to_add
-                    i += 1
-
-            # add sec (60), min (60), hour (24) and day_of_week (7) features
-            df["time"] = pd.to_datetime(df["time"], unit="s")
-            df["sec"] = df["time"].dt.second
-            df["min"] = df["time"].dt.minute
-            df["hour"] = df["time"].dt.hour
-            df["day"] = df["time"].dt.dayofweek
-
-            # remove too short flights
-            if (len(df) < CTX["HISTORY"]):
-                print(df["callsign"][0], df["icao24"][0], "is too short")
-                continue
-            
-
             # Get the aircraft label for his imatriculation
             icao24 = df["icao24"].iloc[0]
             label = labels[labels["icao24"] == icao24]["label"]
-            
             # if no label found, skip the flight
             if (len(label) == 0):
                 print("!!! no label for", icao24)
-                print(df)
                 continue
 
             label = label.iloc[0]
-
             # If flight label is not a filtered class, skip the flight
             if (label not in CTX["LABEL_FILTER"]):
                 # print("Invalid label for", icao24, ":", label)
                 continue
 
-            # Remove interpolated rows (to test the impact of not using interpolation)
-            # remplace them by full row of NaN
-            # rows = df[df["interpolated"] == True].index
-            # df.loc[rows] = np.nan
-
-            # Remove useless columns
-            df = df[CTX["USED_FEATURES"]]
-
-        
-            # Cast booleans into numeric
-            for col in df.columns:
-                if (df[col].dtype == bool):
-                    df[col] = df[col].astype(int)
-                
-            # Fill NaN with -1
-            df = df.fillna(-1)
-            df = df.to_numpy().astype(np.float32)
+            np_array = DataLoader.process_df_to_np_array(df, CTX)
 
             # Add the flight to the dataset
-            x.append(df)
+            x.append(np_array)
             y.append(label)
             if (files is not None):
                 files.append(file)
@@ -269,7 +272,6 @@ class DataLoader(AbstractDataLoader):
         # Create the scalers
         self.xScaler = MinMaxScaler3D()
         self.yScaler = SparceLabelBinarizer()
-
 
 
         # Fit the y scaler
@@ -296,7 +298,7 @@ class DataLoader(AbstractDataLoader):
 
 
     
-    def genImg(self, lat, lon):
+    def genImg(lat, lon, size):
         """Generate an image of the map with the flight at the center"""
 
 
@@ -316,27 +318,27 @@ class DataLoader(AbstractDataLoader):
         y_center = (y_center-ymin)*255
 
 
-        x_min = int(x_center - (self.CTX["IMG_SIZE"] / 2.0))
-        x_max = int(x_center + (self.CTX["IMG_SIZE"] / 2.0))
-        y_min = int(y_center - (self.CTX["IMG_SIZE"] / 2.0))
-        y_max = int(y_center + (self.CTX["IMG_SIZE"] / 2.0))
+        x_min = int(x_center - (size / 2.0))
+        x_max = int(x_center + (size / 2.0))
+        y_min = int(y_center - (size / 2.0))
+        y_max = int(y_center + (size / 2.0))
 
         if (x_min < 0):
-            x_max = self.CTX["IMG_SIZE"]
+            x_max = size
             x_min = 0
-        elif (x_max > self.map.shape[1]):
-            x_max = self.map.shape[1]
-            x_min = self.map.shape[1] - self.CTX["IMG_SIZE"]
+        elif (x_max > DataLoader.MAP.shape[1]):
+            x_max = DataLoader.MAP.shape[1]
+            x_min = DataLoader.MAP.shape[1] - size
 
         elif (y_min < 0):
-            y_max = self.CTX["IMG_SIZE"]
+            y_max = size
             y_min = 0
-        elif (y_max > self.map.shape[0]):
-            y_max = self.map.shape[0]
-            y_min = self.map.shape[0] - self.CTX["IMG_SIZE"]
+        elif (y_max > DataLoader.MAP.shape[0]):
+            y_max = DataLoader.MAP.shape[0]
+            y_min = DataLoader.MAP.shape[0] - size
         
         
-        img = self.map[
+        img = DataLoader.MAP[
             y_min:y_max,
             x_min:x_max, :]
         
@@ -413,8 +415,8 @@ class DataLoader(AbstractDataLoader):
         # generate map images
         x_img = np.zeros((nb_batch * batch_size,self.CTX["IMG_SIZE"],self.CTX["IMG_SIZE"],3), dtype=np.float32)
         for i in range(len(x_batches)):
-            lat, lon = x_batches[i][-1, self.CTX["FEATURE_MAP"]["lat"]], x_batches[i][-1, self.CTX["FEATURE_MAP"]["lon"]]
-            x_img[i] = self.genImg(lat, lon) / 255.0
+            lat, lon = x_batches[i][-1, self.CTX["FEATURE_MAP"]["latitude"]], x_batches[i][-1, self.CTX["FEATURE_MAP"]["longitude"]]
+            x_img[i] = DataLoader.genImg(lat, lon, self.CTX["IMG_SIZE"]) / 255.0
 
 
         # Preprocess each batch
@@ -484,8 +486,8 @@ class DataLoader(AbstractDataLoader):
         # generate images
         x_img = np.zeros((nb_batch,self.CTX["IMG_SIZE"],self.CTX["IMG_SIZE"],3), dtype=np.float32)
         for i in range(len(x_batches)):
-            lat, lon = x_batches[i][-1, self.CTX["FEATURE_MAP"]["lat"]], x_batches[i][-1, self.CTX["FEATURE_MAP"]["lon"]]
-            x_img[i] = self.genImg(lat, lon) / 255.0
+            lat, lon = x_batches[i][-1, self.CTX["FEATURE_MAP"]["latitude"]], x_batches[i][-1, self.CTX["FEATURE_MAP"]["longitude"]]
+            x_img[i] = DataLoader.genImg(lat, lon, self.CTX["IMG_SIZE"]) / 255.0
 
             
         # Preprocess each batch
@@ -570,7 +572,7 @@ class DataLoader(AbstractDataLoader):
  
         # get the last lat and lon of each batch
         # we're forced to do that because x_batches is too big to store in memory all images
-        x_batches_lat_lon = np.array([x[-1, [self.CTX["FEATURE_MAP"]["lat"],self.CTX["FEATURE_MAP"]["lon"]]] for x in x_batches])
+        x_batches_lat_lon = np.array([x[-1, [self.CTX["FEATURE_MAP"]["latitude"],self.CTX["FEATURE_MAP"]["longitude"]]] for x in x_batches])
 
 
 

@@ -10,11 +10,11 @@ TIMESTEPS = HISTORY // DILATION_RATE
 
 
 USED_FEATURES = [
-    "lat", "lon",
-    "velocity", "heading",
-    "vertrate", "onground",
+    "latitude", "longitude",
+    "groundspeed", "track",
+    "vertical_rate", "onground",
     "alert", "spi", "squawk",
-    "baroaltitude", "geoaltitude",
+    "altitude", "geoaltitude",
     
 ]
 FEATURES_IN = len(USED_FEATURES)

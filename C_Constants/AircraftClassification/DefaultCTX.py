@@ -9,9 +9,49 @@ TRAINING_NOISE = 0.0
 
 
 LABEL_FILTER = [
-    1, 3, 5
+    1, # CARGO
+    2, # PLANE
+    3, # JET
+    4, # TURBO PROPELLER
+    5, # MEDIUM
+    6, # LIGHT
+    7, # SUPER LIGHT
+    8, # GLIDER
+    9,  # HELICOPTER
+    10,  # ULM
+    11 # military 
 ]
-FEATURES_OUT = len(LABEL_FILTER)
+
+LABEL_NAMES = [
+    "UNKNOWN",
+    "CARGO",
+    "PLANE",
+    "JET",
+    "TURBO PROPELLER",
+    "MEDIUM",
+    "LIGHT",
+    "SUPER LIGHT",
+    "GLIDER",
+    "HELICOPTER",
+    "ULM",
+    "MILITARY"
+]
+
+MERGE_LABELS = { # no merge by default
+    1: [1],
+    2: [2],
+    # 3: [3],
+    4: [4],
+    5: [5],
+    6: [6],
+    7: [7],
+    # 8: [8],
+    9: [9],
+    10: [10],
+    11: [11]
+}
+
+FEATURES_OUT = len(MERGE_LABELS)
 
 
 BOUNDING_BOX = [
@@ -27,4 +67,6 @@ BOX_CENTER = (
 PAD_MISSING_TIMESTEPS = False
 
 ACTIVATION = "softmax"
+
+
 

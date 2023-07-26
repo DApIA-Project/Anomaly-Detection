@@ -86,7 +86,7 @@ class Model():
 
 
 
-    def getVariables(self):
+    def getVariables(self)->np.ndarray:
         """
         Return the variables of the model
         """

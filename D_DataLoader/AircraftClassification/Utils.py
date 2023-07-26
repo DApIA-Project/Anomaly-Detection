@@ -29,10 +29,10 @@ def batchPreProcess(CTX, flight):
     """
     # Get the index of each feature by name for readability
     FEATURE_MAP = CTX["FEATURE_MAP"]
-    lat = flight[:, FEATURE_MAP["lat"]]
-    lon = flight[:, FEATURE_MAP["lon"]]
-    heading = flight[:, FEATURE_MAP["heading"]]
-    baro_altitude = flight[:, FEATURE_MAP["baroaltitude"]]
+    lat = flight[:, FEATURE_MAP["latitude"]]
+    lon = flight[:, FEATURE_MAP["longitude"]]
+    heading = flight[:, FEATURE_MAP["track"]]
+    baro_altitude = flight[:, FEATURE_MAP["altitude"]]
     geo_altitude = flight[:, FEATURE_MAP["geoaltitude"]]
 
 
@@ -96,14 +96,14 @@ def batchPreProcess(CTX, flight):
     # baro_altitude = baro_altitude - baro_altitude[-1]
     # geo_altitude = geo_altitude - geo_altitude[-1]
     
-    flight[:, FEATURE_MAP["lat"]] = lat
-    flight[:, FEATURE_MAP["lon"]] = lon
-    flight[:, FEATURE_MAP["heading"]] = heading
+    flight[:, FEATURE_MAP["latitude"]] = lat
+    flight[:, FEATURE_MAP["longitude"]] = lon
+    flight[:, FEATURE_MAP["track"]] = heading
     # To imlement and test : Heading 180
     # Add header 180 to remove the gap between 0 and 360
     # of the original heading feature.
     # flight[:, FEATURE_MAP["heading180"]] = heading180
-    flight[:, FEATURE_MAP["baroaltitude"]] = baro_altitude
+    flight[:, FEATURE_MAP["altitude"]] = baro_altitude
     flight[:, FEATURE_MAP["geoaltitude"]] = geo_altitude
     
 

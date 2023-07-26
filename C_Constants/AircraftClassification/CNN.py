@@ -13,18 +13,38 @@ DROPOUT = 0.3
 
 
 USED_FEATURES = [
-    "lat", "lon",
-    "velocity", "heading",
-    "vertrate", "onground",
+    "latitude", "longitude",
+    "groundspeed", "track",
+    "vertical_rate", "onground",
     "alert", "spi", "squawk",
-    "baroaltitude", "geoaltitude",
+    "altitude", "geoaltitude",
     
 ]
 FEATURES_IN = len(USED_FEATURES)
 FEATURE_MAP = dict([[USED_FEATURES[i], i] for i in range(len(USED_FEATURES))])
 
 
-# PAD_MISSING_TIMESTEPS = True
+LABEL_FILTER = [
+    1, # CARGO
+    2, # PLANE
+    # 3, # JET
+    4, # TURBO PROPELLER
+    5, # MEDIUM
+    6, # LIGHT
+    7, # SUPER LIGHT
+    # 8, # GLIDER
+    9,  # HELICOPTER
+    10,  # ULM
+    11 # military 
+]
+
+MERGE_LABELS = { # no merge by default
+    2: [1, 2, 3, 4], # PLANE
+    6: [5, 6, 7, 8, 10], # MEDIUM
+    9: [9], # HELICOPTER
+    11: [11] # military
+}
+FEATURES_OUT = len(MERGE_LABELS)
 
 
 # for training a batch concerning a single aircraft flight

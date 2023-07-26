@@ -1,3 +1,4 @@
+from typing import Any
 import numpy as np
 
 class MinMaxScaler3D:
@@ -68,4 +69,14 @@ class MinMaxScaler3D:
         return self.__isFitted__
 
 
+    def getVariables(self):
+        return np.array([self.mins, self.maxs, self.min, self.max])
+    
+    def setVariables(self, variables):
+        self.mins = variables[0]
+        self.maxs = variables[1]
+        self.min = variables[2]
+        self.max = variables[3]
+        self.__isFitted__ = True
+        return self
 

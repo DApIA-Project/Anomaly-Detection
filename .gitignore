@@ -8,4 +8,15 @@ __pycache__/
 
 *.csv
 
+A_Dataset/
+
 scp_back
+
+
+
+_lib/*
+!_lib/build.py
+!_lib/AircraftClassifier/
+_lib/AircraftClassifier/*
+!_lib/AircraftClassifier/__init__.py
+!_lib/AircraftClassifier/AircraftClassification.py

@@ -3,6 +3,7 @@
 
 import _Utils.mlflow as mlflow
 import _Utils.Metrics as Metrics
+from _Utils.save import write, load
 
 
 from B_Model.AbstractModel import Model as _Model_
@@ -68,7 +69,6 @@ class Trainer(AbstractTrainer):
 
         self.dl = DataLoader(CTX, "./A_Dataset/AircraftClassification/Train")
         
-
         # If "_Artefacts/" folder doesn't exist, create it.
         if not os.path.exists("./_Artefact"):
             os.makedirs("./_Artefact")
@@ -123,9 +123,9 @@ class Trainer(AbstractTrainer):
             print()
             print(f"Epoch {ep}/{self.CTX['EPOCHS']} - train_loss: {train_loss:.4f} - test_loss: {test_loss:.4f}", flush=True)
             
-            print("classes  : ", self.dl.yScaler.classes_)
-            print("train_acc: ", train_acc)
-            print("test_acc : ", test_acc)
+            print("classes  : ", ",\t".join([str(int(round(v, 0))) for v in self.dl.yScaler.classes_]))
+            print("train_acc: ", ",\t".join([str(int(round(v, 0))) for v in train_acc]))
+            print("test_acc : ", ",\t".join([str(int(round(v, 0))) for v in test_acc]))
 
             print("train acc: ", Metrics.accuracy(train_y, train_y_))
             print("test acc : ", Metrics.accuracy(test_y, test_y_))
@@ -174,6 +174,19 @@ class Trainer(AbstractTrainer):
             self.model.setVariables(best_variables)
         else:
             print("WARNING : no history of training has been saved")
+
+
+        # save weights
+        w = open("./_Artefact/"+self.model.name+".w", "w")
+        write(w, self.model.getVariables())
+
+        # save x scaler
+        xs = open("./_Artefact/"+self.model.name+".xs", "w")
+        write(xs, self.dl.xScaler.getVariables())
+
+        # save y scaler
+        ys = open("./_Artefact/"+self.model.name+".ys", "w")
+        write(ys, self.dl.yScaler.getVariables())
 
 
     def eval(self):
@@ -226,7 +239,7 @@ class Trainer(AbstractTrainer):
             for b in range(0, len(batch_x), MAX_BATCH_SIZE):
                 batch_img_x = np.zeros((len(batch_x[b:b+MAX_BATCH_SIZE]), self.CTX["IMG_SIZE"], self.CTX["IMG_SIZE"], 3), dtype=np.float32)
                 for k in range(len(batch_img_x)):
-                    batch_img_x[k] = self.dl.genImg(batch_x_lat_lon[b+k, 0], batch_x_lat_lon[b+k, 1])/255.0
+                    batch_img_x[k] = DataLoader.genImg(batch_x_lat_lon[b+k, 0], batch_x_lat_lon[b+k, 1], self.CTX["IMG_SIZE"])/255.0
 
                 batch_y_[b:b+MAX_BATCH_SIZE] = self.model.predict(batch_x[b:b+MAX_BATCH_SIZE], batch_img_x).numpy()
             
@@ -266,13 +279,13 @@ class Trainer(AbstractTrainer):
             df = pd.read_csv(os.path.join("./A_Dataset/AircraftClassification/Eval", file))
 
             if (self.CTX["PAD_MISSING_TIMESTEPS"]):
-                # list all missing timestep in df["time"] (sec)
+                # list all missing timestep in df["timestamp"] (sec)
                 print("pad missing timesteps for ", file, " ...")
                 missing_timestep_i = []
                 ind = 0
-                for t in range(1, len(df["time"])):
-                    if df["time"][t - 1] != df["time"][t] - 1:
-                        nb_missing_timestep = df["time"][t] - df["time"][t - 1] - 1
+                for t in range(1, len(df["timestamp"])):
+                    if df["timestamp"][t - 1] != df["timestamp"][t] - 1:
+                        nb_missing_timestep = df["timestamp"][t] - df["timestamp"][t - 1] - 1
                         for _ in range(nb_missing_timestep):
                             missing_timestep_i.append(ind)
                             ind += 1
@@ -365,7 +378,7 @@ class Trainer(AbstractTrainer):
                 for b in range(0, len(batch_x), MAX_BATCH_SIZE):
                     batch_img_x = np.zeros((len(batch_x[b:b+MAX_BATCH_SIZE]), self.CTX["IMG_SIZE"], self.CTX["IMG_SIZE"], 3), dtype=np.float32)
                     for k in range(len(batch_img_x)):
-                        batch_img_x[k] = self.dl.genImg(batch_x_lat_lon[b+k, 0], batch_x_lat_lon[b+k, 1])/255.0
+                        batch_img_x[k] = DataLoader.genImg(batch_x_lat_lon[b+k, 0], batch_x_lat_lon[b+k, 1], self.CTX["IMG_SIZE"])/255.0
 
                     batch_y_[b:b+MAX_BATCH_SIZE] = self.model.predict(batch_x[b:b+MAX_BATCH_SIZE], batch_img_x).numpy()
                 
@@ -385,13 +398,13 @@ class Trainer(AbstractTrainer):
                 print(batch_y_.shape, batch_y.shape, flush=True)
 
                 if (self.CTX["PAD_MISSING_TIMESTEPS"]):
-                    # list all missing timestep in df["time"] (sec)
+                    # list all missing timestep in df["timestamp"] (sec)
                     print("pad missing timesteps for ", file, " ...")
                     missing_timestep_i = []
                     ind = 0
-                    for t in range(1, len(df["time"])):
-                        if df["time"][t - 1] != df["time"][t] - 1:
-                            nb_missing_timestep = df["time"][t] - df["time"][t - 1] - 1
+                    for t in range(1, len(df["timestamp"])):
+                        if df["timestamp"][t - 1] != df["timestamp"][t] - 1:
+                            nb_missing_timestep = df["timestamp"][t] - df["timestamp"][t - 1] - 1
                             for _ in range(nb_missing_timestep):
                                 missing_timestep_i.append(ind)
                                 ind += 1

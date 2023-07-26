@@ -5,6 +5,8 @@ from keras.layers import *
 from B_Model.AbstractModel import Model as AbstactModel
 from B_Model.Utils.TF_Modules import *
 
+import numpy as np
+
 import os
 
 
@@ -181,7 +183,7 @@ class Model(AbstactModel):
         Return the variables of the model
         """
         return self.model.trainable_variables
-
+    
     def setVariables(self, variables):
         """
         Set the variables of the model

@@ -3,6 +3,7 @@
 
 import _Utils.mlflow as mlflow
 import _Utils.Metrics as Metrics
+import _Utils.Color as Color
 
 
 from B_Model.AbstractModel import Model as _Model_
@@ -122,9 +123,9 @@ class Trainer(AbstractTrainer):
             print()
             print(f"Epoch {ep}/{self.CTX['EPOCHS']} - train_loss: {train_loss:.4f} - test_loss: {test_loss:.4f}", flush=True)
             
-            print("classes  : ", self.dl.yScaler.classes_)
-            print("train_acc: ", train_acc)
-            print("test_acc : ", test_acc)
+            print("classes  : ", ",\t".join([str(int(round(v, 0))) for v in self.dl.yScaler.classes_]))
+            print("train_acc: ", ",\t".join([str(int(round(v, 0))) for v in train_acc]))
+            print("test_acc : ", ",\t".join([str(int(round(v, 0))) for v in test_acc]))
 
             print("train acc: ", Metrics.accuracy(train_y, train_y_))
             print("test acc : ", Metrics.accuracy(test_y, test_y_))
@@ -167,9 +168,26 @@ class Trainer(AbstractTrainer):
         ax.legend()
         fig.savefig("./_Artefact/loss.png")
 
+        
         # load back best model
-        print("load best model, epoch : ", np.argmin(history[1]) + 1, " with loss : ", np.min(history[1]), flush=True)
-        self.model.setVariables(best_variables)
+        if (len(history[1]) > 0):
+            print("load best model, epoch : ", np.argmin(history[1]) + 1, " with loss : ", np.min(history[1]), flush=True)
+            self.model.setVariables(best_variables)
+        else:
+            print("WARNING : no history of training has been saved")
+
+
+        # save weights
+        w = open("./_Artefact/"+self.model.name+".w", "w")
+        w.write(self.model.getVariables())
+
+        # save x scaler
+        w = open("./_Artefact/"+self.model.name+".xs", "w")
+        w.write(self.dl.xScaler.getVariables())
+
+        # save y scaler
+        w = open("./_Artefact/"+self.model.name+".ys", "w")
+        w.write(self.dl.yScaler.getVariables())
 
 
     def eval(self):
@@ -256,13 +274,13 @@ class Trainer(AbstractTrainer):
             df = pd.read_csv(os.path.join("./A_Dataset/AircraftClassification/Eval", file))
 
             if (self.CTX["PAD_MISSING_TIMESTEPS"]):
-                # list all missing timestep in df["time"] (sec)
+                # list all missing timestep in df["timestamp"] (sec)
                 print("pad missing timesteps for ", file, " ...")
                 missing_timestep_i = []
                 ind = 0
-                for t in range(1, len(df["time"])):
-                    if df["time"][t - 1] != df["time"][t] - 1:
-                        nb_missing_timestep = df["time"][t] - df["time"][t - 1] - 1
+                for t in range(1, len(df["timestamp"])):
+                    if df["timestamp"][t - 1] != df["timestamp"][t] - 1:
+                        nb_missing_timestep = df["timestamp"][t] - df["timestamp"][t - 1] - 1
                         for _ in range(nb_missing_timestep):
                             missing_timestep_i.append(ind)
                             ind += 1
@@ -296,7 +314,7 @@ class Trainer(AbstractTrainer):
         # print files of failed predictions
         print("failed files : ")
         for i in range(len(failed_files)):
-            print("\t-",failed_files[i][0], " label : ", failed_files[i][1])
+            print("\t-",failed_files[i][0], " label : "+Color.CYAN, self.CTX["LABEL_NAMES"][failed_files[i][1]], "("+str(failed_files[i][1])+")")
 
         print("", flush=True)
 
@@ -367,13 +385,13 @@ class Trainer(AbstractTrainer):
                 print(batch_y_.shape, batch_y.shape, flush=True)
 
                 if (self.CTX["PAD_MISSING_TIMESTEPS"]):
-                    # list all missing timestep in df["time"] (sec)
+                    # list all missing timestep in df["timestamp"] (sec)
                     print("pad missing timesteps for ", file, " ...")
                     missing_timestep_i = []
                     ind = 0
-                    for t in range(1, len(df["time"])):
-                        if df["time"][t - 1] != df["time"][t] - 1:
-                            nb_missing_timestep = df["time"][t] - df["time"][t - 1] - 1
+                    for t in range(1, len(df["timestamp"])):
+                        if df["timestamp"][t - 1] != df["timestamp"][t] - 1:
+                            nb_missing_timestep = df["timestamp"][t] - df["timestamp"][t - 1] - 1
                             for _ in range(nb_missing_timestep):
                                 missing_timestep_i.append(ind)
                                 ind += 1
