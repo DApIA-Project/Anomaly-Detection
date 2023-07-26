@@ -575,7 +575,6 @@ class DataLoader(AbstractDataLoader):
         x_batches_lat_lon = np.array([x[-1, [self.CTX["FEATURE_MAP"]["latitude"],self.CTX["FEATURE_MAP"]["longitude"]]] for x in x_batches])
 
 
-
         # Preprocess each batch and scale them
         x_batches = np.array([batchPreProcess(self.CTX, f) for f in x_batches])
         x_batches = self.xScaler.transform(x_batches)

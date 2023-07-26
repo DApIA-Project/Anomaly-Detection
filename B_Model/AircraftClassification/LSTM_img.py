@@ -183,7 +183,11 @@ class Model(AbstactModel):
         Return the variables of the model
         """
         return self.model.trainable_variables
+<<<<<<< HEAD
     
+=======
+
+>>>>>>> 99a415dd9fb2d92138b8778b6c7b938262e0b957
     def setVariables(self, variables):
         """
         Set the variables of the model
