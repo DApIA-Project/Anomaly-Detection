@@ -8,19 +8,7 @@ RANDOM_HEADING = False
 TRAINING_NOISE = 0.0
 
 
-LABEL_FILTER = [
-    1, # CARGO
-    2, # PLANE
-    3, # JET
-    4, # TURBO PROPELLER
-    5, # MEDIUM
-    6, # LIGHT
-    7, # SUPER LIGHT
-    8, # GLIDER
-    9,  # HELICOPTER
-    10,  # ULM
-    11 # military 
-]
+
 
 LABEL_NAMES = [
     "UNKNOWN",
@@ -35,20 +23,22 @@ LABEL_NAMES = [
     "HELICOPTER",
     "ULM",
     "MILITARY"
+    "SAMU"
 ]
 
 MERGE_LABELS = { # no merge by default
     1: [1],
     2: [2],
-    # 3: [3],
+    # 3: [3], # remove JET not enought data
     4: [4],
     5: [5],
     6: [6],
     7: [7],
-    # 8: [8],
+    # 8: [8], # remove GLIDER no data
     9: [9],
     10: [10],
-    11: [11]
+    11: [11],
+    12: [12]
 }
 
 FEATURES_OUT = len(MERGE_LABELS)
@@ -62,6 +52,8 @@ BOX_CENTER = (
     (BOUNDING_BOX[0][0] + BOUNDING_BOX[1][0]) / 2,
     (BOUNDING_BOX[0][1] + BOUNDING_BOX[1][1]) / 2
 )
+
+ADD_TAKE_OFF_CONTEXT = False
 
 
 PAD_MISSING_TIMESTEPS = False

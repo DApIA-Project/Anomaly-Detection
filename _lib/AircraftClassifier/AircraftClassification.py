@@ -14,9 +14,12 @@ from .MinMaxScaler3D import MinMaxScaler3D
 from .SparceLabelBinarizer import SparceLabelBinarizer
 from .Utils import batchPreProcess
 
+import os
+
 import warnings
 warnings.filterwarnings("ignore")
 
+HERE = os.path.abspath(os.path.dirname(__file__))
 
 # Convert CTX to dict and log it
 CTX = module_to_dict(CTX)
@@ -35,9 +38,9 @@ yScaler = SparceLabelBinarizer()
 
 print("Loading weights, please wait...")
 
-w = load("./w")
-xs = load("./xs")
-ys = load("./ys")
+w = load(HERE + "/w")
+xs = load(HERE + "/xs")
+ys = load(HERE + "/ys")
 ys = [int(y) for y in ys]
 
 model.setVariables(w)
@@ -93,7 +96,7 @@ class CONTEXT:
     FEATURES_OUT = CTX["FEATURES_OUT"]
 
     LABEL_NAMES = CTX["LABEL_NAMES"]
-    LABEL_ID = CTX["LABEL_FILTER"]
+    # LABEL_ID = CTX["LABEL_FILTER"]
     BOUNDING_BOX = CTX["BOUNDING_BOX"]
 
 
@@ -149,8 +152,6 @@ def predictAircraftType(timestamp,latitude,longitude,groundspeed,track,vertical_
 
         x = [batchPreProcess(CTX, flight) for flight in x]
         x = np.array(xScaler.transform(x))
-
-        print(i,"/", len(x_glob))
 
         if ("img" in model.name):
             y = model.predict(x, img)

@@ -66,7 +66,8 @@ class Model(AbstactModel):
     
 
         # build model's architecture
-        input_shape = (self.CTX["TIMESTEPS"], self.CTX["FEATURES_IN"])
+        feature_in = self.CTX["FEATURES_IN"] * (2 if self.CTX["ADD_TAKE_OFF_CONTEXT"] else 1)
+        input_shape = (self.CTX["TIMESTEPS"], feature_in)
         x = tf.keras.Input(shape=input_shape, name='input')
         z = x
 
@@ -183,11 +184,7 @@ class Model(AbstactModel):
         Return the variables of the model
         """
         return self.model.trainable_variables
-<<<<<<< HEAD
     
-=======
-
->>>>>>> 99a415dd9fb2d92138b8778b6c7b938262e0b957
     def setVariables(self, variables):
         """
         Set the variables of the model

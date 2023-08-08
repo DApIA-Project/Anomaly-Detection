@@ -4,7 +4,7 @@ import math
 
 
 
-def batchPreProcess(CTX, flight):
+def batchPreProcess(CTX, flight, relative_position=False, relative_heading=False, random_heading=False):
     """
     Additional method of preprocessing after
     batch generation.
@@ -42,16 +42,16 @@ def batchPreProcess(CTX, flight):
     Y = CTX["BOX_CENTER"][0]
     Z = -CTX["BOX_CENTER"][1]
 
-    if CTX["RELATIVE_POSITION"]:
+    if relative_position:
         # R = heading[-1]
         Y = lat[-1]
         Z = -lon[-1]
 
     
-    if CTX["RELATIVE_HEADING"]:
+    if relative_heading:
         R = heading[-1]
 
-    if (CTX["RANDOM_HEADING"]):
+    if random_heading:
         R = np.random.uniform(0, 360)
 
     # Normalize lat lon to 0, 0

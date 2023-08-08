@@ -15,4 +15,4 @@ The goal of this approach is to prevent "spoofing" attack by to detecting if the
 
 ```python build.py sdist bdist_wheel```
 
-```pip install dist/Anomaly_Detection-0.0.1-py3-none-any.whl```
+```pip install dist/AircraftClassifier-0.0.1-py3-none-any.whl```
