@@ -5,8 +5,8 @@ BATCH_SIZE = 128
 NB_BATCH = 32
 
 
-HISTORY = 64
-DILATION_RATE = 1
+HISTORY = 128
+DILATION_RATE = 2
 TIMESTEPS = HISTORY // DILATION_RATE
 
 RELATIVE_POSITION = True
@@ -31,11 +31,13 @@ USED_FEATURES = [
 FEATURES_IN = len(USED_FEATURES)
 FEATURE_MAP = dict([[USED_FEATURES[i], i] for i in range(len(USED_FEATURES))])
 
+ADD_TAKE_OFF_CONTEXT = True
 
 MERGE_LABELS = { # no merge by default
     2: [1, 2,], # PLANE
     6: [6,], # MEDIUM
     9: [9,], # HELICOPTER
+    12: [12,], # SAMU
     11: [11,], # military
 
     0: [10,      3, 4,    5,  7, 8] # not classified
@@ -45,8 +47,8 @@ FEATURES_OUT = len(MERGE_LABELS)-1
 # for training a batch concerning a single aircraft flight
 # the step is the jump between two consecutive batches
 # each element of a batch start at [t, t+STEP, t+2*STEP, ...]
-TRAIN_WINDOW = 8
-STEP = 2
+# TRAIN_WINDOW = 8
+# STEP = 2
 
 
 

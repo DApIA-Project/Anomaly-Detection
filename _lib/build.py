@@ -149,8 +149,12 @@ os.system(f"cp ../_Utils/module.py ./AircraftClassifier/module.py")
 os.system(f"cp ../A_Dataset/AircraftClassification/map.png ./AircraftClassifier/map.png")
 
 file_content_remplace("./AircraftClassifier/dataloader.py", 
-                      "A_Dataset/AircraftClassification/map.png", 
-                      "map.png")
+                      "import os", 
+                      "import os\nHERE = os.path.abspath(os.path.dirname(__file__))")
+
+file_content_remplace("./AircraftClassifier/dataloader.py", 
+                      "\"A_Dataset/AircraftClassification/map.png\"", 
+                      "HERE+\"/map.png\"")
 
 # finally trainer.py remplace dataloader import
 file_content_remplace("./AircraftClassifier/trainer.py", 
@@ -177,7 +181,7 @@ setup(
         description=DESCRIPTION,
         long_description=LONG_DESCRIPTION,
         packages=find_packages(),
-        install_requires=["tensorflow", "numpy", "pandas", "sklearn"], # add any additional packages that 
+        install_requires=["tensorflow", "numpy", "pandas", "scikit-learn", "matplotlib"], # add any additional packages that 
         # needs to be installed along with your package. Eg: 'caer'
         package_data={'': ['*.py', "w", "xs", "ys", "map.png"]},
         keywords=['python', 'deep learning', 'tensorflow', 'aircraft', 'classification', 'ADS-B'],
@@ -196,5 +200,5 @@ if (os.path.exists("../_dist")):
     os.system("rm -r ../_dist/*")
 else:
     os.system("mkdir ../_dist")
-    
+
 os.system("cp -r ./dist/* ../_dist/")

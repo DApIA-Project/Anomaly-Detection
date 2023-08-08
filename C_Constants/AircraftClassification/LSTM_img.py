@@ -35,20 +35,6 @@ USED_FEATURES = [
 FEATURES_IN = len(USED_FEATURES)
 FEATURE_MAP = dict([[USED_FEATURES[i], i] for i in range(len(USED_FEATURES))])
 
-<<<<<<< HEAD
-LABEL_FILTER = [
-    1, # CARGO
-    2, # PLANE
-    # 3, # JET
-    4, # TURBO PROPELLER
-    5, # MEDIUM
-    6, # LIGHT
-    7, # SUPER LIGHT
-    # 8, # GLIDER
-    9,  # HELICOPTER
-    10,  # ULM
-    11 # military 
-]
 
 MERGE_LABELS = { # no merge by default
     2: [1, 2, 3, 4], # PLANE
@@ -57,9 +43,6 @@ MERGE_LABELS = { # no merge by default
     11: [11] # military
 }
 FEATURES_OUT = len(MERGE_LABELS)
-=======
-
->>>>>>> 99a415dd9fb2d92138b8778b6c7b938262e0b957
 
 # for training a batch concerning a single aircraft flight
 # the step is the jump between two consecutive batches

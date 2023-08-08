@@ -83,7 +83,8 @@ class Model(AbstactModel):
     
 
         # build model's architecture
-        input_shape = (self.CTX["TIMESTEPS"], self.CTX["FEATURES_IN"])
+        feature_in = self.CTX["FEATURES_IN"] * (2 if self.CTX["ADD_TAKE_OFF_CONTEXT"] else 1)
+        input_shape = (self.CTX["TIMESTEPS"], feature_in)
         x = tf.keras.Input(shape=input_shape)
         z = x
         for _ in range(CTX["LAYERS"]):

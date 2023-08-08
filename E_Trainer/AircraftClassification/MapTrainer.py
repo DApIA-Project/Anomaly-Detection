@@ -123,9 +123,9 @@ class Trainer(AbstractTrainer):
             print()
             print(f"Epoch {ep}/{self.CTX['EPOCHS']} - train_loss: {train_loss:.4f} - test_loss: {test_loss:.4f}", flush=True)
             
-            print("classes  : ", ",\t".join([str(int(round(v, 0))) for v in self.dl.yScaler.classes_]))
-            print("train_acc: ", ",\t".join([str(int(round(v, 0))) for v in train_acc]))
-            print("test_acc : ", ",\t".join([str(int(round(v, 0))) for v in test_acc]))
+            print("classes   : ", "|".join([str(int(round(v, 0))).rjust(3, " ") for v in self.dl.yScaler.classes_]))
+            print("train_acc : ", "|".join([str(int(round(v, 0))).rjust(3, " ") for v in train_acc]))
+            print("test_acc  : ", "|".join([str(int(round(v, 0))).rjust(3, " ") for v in test_acc]))
 
             print("train acc: ", Metrics.accuracy(train_y, train_y_))
             print("test acc : ", Metrics.accuracy(test_y, test_y_))
@@ -308,8 +308,8 @@ class Trainer(AbstractTrainer):
         accuracy = np.sum(np.diag(global_confusion_matrix)) / np.sum(global_confusion_matrix)
 
     
-        print("accuracy per class : ", accuracy_per_class)
-        print("nbSample per class : ", nbSample)
+        print("accuracy per class : ", "|".join([str(round(a * 100)).rjust(6, " ") for a in accuracy_per_class]))
+        print("nbSample per class : ", "|".join([str(a).rjust(6, " ") for a in nbSample]))
         print("accuracy : ", accuracy)
 
         print("global accuracy mean : ", global_correct_mean / global_nb, "(", global_correct_mean, "/", global_nb, ")")
@@ -324,7 +324,7 @@ class Trainer(AbstractTrainer):
         print("", flush=True)
 
 
-        self.eval_alterated()
+        # self.eval_alterated()
 
         return {
             "accuracy": accuracy, 
