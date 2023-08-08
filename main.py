@@ -1,4 +1,13 @@
+import tensorflow as tf
 
+gpus = tf.config.experimental.list_physical_devices('GPU')
+if gpus:
+    try:
+        tf.config.set_logical_device_configuration(
+            gpus[0],
+            [tf.config.experimental.VirtualDeviceConfiguration(memory_limit=1024*12)])
+    except RuntimeError as e:
+        print(e)
 
 
 #############################
