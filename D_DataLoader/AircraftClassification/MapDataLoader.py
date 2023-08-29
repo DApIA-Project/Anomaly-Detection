@@ -1,4 +1,4 @@
-
+ 
 import pandas as pd
 import numpy as np
 from _Utils.MinMaxScaler3D import MinMaxScaler3D
@@ -15,8 +15,10 @@ from PIL import Image
 
 from D_DataLoader.AircraftClassification.Utils import batchPreProcess, add_noise, deg2num_int, deg2num, num2deg
 
+import time
 
 
+__icao_db__ = None
 
 # managing the data preprocessing
 class DataLoader(AbstractDataLoader):
@@ -123,15 +125,14 @@ class DataLoader(AbstractDataLoader):
         and the final label for the complete flight
     """
 
-    def process_df_to_np_array(df, CTX):
-
+    def __csv2array__(df, CTX):
         # remove each row where lat or lon is nan
         # df = df.dropna(subset=["latitude", "longitude"])
 
         # between each row, if the time value is not +1,
         # padd the dataframe with the first row
         # to have a continuous time series
-        if (CTX["PAD_MISSING_TIMESTEPS"]):
+        if (CTX["PAD_MISSING_INPUT_LEN"]):
             i = 0
             while (i < len(df)-1):
                 if (df["timestamp"].iloc[i+1] != df["timestamp"].iloc[i]+1):
@@ -180,10 +181,36 @@ class DataLoader(AbstractDataLoader):
     # load image as numpy array
     MAP = np.array(Image.open("A_Dataset/AircraftClassification/map.png"), dtype=np.float32)
 
+    def __icao2label__(CTX, icao, callsign):
+        global __icao_db__
+        if __icao_db__ is None:
+            labels_file = os.path.join("./A_Dataset/AircraftClassification/labels.csv")
+            __icao_db__ = pd.read_csv(labels_file, sep=",", header=None, dtype={"icao24":str})
+            __icao_db__.columns = ["icao24", "label"]
+            __icao_db__ = __icao_db__.fillna("NULL")
+
+
+            # merge labels asked as similar
+            for label in CTX["MERGE_LABELS"]:
+                __icao_db__["label"] = __icao_db__["label"].replace(CTX["MERGE_LABELS"][label], label)
+
+            # to dict
+            __icao_db__ = __icao_db__.set_index("icao24").to_dict()["label"]
+
+        if (12 in CTX["MERGE_LABELS"] and callsign.startswith("SAMU")):
+            return 12
+
+        if (icao in __icao_db__):
+            return __icao_db__[icao]
+        
+        print("[Warning]", icao, "not found in labels.csv")
+        
+        return 0
+        
 
 
     @staticmethod
-    def __load_dataset__(CTX, path, files:"list[str]"=None):
+    def __load_dataset__(CTX, path):
         """
         Read all flights into the defined folder and do some global preprocessing
         as filtering interisting variables, computing some features (eg: vectorial speed repr)
@@ -210,15 +237,7 @@ class DataLoader(AbstractDataLoader):
         # Load the labelisation.
         # Associate Icao imatriculation to a flight type
 
-        labels_file = os.path.join("./A_Dataset/AircraftClassification/labels.csv")
-        labels = pd.read_csv(labels_file, sep=",", header=None, dtype={"icao24":str})
-        labels.columns = ["icao24", "label"]
-        labels = labels.fillna("NULL")
-
-
-        # merge labels asked as similar
-        for label in CTX["MERGE_LABELS"]:
-            labels["label"] = labels["label"].replace(CTX["MERGE_LABELS"][label], label)
+        
 
         # Loading the flight.
 
@@ -236,30 +255,19 @@ class DataLoader(AbstractDataLoader):
             # set time as index
             df = pd.read_csv(os.path.join(path, file), sep=",",dtype={"callsign":str, "icao24":str})
 
+            array = DataLoader.__csv2array__(df, CTX)
+
             # Get the aircraft right label for his imatriculation
             icao24 = df["icao24"].iloc[0]
-            label = labels[labels["icao24"] == icao24]["label"].to_numpy()
-            if (df["callsign"].iloc[0].startswith("SAMU")):
-                label = np.array([12])
-
-            # if no label found, skip the flight
-            if (len(label) == 0):
-                print("WARNING : No label for", icao24)
+            callsign = df["callsign"].iloc[0]
+            label = DataLoader.__icao2label__(CTX, icao24, callsign)
+            if (label == 0):
                 continue
 
-            label = label[0]
-            # If flight label isn't a wanted class, ignore the file
-            if (label == 0 or label not in CTX["MERGE_LABELS"]):
-                continue
-
-            np_array = DataLoader.process_df_to_np_array(df, CTX)
 
             # Add the flight to the dataset
-            x.append(np_array)
+            x.append(array)
             y.append(label)
-            if (files is not None):
-                files.append(file)
-
 
             done_20 = int(((f+1)/len(data_files)*20))
             print("\r|"+done_20*"="+(20-done_20)*" "+f"| {(f+1)}/{len(data_files)}", end=" "*20)
@@ -289,6 +297,12 @@ class DataLoader(AbstractDataLoader):
         self.y_train = self.y[:split_index]
         self.x_test = self.x[split_index:]
         self.y_test = self.y[split_index:]
+
+        # self.x_test = self.x_train.copy()
+        # self.y_test =  self.y_train.copy()
+
+        print("Train dataset size :", len(self.x_train))
+        print("Test dataset size :", len(self.x_test))
 
 
         # load image as numpy array
@@ -358,10 +372,10 @@ class DataLoader(AbstractDataLoader):
         """
 
         # Allocate memory for the batches
-        x_batches_flight = np.zeros((nb_batch * batch_size, self.CTX["TIMESTEPS"],self.CTX["FEATURES_IN"]))
+        x_batches = np.zeros((nb_batch * batch_size, self.CTX["INPUT_LEN"],self.CTX["FEATURES_IN"]))
         x_img = np.zeros((nb_batch * batch_size,self.CTX["IMG_SIZE"],self.CTX["IMG_SIZE"],3), dtype=np.float32)
         if (self.CTX["ADD_TAKE_OFF_CONTEXT"]):
-            x_batches_takeoff = np.zeros((nb_batch * batch_size, self.CTX["TIMESTEPS"],self.CTX["FEATURES_IN"]))
+            x_batches_takeoff = np.zeros((nb_batch * batch_size, self.CTX["INPUT_LEN"],self.CTX["FEATURES_IN"]))
         y_batches = np.zeros((nb_batch * batch_size, self.yScaler.classes_.shape[0]))
 
         LAT_I = self.CTX["FEATURE_MAP"]["latitude"]
@@ -372,7 +386,7 @@ class DataLoader(AbstractDataLoader):
         length = -1
         flight_i = -1
 
-        for n in range(len(x_batches_flight)):
+        for n in range(len(x_batches)):
 
             BALENCED_LABEL = True # TODO experiment the impact of unbalanced dataset
             if (BALENCED_LABEL):
@@ -410,33 +424,33 @@ class DataLoader(AbstractDataLoader):
             start_shift = (end-start-1) % self.CTX["DILATION_RATE"]
 
             # Get flight data, and apply padding
-            x_batches_flight[n, :] = np.concatenate([
+            x_batches[n, :] = np.concatenate([
                 pad,
                 self.x_train[flight_i][start+start_shift:end:self.CTX["DILATION_RATE"]]
             ])
             # add takeoff context if needed
             if self.CTX["ADD_TAKE_OFF_CONTEXT"]:
                 # if startup is onground
-                if (self.x_train[flight_i][0,self.CTX["FEATURE_MAP"]["altitude"]] < 1200):
-                    if (pad_lenght == 0):
-                        # use the beginning of the fragment
-                        # always use the last timestep of the fragment
-                        start = 0
-                        end = self.CTX["HISTORY"]
-                        start_shift = (end-start-1) % self.CTX["DILATION_RATE"]
-                    # else, it's the begining of the flight so just use same data as the flight data for takeoff
+                # if (self.x_train[flight_i][0,self.CTX["FEATURE_MAP"]["altitude"]] < 1200):
+                if (pad_lenght == 0):
+                    # use the beginning of the fragment
+                    # always use the last timestep of the fragment
+                    start = 0
+                    end = self.CTX["HISTORY"]
+                    start_shift = (end-start-1) % self.CTX["DILATION_RATE"]
+                # else, it's the begining of the flight so just use same data as the flight data for takeoff
 
-                    x_batches_takeoff[n, :] = np.concatenate([
-                        pad,
-                        self.x_train[flight_i][start + start_shift:end:self.CTX["DILATION_RATE"]]
-                    ])
-                else:
-                    x_batches_takeoff[n, :] = np.zeros((self.CTX["TIMESTEPS"],self.CTX["FEATURES_IN"]))
+                x_batches_takeoff[n, :] = np.concatenate([
+                    pad,
+                    self.x_train[flight_i][start + start_shift:end:self.CTX["DILATION_RATE"]]
+                ])
+                # else:
+                #     x_batches_takeoff[n, :] = np.zeros((self.CTX["INPUT_LEN"],self.CTX["FEATURES_IN"]))
 
             
 
             # generate map images associated with the flight 
-            lat, lon = x_batches_flight[n, -1, LAT_I], x_batches_flight[n, -1, LON_I]
+            lat, lon = x_batches[n, -1, LAT_I], x_batches[n, -1, LON_I]
             x_img[n] = DataLoader.genImg(lat, lon, self.CTX["IMG_SIZE"]) / 255.0
 
             # get label
@@ -445,7 +459,7 @@ class DataLoader(AbstractDataLoader):
             # preprocess the flight (mainly normalize, and make lat, lon, heading relative (if asked) with shperical projection)
             # to have a good scale representation (from the top view) of the flight
             # TODO try to link normalized heading with the rotation of the map image
-            x_batches_flight[n, :, :] = batchPreProcess(self.CTX, x_batches_flight[n, :, :], self.CTX["RELATIVE_POSITION"], self.CTX["RELATIVE_HEADING"], self.CTX["RANDOM_HEADING"])
+            x_batches[n, :, :] = batchPreProcess(self.CTX, x_batches[n, :, :], self.CTX["RELATIVE_POSITION"], self.CTX["RELATIVE_HEADING"], self.CTX["RANDOM_HEADING"])
             
             # for takeoff context do not make lat and lon relative !!! 
             # (localization of where is the takeoff very important !!!)
@@ -454,11 +468,8 @@ class DataLoader(AbstractDataLoader):
 
 
         # concatenate the takeoff context to the flight data
-        x_batches = None
         if (self.CTX["ADD_TAKE_OFF_CONTEXT"]):
-            x_batches = np.concatenate([x_batches_flight, x_batches_takeoff], axis=2)
-        else:
-            x_batches = x_batches_flight
+            x_batches = np.concatenate([x_batches, x_batches_takeoff], axis=2)
             
 
         # fit the scaler on the first epoch
@@ -506,10 +517,10 @@ class DataLoader(AbstractDataLoader):
         nb_batch = int(self.CTX["BATCH_SIZE"] * self.CTX["NB_BATCH"] * self.CTX["TEST_RATIO"])
         
         # Allocate memory for the batches
-        x_batches_flight = np.zeros((nb_batch, self.CTX["TIMESTEPS"],self.CTX["FEATURES_IN"]))
+        x_batches = np.zeros((nb_batch, self.CTX["INPUT_LEN"],self.CTX["FEATURES_IN"]))
         x_img = np.zeros((nb_batch,self.CTX["IMG_SIZE"],self.CTX["IMG_SIZE"],3), dtype=np.float32)
         if (self.CTX["ADD_TAKE_OFF_CONTEXT"]):
-            x_batches_takeoff = np.zeros((nb_batch, self.CTX["TIMESTEPS"],self.CTX["FEATURES_IN"]))
+            x_batches_takeoff = np.zeros((nb_batch, self.CTX["INPUT_LEN"],self.CTX["FEATURES_IN"]))
         y_batches = np.zeros((nb_batch, self.yScaler.classes_.shape[0]))
 
         LAT_I = self.CTX["FEATURE_MAP"]["latitude"]
@@ -520,7 +531,7 @@ class DataLoader(AbstractDataLoader):
         length = -1
         flight_i = -1
 
-        for n in range(len(x_batches_flight)):
+        for n in range(len(x_batches)):
 
             # very well balanced dataset
             label_i = n % self.yScaler.classes_.shape[0]
@@ -547,7 +558,7 @@ class DataLoader(AbstractDataLoader):
             start_shift = (end-start-1) % self.CTX["DILATION_RATE"]
 
             # Get flight data, and apply padding
-            x_batches_flight[n, :] = np.concatenate([
+            x_batches[n, :] = np.concatenate([
                 pad,
                 self.x_test[flight_i][start+start_shift:end:self.CTX["DILATION_RATE"]]
             ])
@@ -555,24 +566,24 @@ class DataLoader(AbstractDataLoader):
             # add takeoff context if needed
             if self.CTX["ADD_TAKE_OFF_CONTEXT"]:
                 # if startup onground
-                if (self.x_train[flight_i][0,self.CTX["FEATURE_MAP"]["altitude"]] < 1200):
-                    if (pad_lenght == 0):
-                        # use the beginning of the fragment
-                        # always use the last timestep of the fragment
-                        start = 0
-                        end = self.CTX["HISTORY"]
-                        start_shift = (end-start-1) % self.CTX["DILATION_RATE"]
-                    # else, it's the begining of the flight so just use same data as the flight data for takeoff
+                # if (self.x_train[flight_i][0,self.CTX["FEATURE_MAP"]["altitude"]] < 1200):
+                if (pad_lenght == 0):
+                    # use the beginning of the fragment
+                    # always use the last timestep of the fragment
+                    start = 0
+                    end = self.CTX["HISTORY"]
+                    start_shift = (end-start-1) % self.CTX["DILATION_RATE"]
+                # else, it's the begining of the flight so just use same data as the flight data for takeoff
 
-                    x_batches_takeoff[n, :] = np.concatenate([
-                        pad,
-                        self.x_test[flight_i][start + start_shift:end:self.CTX["DILATION_RATE"]]
-                    ])
-                else:
-                    x_batches_takeoff[n, :] = np.zeros((self.CTX["TIMESTEPS"],self.CTX["FEATURES_IN"]))
+                x_batches_takeoff[n, :] = np.concatenate([
+                    pad,
+                    self.x_test[flight_i][start + start_shift:end:self.CTX["DILATION_RATE"]]
+                ])
+                # else:
+                #     x_batches_takeoff[n, :] = np.zeros((self.CTX["INPUT_LEN"],self.CTX["FEATURES_IN"]))
 
             # generate map images associated with the flight 
-            lat, lon = x_batches_flight[n, -1, LAT_I], x_batches_flight[n, -1, LON_I]
+            lat, lon = x_batches[n, -1, LAT_I], x_batches[n, -1, LON_I]
             x_img[n] = DataLoader.genImg(lat, lon, self.CTX["IMG_SIZE"]) / 255.0
 
             # get label
@@ -581,7 +592,7 @@ class DataLoader(AbstractDataLoader):
             # preprocess the flight (mainly normalize, and make lat, lon, heading relative (if asked) with shperical projection)
             # to have a good scale representation (from the top view) of the flight
             # TODO try to link normalized heading with the rotation of the map image
-            x_batches_flight[n, :, :] = batchPreProcess(self.CTX, x_batches_flight[n, :, :], self.CTX["RELATIVE_POSITION"], self.CTX["RELATIVE_HEADING"], self.CTX["RANDOM_HEADING"])
+            x_batches[n, :, :] = batchPreProcess(self.CTX, x_batches[n, :, :], self.CTX["RELATIVE_POSITION"], self.CTX["RELATIVE_HEADING"], self.CTX["RANDOM_HEADING"])
             
             # for takeoff context do not make lat and lon relative !!! 
             # (localization of where is the takeoff very important !!!)
@@ -589,13 +600,10 @@ class DataLoader(AbstractDataLoader):
                 x_batches_takeoff[n, :, :] = batchPreProcess(self.CTX, x_batches_takeoff[n, :, :])
 
 
-        # concatenate the takeoff context to the flight data
-        x_batches = None
+
         if (self.CTX["ADD_TAKE_OFF_CONTEXT"]):
-            x_batches = np.concatenate([x_batches_flight, x_batches_takeoff], axis=2)
-        else:
-            x_batches = x_batches_flight
-            
+            x_batches = np.concatenate([x_batches, x_batches_takeoff], axis=2)
+   
         x_batches = self.xScaler.transform(x_batches)
 
         return x_batches, x_img, y_batches
@@ -630,66 +638,119 @@ class DataLoader(AbstractDataLoader):
             List of the associated files for each fragment of sliding window
         """
 
-        # Load all the evaluation flights and apply global preprocess to them
-        associated_files = []
-        x, y = self.__load_dataset__(self.CTX, path, associated_files)
+        df = pd.read_csv(path, sep=",",dtype={"callsign":str, "icao24":str})
+        icao = df["icao24"].iloc[0]
+        callsign = df["callsign"].iloc[0]
+
+        array = DataLoader.__csv2array__(df, self.CTX)
+        label = DataLoader.__icao2label__(self.CTX, icao, callsign)
+        if (label == 0):
+            return [], [], []
+        y = self.yScaler.transform([label])[0]
 
 
-        y = self.yScaler.transform(y)
+        x_batches = np.zeros((len(array), self.CTX["INPUT_LEN"], self.CTX["FEATURES_IN"]))
+        x_img = np.zeros((len(array),self.CTX["IMG_SIZE"],self.CTX["IMG_SIZE"],3), dtype=np.float32)
+        if (self.CTX["ADD_TAKE_OFF_CONTEXT"]):
+            x_batches_takeoff = np.zeros((len(array), self.CTX["INPUT_LEN"], self.CTX["FEATURES_IN"]))
+        y_batches = np.zeros((len(array), len(self.yScaler.classes_)))
 
-        # Allocate memory for the batches
-        associated_files_batches = []
-        x_batches = np.zeros((0, self.CTX["TIMESTEPS"], self.CTX["FEATURES_IN"]))
-        x_batches_takeoff = np.zeros((0, self.CTX["TIMESTEPS"], self.CTX["FEATURES_IN"]))
-        y_batches = np.zeros((0, len(self.yScaler.classes_)))
+        LAT_I = self.CTX["FEATURE_MAP"]["latitude"]
+        LON_I = self.CTX["FEATURE_MAP"]["longitude"]
+        
+        # Pad the begining of the flight with zeros to have a prediction for the first timestep with the first window
+        array = np.concatenate([
+            np.full((self.CTX["HISTORY"] - 1, self.CTX["FEATURES_IN"]), array[0]),
+            array], axis=0)
+        
+        shift = (self.CTX["DILATION_RATE"]-1)
+        for t in range(self.CTX["HISTORY"], len(array)+1):
+            i = t-self.CTX["HISTORY"]
+            x_batches[i] = array[t-self.CTX["HISTORY"]+shift:t:self.CTX["DILATION_RATE"]]
 
-        # Create the sliding window for each flight
-        for f in range(len(associated_files)):
-            file = associated_files[f]
-
-
-
-            # Create array of windows fragments 
-            file_x = np.zeros((0, self.CTX["TIMESTEPS"], self.CTX["FEATURES_IN"]))
-            file_x_takeoff = np.zeros((0, self.CTX["TIMESTEPS"], self.CTX["FEATURES_IN"]))
-
-            # Pad the begining of the flight with zeros to have a prediction for the first timestep with the first window
-            x[f] = np.concatenate([
-                # np.zeros((self.CTX["HISTORY"] - 1, self.CTX["FEATURES_IN"])), 
-                np.full((self.CTX["HISTORY"] - 1, self.CTX["FEATURES_IN"]), x[f][0]),
-                 x[f]], axis=0)
-
-            # Add each fragement
-            shift = (self.CTX["DILATION_RATE"]-1)
-            for t in range(self.CTX["HISTORY"], len(x[f])+1):
-                file_x = np.concatenate((file_x, [x[f][t-self.CTX["HISTORY"]+shift:t:self.CTX["DILATION_RATE"]]]), axis=0)
-
+            if (self.CTX["ADD_TAKE_OFF_CONTEXT"]):
                 if (t < self.CTX["HISTORY"]):
-                    file_x_takeoff = np.concatenate((file_x_takeoff, [x[f][t-self.CTX["HISTORY"]+shift:t:self.CTX["DILATION_RATE"]]]), axis=0)
+                    x_batches_takeoff[i] = array[t-self.CTX["HISTORY"]+shift:t:self.CTX["DILATION_RATE"]]
                 else:
-                    file_x_takeoff = np.concatenate((file_x_takeoff, [x[f][self.CTX["HISTORY"]+shift:self.CTX["HISTORY"]*2+shift:self.CTX["DILATION_RATE"]]]), axis=0)
-            
+                    x_batches_takeoff[i] = array[self.CTX["HISTORY"]+shift:self.CTX["HISTORY"]*2+shift:self.CTX["DILATION_RATE"]]
 
-            # Create the associated labels
-            file_y = np.full((len(file_x), len(self.yScaler.classes_)), y[f])
+            y_batches[i] = y
 
-            # Associate the right file name to each fragment
-            associated_files_batches += [file] * len(file_x)
-            x_batches = np.concatenate((x_batches, file_x), axis=0)
-            x_batches_takeoff = np.concatenate((x_batches_takeoff, file_x_takeoff), axis=0)
-            y_batches = np.concatenate((y_batches, file_y), axis=0)
-
- 
-        # get the last lat and lon of each batch
-        # we're forced to do that because x_batches is too big to store in memory all images
-        x_batches_lat_lon = np.array([x[-1, [self.CTX["FEATURE_MAP"]["latitude"],self.CTX["FEATURE_MAP"]["longitude"]]] for x in x_batches])
+            lat, lon = array[t-1, LAT_I], array[t-1, LON_I]
+            x_img[i] = DataLoader.genImg(lat, lon, self.CTX["IMG_SIZE"]) / 255.0
 
 
         # Preprocess each batch and scale them
         x_batches = np.array([batchPreProcess(self.CTX, f, self.CTX["RELATIVE_POSITION"], self.CTX["RELATIVE_HEADING"], self.CTX["RANDOM_HEADING"]) for f in x_batches])
-        x_batches_takeoff = np.array([batchPreProcess(self.CTX, f, False, False, False) for f in x_batches_takeoff])
-        x_batches = np.concatenate([x_batches, x_batches_takeoff], axis=2)
+        
+        if (self.CTX["ADD_TAKE_OFF_CONTEXT"]):
+            x_batches_takeoff = np.array([batchPreProcess(self.CTX, f) for f in x_batches_takeoff])
+            x_batches = np.concatenate([x_batches, x_batches_takeoff], axis=2)
+
         x_batches = self.xScaler.transform(x_batches)
         y_batches = np.array(y_batches, dtype=np.float32)
 
-        return x_batches, x_batches_lat_lon, y_batches, associated_files_batches
+        return x_batches, x_img, y_batches
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+        # # Load all the evaluation flights and apply global preprocess to them
+        # associated_files = []
+        # x, y = self.__load_dataset__(self.CTX, path, associated_files)
+
+
+        
+ 
+        # associated_files_batches = []
+        
+
+        # # Create the sliding window for each flight
+        # for f in range(len(associated_files)):
+        #     file = associated_files[f]
+
+        #     print("\r", f+1, "/", len(associated_files), end=" "*20)
+
+
+
+        #     # Create array of windows fragments 
+        #     file_x = np.zeros((0, self.CTX["INPUT_LEN"], self.CTX["FEATURES_IN"]))
+        #     file_x_takeoff = np.zeros((0, self.CTX["INPUT_LEN"], self.CTX["FEATURES_IN"]))
+
+        #     # Pad the begining of the flight with zeros to have a prediction for the first timestep with the first window
+        #     x[f] = np.concatenate([
+        #         # np.zeros((self.CTX["HISTORY"] - 1, self.CTX["FEATURES_IN"])), 
+        #         np.full((self.CTX["HISTORY"] - 1, self.CTX["FEATURES_IN"]), x[f][0]),
+        #          x[f]], axis=0)
+
+        #     # Add each fragement
+        #     shift = (self.CTX["DILATION_RATE"]-1)
+        #     for t in range(self.CTX["HISTORY"], len(x[f])+1):
+        #         file_x = np.concatenate((file_x, [x[f][t-self.CTX["HISTORY"]+shift:t:self.CTX["DILATION_RATE"]]]), axis=0)
+
+        #         if (t < self.CTX["HISTORY"]):
+        #             file_x_takeoff = np.concatenate((file_x_takeoff, [x[f][t-self.CTX["HISTORY"]+shift:t:self.CTX["DILATION_RATE"]]]), axis=0)
+        #         else:
+        #             file_x_takeoff = np.concatenate((file_x_takeoff, [x[f][self.CTX["HISTORY"]+shift:self.CTX["HISTORY"]*2+shift:self.CTX["DILATION_RATE"]]]), axis=0)
+            
+
+        #     # Create the associated labels
+        #     file_y = np.full((len(file_x), len(self.yScaler.classes_)), y[f])
+
+        #     # Associate the right file name to each fragment
+        #     associated_files_batches += [file] * len(file_x)
+        #     x_batches = np.concatenate((x_batches, file_x), axis=0)
+        #     x_batches_takeoff = np.concatenate((x_batches_takeoff, file_x_takeoff), axis=0)
+        #     y_batches = np.concatenate((y_batches, file_y), axis=0)

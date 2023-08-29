@@ -5,9 +5,14 @@ if gpus:
     try:
         tf.config.set_logical_device_configuration(
             gpus[0],
-            [tf.config.experimental.VirtualDeviceConfiguration(memory_limit=1024*12)])
+            [tf.config.experimental.VirtualDeviceConfiguration(memory_limit=1024*10)])
     except RuntimeError as e:
         print(e)
+
+    # hide rocm warnings
+    import os
+    os.environ['TF_CPP_MIN_LOG_LEVEL'] = '-1'
+
 
 
 #############################
@@ -46,3 +51,6 @@ elif model== "Reservoir":
     Reservoir.__main__()
 
 
+# restore rocm warnings
+if gpus:
+    os.environ['TF_CPP_MIN_LOG_LEVEL'] = '0'

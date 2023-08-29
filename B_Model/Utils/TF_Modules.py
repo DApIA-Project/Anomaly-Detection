@@ -7,14 +7,14 @@ from keras.layers import *
 
 class Conv1DModule(tf.Module):
 
-    def __init__(self, units, kernel_size = 3, padding="same", batch_norm=True, name="Conv1DModule"):
+    def __init__(self, units, kernel_size = 3, strides=1, padding="same", batch_norm=True, name="Conv1DModule"):
         super(Conv1DModule, self).__init__(name=name)
 
-        self.conv = Conv1D(units, kernel_size, padding=padding)
+        self.conv = Conv1D(units, kernel_size, strides=strides, padding=padding)
         self.bn = None
         if (batch_norm):
             self.bn = BatchNormalization()
-        self.act = LeakyReLU()
+        self.act = ReLU()
 
     def __call__(self, x):
         x = self.conv(x)
@@ -32,7 +32,7 @@ class Conv2DModule(tf.Module):
         self.bn = None
         if (batch_norm):
             self.bn = BatchNormalization()
-        self.act = LeakyReLU()
+        self.act = ReLU()
 
     def __call__(self, x):
         x = self.conv(x)

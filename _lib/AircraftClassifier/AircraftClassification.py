@@ -72,9 +72,9 @@ def __preprocess__(timestamp,latitude,longitude,groundspeed,track,vertical_rate,
     )
 
 
-    np_array = DataLoader.process_df_to_np_array(df, CTX)
-    np_array = np_array[CTX["DILATION_RATE"]-1::CTX["DILATION_RATE"]]
-    return np_array
+    array = DataLoader.__csv2array__(df, CTX)
+    array = array[CTX["DILATION_RATE"]-1::CTX["DILATION_RATE"]]
+    return array
 
 
 

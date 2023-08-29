@@ -67,7 +67,7 @@ class Model(AbstactModel):
 
         # build model's architecture
         feature_in = self.CTX["FEATURES_IN"] * (2 if self.CTX["ADD_TAKE_OFF_CONTEXT"] else 1)
-        input_shape = (self.CTX["TIMESTEPS"], feature_in)
+        input_shape = (self.CTX["INPUT_LEN"], feature_in)
         x = tf.keras.Input(shape=input_shape, name='input')
         z = x
 
