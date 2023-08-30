@@ -14,6 +14,8 @@ from .MinMaxScaler3D import MinMaxScaler3D
 from .SparceLabelBinarizer import SparceLabelBinarizer
 from .Utils import batchPreProcess
 
+import pickle
+
 import os
 
 import warnings
@@ -38,10 +40,22 @@ yScaler = SparceLabelBinarizer()
 
 print("Loading weights, please wait...")
 
-w = load(HERE + "/w")
-xs = load(HERE + "/xs")
-ys = load(HERE + "/ys")
-ys = [int(y) for y in ys]
+# check if .b files exist
+if (not os.path.isfile(HERE + "/w.b")):
+    w = load(HERE + "/w")
+    xs = load(HERE + "/xs")
+    ys = load(HERE + "/ys")
+    ys = [int(y) for y in ys]
+
+    # save w
+    pickle.dump(w, open(HERE + "/w.b", "wb"))
+    pickle.dump(xs, open(HERE + "/xs.b", "wb"))
+    pickle.dump(ys, open(HERE + "/ys.b", "wb"))
+else:
+    w = pickle.load(open(HERE + "/w.b", "rb"))
+    xs = pickle.load(open(HERE + "/xs.b", "rb"))
+    ys = pickle.load(open(HERE + "/ys.b", "rb"))
+
 
 model.setVariables(w)
 xScaler.setVariables(xs)
@@ -50,7 +64,7 @@ yScaler.fit(ys)
 print("Weights loaded")
 
 
-def __preprocess__(timestamp,latitude,longitude,groundspeed,track,vertical_rate,onground,alert,spi,squawk,altitude,geoaltitude,last_position,hour):
+def __preprocess__(timestamp,latitude,longitude,groundspeed,track,vertical_rate,onground,alert,spi,squawk,altitude,geoaltitude):
 
     df = pd.DataFrame(
         {
@@ -66,8 +80,6 @@ def __preprocess__(timestamp,latitude,longitude,groundspeed,track,vertical_rate,
             "squawk": squawk,
             "altitude": altitude,
             "geoaltitude": geoaltitude,
-            "last_position": last_position,
-            "hour": hour
         }
     )
 
@@ -104,7 +116,7 @@ class CONTEXT:
 
 
 
-def predictAircraftType(timestamp,latitude,longitude,groundspeed,track,vertical_rate,onground,alert,spi,squawk,altitude,geoaltitude,last_position,hour):
+def predictAircraftType(timestamp,latitude,longitude,groundspeed,track,vertical_rate,onground,alert,spi,squawk,altitude,geoaltitude,):
     """
     Make predicitons of aircraft type based on ADS-B/FLARM features.
 
@@ -114,7 +126,7 @@ def predictAircraftType(timestamp,latitude,longitude,groundspeed,track,vertical_
     """
 
     # check the features
-    for f in [timestamp,latitude,longitude,groundspeed,track,vertical_rate,onground,alert,spi,squawk,altitude,geoaltitude,last_position,hour]:
+    for f in [timestamp,latitude,longitude,groundspeed,track,vertical_rate,onground,alert,spi,squawk,altitude,geoaltitude]:
 
         assert len(f) == len(timestamp), 'all features must have the same number of samples'
 
@@ -131,8 +143,7 @@ def predictAircraftType(timestamp,latitude,longitude,groundspeed,track,vertical_
                    onground[i],
                    alert[i],spi[i],
                    squawk[i],altitude[i],
-                   geoaltitude[i],
-                   last_position[i],hour[i]) 
+                   geoaltitude[i]) 
             for i in range(len(timestamp))
         ])
 

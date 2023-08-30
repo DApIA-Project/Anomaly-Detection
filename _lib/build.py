@@ -181,7 +181,7 @@ setup(
         description=DESCRIPTION,
         long_description=LONG_DESCRIPTION,
         packages=find_packages(),
-        install_requires=["tensorflow", "numpy", "pandas", "scikit-learn", "matplotlib"], # add any additional packages that 
+        install_requires=["tensorflow", "numpy", "pandas", "scikit-learn", "matplotlib", "pickle-mixin"], # add any additional packages that 
         # needs to be installed along with your package. Eg: 'caer'
         package_data={'': ['*.py', "w", "xs", "ys", "map.png"]},
         keywords=['python', 'deep learning', 'tensorflow', 'aircraft', 'classification', 'ADS-B'],

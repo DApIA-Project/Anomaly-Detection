@@ -31,16 +31,16 @@ USED_FEATURES = [
 FEATURES_IN = len(USED_FEATURES)
 FEATURE_MAP = dict([[USED_FEATURES[i], i] for i in range(len(USED_FEATURES))])
 
-ADD_TAKE_OFF_CONTEXT = True
+ADD_TAKE_OFF_CONTEXT = False
 
 MERGE_LABELS = { # no merge by default
     2: [1, 2,], # PLANE
     6: [6,], # MEDIUM
     9: [9,], # HELICOPTER
-    12: [12,], # SAMU
+    # 12: [12,], # SAMU
     11: [11,], # military
 
-    0: [10,      3, 4,    5,  7, 8] # not classified
+    0: [10,      3, 4,    5,  7, 8, 12] # not classified
 }
 FEATURES_OUT = len(MERGE_LABELS)-1
 
