@@ -62,57 +62,82 @@ class Model(AbstactModel):
 
         # save the number of training steps
         self.nb_train = 0
+
+        n = CTX["LAYERS"]
     
 
         # build model's architecture
         feature_in = self.CTX["FEATURES_IN"] * (2 if self.CTX["ADD_TAKE_OFF_CONTEXT"] else 1)
-        input_shape = (self.CTX["TIMESTEPS"], feature_in)
+        input_shape = (self.CTX["INPUT_LEN"], feature_in)
         x = tf.keras.Input(shape=input_shape, name='input')
         z = x
 
+
+        # split x in two parts of 11 features
+        zADSB = Lambda(lambda x: x[:, :, :11])(z)
+        if self.CTX["ADD_TAKE_OFF_CONTEXT"]:
+            zContext = Lambda(lambda x: x[:, :, 11:])(z)
+
         # stem layer
-        z = Conv1D(16, 9, strides=2, padding="same")(z)
+        z = zADSB
+        Conv1DModule(11, 17, strides=4, padding="same")(z)
 
-        n = self.CTX["LAYERS"]
-        for _ in range(n):
-            z = Conv1DModule(32, 3, padding="same")(z)
-        z = MaxPooling1D()(z)
-        for _ in range(n):
-            z = Conv1DModule(64, 3, padding="same")(z)
-        z = MaxPooling1D()(z)
-        for _ in range(n):
-            z = Conv1DModule(128, 3, padding="same")(z)
+        for f in [16, 32, 32]:
+            for _ in range(n):
+                z = Conv1DModule(f, padding="same")(z)
+            z = MaxPooling1D()(z)
 
-        # z = Attention(heads=1)(z)
-        # z = GlobalAveragePooling1D()(z)
-        z = Flatten()(z)
+        zADSB = Flatten()(z)
+
+
+        if self.CTX["ADD_TAKE_OFF_CONTEXT"]:
+
+            z1 = zContext
+
+            z = Conv1D(32, 1, padding="same")(z1)
+            z = BatchNormalization()(z)
+            z = Activation("relu")(z)
+
+            Conv1DModule(11, 17, strides=4, padding="same")(z)
+
+            for f in [16, 32, 32]:
+                for _ in range(n):
+                    z = Conv1DModule(f, padding="same")(z)
+                z = MaxPooling1D()(z)
+
+            zContext = Flatten()(z)
 
 
         input_shape_img = (self.CTX["IMG_SIZE"], self.CTX["IMG_SIZE"], 3)
         x_img = tf.keras.Input(shape=input_shape_img, name='input_img')
         z_img = x_img
-
-        # stem layer
-        z_img = Conv2D(16, 9, strides=(2, 2), padding="same")(z_img)
+        
+        for _ in range(n):
+            z_img = Conv2DModule(16, 3, padding="same")(z_img)
+        z_img = AveragePooling2D()(z_img)
 
         for _ in range(n):
             z_img = Conv2DModule(32, 3, padding="same")(z_img)
-        z_img = MaxPooling2D()(z_img)
+        z_img = AveragePooling2D()(z_img)
 
         for _ in range(n):
-            z_img = Conv2DModule(64, 3, padding="same")(z_img)
-        z_img = MaxPooling2D()(z_img)
+            z_img = Conv2DModule(16, 3, padding="same")(z_img)
+        z_img = AveragePooling2D()(z_img)
 
         for _ in range(n):
-            z_img = Conv2DModule(128, 3, padding="same")(z_img)
-        z_img = Conv2DModule(32, 3, padding="same")(z_img)
+            z_img = Conv2DModule(16, 3, padding="same")(z_img)
+
 
         z_img = Flatten()(z_img)
 
-        
-        z = Concatenate()([z, z_img])
-        z = DenseModule(1024, dropout=self.dropout)(z)
-        z = Dense(self.outs, activation=self.CTX["ACTIVATION"])(z)
+        if self.CTX["ADD_TAKE_OFF_CONTEXT"]:
+            z = Concatenate()([zADSB, zContext, z_img])
+        else:
+            z = Concatenate()([zADSB, z_img])
+
+        z = DenseModule(256, dropout=self.dropout)(z)
+
+        z = Dense(self.outs, activation="softmax")(z)
 
         y = z
 
@@ -167,9 +192,9 @@ class Model(AbstactModel):
         # Assuming that if you train on GPU (GPU cluster) it mean that 
         # you don't need to check your model's architecture
         device = tf.test.gpu_device_name()
-        if "GPU" not in device:
-            filename = os.path.join(save_path, self.name+".png")
-            tf.keras.utils.plot_model(self.model, to_file=filename, show_shapes=True)
+        # if "GPU" not in device:
+        filename = os.path.join(save_path, self.name+".png")
+        tf.keras.utils.plot_model(self.model, to_file=filename, show_shapes=True)
 
 
     def getVariables(self):

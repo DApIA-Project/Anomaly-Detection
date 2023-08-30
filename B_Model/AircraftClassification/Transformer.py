@@ -84,7 +84,7 @@ class Model(AbstactModel):
 
         # build model's architecture
         feature_in = self.CTX["FEATURES_IN"] * (2 if self.CTX["ADD_TAKE_OFF_CONTEXT"] else 1)
-        input_shape = (self.CTX["TIMESTEPS"], feature_in)
+        input_shape = (self.CTX["INPUT_LEN"], feature_in)
         x = tf.keras.Input(shape=input_shape)
         z = x
         for _ in range(CTX["LAYERS"]):
@@ -94,7 +94,7 @@ class Model(AbstactModel):
         for dim in range(CTX["LAYERS"]):
             z = Dense(self.CTX["FF_DIM"], activation="relu")(z)
             z = Dropout(self.CTX["DROPOUT"])(z)
-        y = Dense(self.CTX["FEATURES_OUT"], activation=self.CTX["ACTIVATION"])(z)
+        y = Dense(self.CTX["FEATURES_OUT"], activation="softmax")(z)
         self.model =  tf.keras.Model(inputs=[x], outputs=[y])
 
 

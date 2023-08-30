@@ -126,7 +126,8 @@ def add_noise(flight, label, noise, noised_label_min=0.5):
     if (noise <= 0.0):
         return flight, label
 
-    noise_strength = np.random.uniform(0, noise)
+    noise_strength = np.random.normal(0, noise)
+    # noise_strength = np.random.uniform(0, noise)
 
     flight_noise = np.random.uniform(-noise_strength, noise_strength, size=flight.shape)
     flight = flight + flight_noise

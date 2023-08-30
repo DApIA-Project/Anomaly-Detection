@@ -117,7 +117,7 @@ class DataLoader(AbstractDataLoader):
         fragment of sliding window to be able to compute the accuracy
         and the final label for the complete flight
     """
-    def process_df_to_np_array(df, CTX):
+    def __csv2array__(df, CTX):
 
         # remove each row where lat or lon is nan
         # df = df.dropna(subset=["latitude", "longitude"])
@@ -125,7 +125,7 @@ class DataLoader(AbstractDataLoader):
         # between each row, if the time value is not +1,
         # padd the dataframe with the first row
         # to have a continuous time series
-        if (CTX["PAD_MISSING_TIMESTEPS"]):
+        if (CTX["PAD_MISSING_INPUT_LEN"]):
             i = 0
             while (i < len(df)-1):
                 if (df["timestamp"].iloc[i+1] != df["timestamp"].iloc[i]+1):
@@ -247,7 +247,7 @@ class DataLoader(AbstractDataLoader):
             if (label not in CTX["LABEL_FILTER"]):
                 continue
 
-            np_array = DataLoader.process_df_to_np_array(df, CTX)
+            np_array = DataLoader.__csv2array__(df, CTX)
 
 
             # Add the flight to the dataset
@@ -302,7 +302,7 @@ class DataLoader(AbstractDataLoader):
         # Allocate memory for the batches
         use_context = self.CTX["USE_CONTEXT"]
         features = self.CTX["FEATURES_IN"] * (1 + use_context)
-        x_batches = np.zeros((nb_batch * batch_size, self.CTX["TIMESTEPS"],features))
+        x_batches = np.zeros((nb_batch * batch_size, self.CTX["INPUT_LEN"],features))
         y_batches = np.zeros((nb_batch * batch_size, self.yScaler.classes_.shape[0]))
 
         label_i = -1
@@ -376,7 +376,7 @@ class DataLoader(AbstractDataLoader):
 
 
         # Reshape the data into [nb_batch, batch_size, timestep, features]
-        x_batches = x_batches.reshape(nb_batch, batch_size, self.CTX["TIMESTEPS"],  self.CTX["FEATURES_IN"])
+        x_batches = x_batches.reshape(nb_batch, batch_size, self.CTX["INPUT_LEN"],  self.CTX["FEATURES_IN"])
         y_batches = y_batches.reshape(nb_batch, batch_size, self.yScaler.classes_.shape[0])
 
 
@@ -408,7 +408,7 @@ class DataLoader(AbstractDataLoader):
 
         # Allocate memory for the batches (keep test ratio)
         nb_batch = int(self.CTX["BATCH_SIZE"] * self.CTX["NB_BATCH"] * self.CTX["TEST_RATIO"])
-        x_batches = np.zeros((nb_batch, self.CTX["TIMESTEPS"],self.CTX["FEATURES_IN"]))
+        x_batches = np.zeros((nb_batch, self.CTX["INPUT_LEN"],self.CTX["FEATURES_IN"]))
         y_batches = np.zeros((nb_batch, self.yScaler.classes_.shape[0]))
 
         
@@ -476,7 +476,7 @@ class DataLoader(AbstractDataLoader):
 
         # Allocate memory for the batches
         associated_files_batches = []
-        x_batches = np.zeros((0, self.CTX["TIMESTEPS"], self.CTX["FEATURES_IN"]))
+        x_batches = np.zeros((0, self.CTX["INPUT_LEN"], self.CTX["FEATURES_IN"]))
         y_batches = np.zeros((0, len(self.yScaler.classes_)))
 
         # Create the sliding window for each flight
@@ -486,7 +486,7 @@ class DataLoader(AbstractDataLoader):
 
 
             # Create array of windows fragments 
-            file_x = np.zeros((0, self.CTX["TIMESTEPS"], self.CTX["FEATURES_IN"]))
+            file_x = np.zeros((0, self.CTX["INPUT_LEN"], self.CTX["FEATURES_IN"]))
 
             # Pad the begining of the flight with zeros to have a prediction for the first timestep with the first window
             x[f] = np.concatenate([

@@ -4,6 +4,8 @@ import tensorflow as tf
 import struct
 import sys
 
+import pickle as pkl
+
 
 def float2bin(f):
     ''' Convert float to 64-bit binary string.
@@ -107,43 +109,6 @@ def base642float(b:str):
     b = b + "a" * (11 - len(b))
     return bin2float(base642bin(b))
 
-
-def write(file, array, level=0):
-    """
-    Write the array in the given path
-    """
-
-    if (isinstance(array, (tf.Variable, tf.Tensor))):
-        array = array.numpy()
-
-    if isinstance(array, (list, tuple, np.ndarray)):
-        file.write("[")
-
-
-        # if the element is not a list, tuple or np.ndarray
-        # it's a value
-        # so we write all the values in the same line
-        # else:
-        #     file.write("\t"*level+"[\n")
-        value_written = False
-        for i in range(len(array)):
-            if (isinstance(array[i], (tf.Variable, tf.Tensor))):
-                array[i] = array[i].numpy()
-
-            if isinstance(array[i], (list, tuple, np.ndarray)):
-                write(file, array[i], level+1)
-            else:
-                file.write(float2base64(array[i]))
-
-            if i != len(array)-1:
-                file.write(",")
-              
-        file.write("]")
-    
-    if (level == 0):
-        file.write("\n")
-        file.close()
-
 def parse(content, i = 0, level=0):
 
     array = []
@@ -186,21 +151,31 @@ def parse(content, i = 0, level=0):
 
 
 
-        
+
+
+def write(path, array, level=0):
+    """
+    Write the array in the given path
+    """
+
+    if (isinstance(array, (tf.Variable, tf.Tensor))):
+        array = array.numpy()
+
+    file = open(path, "wb")
+    pkl.dump(array, file)
+    file.close()
+
+
+
 
 def load(path):
     """
     Load the array from the given path
     """
-    f = open(path, "r")
-    content = f.read()
-    f.close()
-
-    
-    array = parse(content)[0]
-
+    file = open(path, "rb")
+    array = pkl.load(file)
+    file.close()
     return array
-
 
 
 

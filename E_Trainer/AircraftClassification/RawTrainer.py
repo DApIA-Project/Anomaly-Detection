@@ -273,7 +273,7 @@ class Trainer(AbstractTrainer):
             # save the input df + prediction in A_dataset/output/
             df = pd.read_csv(os.path.join("./A_Dataset/AircraftClassification/Eval", file))
 
-            if (self.CTX["PAD_MISSING_TIMESTEPS"]):
+            if (self.CTX["PAD_MISSING_INPUT_LEN"]):
                 # list all missing timestep in df["timestamp"] (sec)
                 print("pad missing timesteps for ", file, " ...")
                 missing_timestep_i = []
@@ -384,7 +384,7 @@ class Trainer(AbstractTrainer):
 
                 print(batch_y_.shape, batch_y.shape, flush=True)
 
-                if (self.CTX["PAD_MISSING_TIMESTEPS"]):
+                if (self.CTX["PAD_MISSING_INPUT_LEN"]):
                     # list all missing timestep in df["timestamp"] (sec)
                     print("pad missing timesteps for ", file, " ...")
                     missing_timestep_i = []
