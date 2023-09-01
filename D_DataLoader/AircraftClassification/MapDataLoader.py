@@ -125,13 +125,12 @@ class DataLoader(AbstractDataLoader):
         and the final label for the complete flight
     """
 
-    def __csv2array__(df, CTX):
-        # remove each row where lat or lon is nan
-        # df = df.dropna(subset=["latitude", "longitude"])
+    def __df2array__(df, CTX):
+        """
+        Convert a complete ADS-B trajectory dataframe into a numpy array
+        with the right features and preprocessing
+        """
 
-        # between each row, if the time value is not +1,
-        # padd the dataframe with the first row
-        # to have a continuous time series
         if (CTX["PAD_MISSING_INPUT_LEN"]):
             i = 0
             while (i < len(df)-1):
@@ -182,6 +181,9 @@ class DataLoader(AbstractDataLoader):
     MAP = np.array(Image.open("A_Dataset/AircraftClassification/map.png"), dtype=np.float32)
 
     def __icao2label__(CTX, icao, callsign):
+        """
+        Give the label of an aircraft based on his icao imatriculation
+        """
         global __icao_db__
         if __icao_db__ is None:
             labels_file = os.path.join("./A_Dataset/AircraftClassification/labels.csv")
@@ -255,7 +257,7 @@ class DataLoader(AbstractDataLoader):
             # set time as index
             df = pd.read_csv(os.path.join(path, file), sep=",",dtype={"callsign":str, "icao24":str})
 
-            array = DataLoader.__csv2array__(df, CTX)
+            array = DataLoader.__df2array__(df, CTX)
 
             # Get the aircraft right label for his imatriculation
             icao24 = df["icao24"].iloc[0]
@@ -273,48 +275,8 @@ class DataLoader(AbstractDataLoader):
             print("\r|"+done_20*"="+(20-done_20)*" "+f"| {(f+1)}/{len(data_files)}", end=" "*20)
         print("\n", flush=True)
         return x, y
-
-
-    def __init__(self, CTX, path) -> None:    
-        self.CTX = CTX
-        self.x, self.y = self.__get_dataset__(path)
-
-        # Create the scalers
-        self.xScaler = MinMaxScaler3D()
-        self.yScaler = SparceLabelBinarizer()
-
-
-        # Fit the y scaler
-        # x scaler will be fitted later after batch preprocessing
-        self.y = self.yScaler.fit_transform(self.y)
-        self.y = np.array(self.y, dtype=np.float32)
-
-
-        # Split the dataset into train and test according to the ratio in context
-        ratio = self.CTX["TEST_RATIO"]
-        split_index = int(len(self.x) * (1 - ratio))
-        self.x_train = self.x[:split_index]
-        self.y_train = self.y[:split_index]
-        self.x_test = self.x[split_index:]
-        self.y_test = self.y[split_index:]
-
-        # self.x_test = self.x_train.copy()
-        # self.y_test =  self.y_train.copy()
-
-        print("Train dataset size :", len(self.x_train))
-        print("Test dataset size :", len(self.x_test))
-
-
-        # load image as numpy array
-        path = "A_Dataset/AircraftClassification/map.png"
-        img = Image.open(path)
-        self.map =  np.array(img, dtype=np.float32)
-
-
-
-
     
-    def genImg(lat, lon, size):
+    def __genimg__(lat, lon, size):
         """Generate an image of the map with the flight at the center"""
 
 
@@ -360,6 +322,48 @@ class DataLoader(AbstractDataLoader):
         
         return img
 
+
+
+    def __init__(self, CTX, path) -> None:    
+        self.CTX = CTX
+        self.x, self.y = self.__get_dataset__(path)
+
+        # Create the scalers
+        self.xScaler = MinMaxScaler3D()
+        self.yScaler = SparceLabelBinarizer()
+
+
+        # Fit the y scaler
+        # x scaler will be fitted later after batch preprocessing
+        self.y = self.yScaler.fit_transform(self.y)
+        self.y = np.array(self.y, dtype=np.float32)
+
+
+        # Split the dataset into train and test according to the ratio in context
+        ratio = self.CTX["TEST_RATIO"]
+        split_index = int(len(self.x) * (1 - ratio))
+        self.x_train = self.x[:split_index]
+        self.y_train = self.y[:split_index]
+        self.x_test = self.x[split_index:]
+        self.y_test = self.y[split_index:]
+
+        # self.x_test = self.x_train.copy()
+        # self.y_test =  self.y_train.copy()
+
+        print("Train dataset size :", len(self.x_train))
+        print("Test dataset size :", len(self.x_test))
+
+
+        # load image as numpy array
+        path = "A_Dataset/AircraftClassification/map.png"
+        img = Image.open(path)
+        self.map =  np.array(img, dtype=np.float32)
+
+
+
+
+    
+    
 
 
     def genEpochTrain(self, nb_batch, batch_size):
@@ -451,7 +455,7 @@ class DataLoader(AbstractDataLoader):
 
             # generate map images associated with the flight 
             lat, lon = x_batches[n, -1, LAT_I], x_batches[n, -1, LON_I]
-            x_img[n] = DataLoader.genImg(lat, lon, self.CTX["IMG_SIZE"]) / 255.0
+            x_img[n] = DataLoader.__genimg__(lat, lon, self.CTX["IMG_SIZE"]) / 255.0
 
             # get label
             y_batches[n, :] = self.y_train[flight_i]
@@ -584,7 +588,7 @@ class DataLoader(AbstractDataLoader):
 
             # generate map images associated with the flight 
             lat, lon = x_batches[n, -1, LAT_I], x_batches[n, -1, LON_I]
-            x_img[n] = DataLoader.genImg(lat, lon, self.CTX["IMG_SIZE"]) / 255.0
+            x_img[n] = DataLoader.__genimg__(lat, lon, self.CTX["IMG_SIZE"]) / 255.0
 
             # get label
             y_batches[n, :] = self.y_test[flight_i]
@@ -610,45 +614,45 @@ class DataLoader(AbstractDataLoader):
 
     def genEval(self, path):
         """
-        Load evaluation flights in the folder of desired path.
-        Preprocess them same way as training flights, keep the full
-        sliding window along the whole flight, and finally
-        it keep a trace of the orriginal flight associated with each
-        fragment of sliding window to be able to compute the accuracy
-        and the final label for the complete flight
+        Load a flight for the evaluation process.
+        CSV are managed there one by one for memory issue.
+        As we need for each ads-b message a sliding window of
+        ~ 128 timesteps it can generate large arrays
+        Do the Preprocess in the same way as training flights
 
-        Called at the end of each training by the trainer
+        Called automatically by the trainer after the training phase.
 
 
         Parameters:
         ----------
 
         path : str
-            Path to the folder containing the evaluation flights
+            Path to the csv
 
         Returns:
         -------
-        x : np.array
+        x : np.array[flight_lenght, history, features]
             Inputs data for the model
+
+        img : np.array[flight_lenght, img_size, img_size, 3]
+            the map context
 
         y : np.array
             True labels associated with x batches
-
-        associated_files : list
-            List of the associated files for each fragment of sliding window
         """
 
         df = pd.read_csv(path, sep=",",dtype={"callsign":str, "icao24":str})
         icao = df["icao24"].iloc[0]
         callsign = df["callsign"].iloc[0]
 
-        array = DataLoader.__csv2array__(df, self.CTX)
+        # preprocess the trajectory
+        array = DataLoader.__df2array__(df, self.CTX)
         label = DataLoader.__icao2label__(self.CTX, icao, callsign)
         if (label == 0):
             return [], [], []
         y = self.yScaler.transform([label])[0]
 
-
+        # allocate the required memory
         x_batches = np.zeros((len(array), self.CTX["INPUT_LEN"], self.CTX["FEATURES_IN"]))
         x_img = np.zeros((len(array),self.CTX["IMG_SIZE"],self.CTX["IMG_SIZE"],3), dtype=np.float32)
         if (self.CTX["ADD_TAKE_OFF_CONTEXT"]):
@@ -658,7 +662,7 @@ class DataLoader(AbstractDataLoader):
         LAT_I = self.CTX["FEATURE_MAP"]["latitude"]
         LON_I = self.CTX["FEATURE_MAP"]["longitude"]
         
-        # Pad the begining of the flight with zeros to have a prediction for the first timestep with the first window
+        # generate the sub windows
         array = np.concatenate([
             np.full((self.CTX["HISTORY"] - 1, self.CTX["FEATURES_IN"]), array[0]),
             array], axis=0)
@@ -677,10 +681,10 @@ class DataLoader(AbstractDataLoader):
             y_batches[i] = y
 
             lat, lon = array[t-1, LAT_I], array[t-1, LON_I]
-            x_img[i] = DataLoader.genImg(lat, lon, self.CTX["IMG_SIZE"]) / 255.0
+            x_img[i] = DataLoader.__genimg__(lat, lon, self.CTX["IMG_SIZE"]) / 255.0
 
 
-        # Preprocess each batch and scale them
+        # Preprocess each batch and normalize
         x_batches = np.array([batchPreProcess(self.CTX, f, self.CTX["RELATIVE_POSITION"], self.CTX["RELATIVE_HEADING"], self.CTX["RANDOM_HEADING"]) for f in x_batches])
         
         if (self.CTX["ADD_TAKE_OFF_CONTEXT"]):

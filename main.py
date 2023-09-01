@@ -51,10 +51,6 @@ elif model== "Reservoir":
     Reservoir.__main__()
 
 
-<<<<<<< HEAD
-
-=======
 # restore rocm warnings
 if gpus:
     os.environ['TF_CPP_MIN_LOG_LEVEL'] = '0'
->>>>>>> bee7c82c3d9bfa9fc31afab0a95cd19282fad9d8

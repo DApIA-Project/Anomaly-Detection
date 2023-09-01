@@ -12,8 +12,9 @@ import os
 class Model(AbstactModel):
     """
     Convolutional neural network model for 
-    aircraft classification based on 
-    recordings of ADS-B data fragment.
+    aircraft trajectories classification based on 
+    trajectories. With the addition of an image context.
+    And the possibility to add a take-off context.
 
     Parameters:
     ------------
@@ -82,7 +83,7 @@ class Model(AbstactModel):
         z = zADSB
         Conv1DModule(11, 17, strides=4, padding="same")(z)
 
-        for f in [16, 32, 32]:
+        for f in [64, 128, 128]:
             for _ in range(n):
                 z = Conv1DModule(f, padding="same")(z)
             z = MaxPooling1D()(z)
@@ -98,9 +99,9 @@ class Model(AbstactModel):
             z = BatchNormalization()(z)
             z = Activation("relu")(z)
 
-            Conv1DModule(11, 17, strides=4, padding="same")(z)
+            Conv1DModule(32, 17, strides=4, padding="same")(z)
 
-            for f in [16, 32, 32]:
+            for f in [64, 128, 128]:
                 for _ in range(n):
                     z = Conv1DModule(f, padding="same")(z)
                 z = MaxPooling1D()(z)
@@ -118,10 +119,6 @@ class Model(AbstactModel):
 
         for _ in range(n):
             z_img = Conv2DModule(32, 3, padding="same")(z_img)
-        z_img = AveragePooling2D()(z_img)
-
-        for _ in range(n):
-            z_img = Conv2DModule(16, 3, padding="same")(z_img)
         z_img = AveragePooling2D()(z_img)
 
         for _ in range(n):
@@ -192,9 +189,9 @@ class Model(AbstactModel):
         # Assuming that if you train on GPU (GPU cluster) it mean that 
         # you don't need to check your model's architecture
         device = tf.test.gpu_device_name()
-        # if "GPU" not in device:
-        filename = os.path.join(save_path, self.name+".png")
-        tf.keras.utils.plot_model(self.model, to_file=filename, show_shapes=True)
+        if "GPU" not in device:
+            filename = os.path.join(save_path, self.name+".png")
+            tf.keras.utils.plot_model(self.model, to_file=filename, show_shapes=True)
 
 
     def getVariables(self):

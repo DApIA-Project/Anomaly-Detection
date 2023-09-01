@@ -386,7 +386,7 @@ class Trainer(AbstractTrainer):
     #             for b in range(0, len(x_batch), MAX_BATCH_SIZE):
     #                 batch_img_x = np.zeros((len(x_batch[b:b+MAX_BATCH_SIZE]), self.CTX["IMG_SIZE"], self.CTX["IMG_SIZE"], 3), dtype=np.float32)
     #                 for k in range(len(batch_img_x)):
-    #                     batch_img_x[k] = DataLoader.genImg(x_batch_lat_lon[b+k, 0], x_batch_lat_lon[b+k, 1], self.CTX["IMG_SIZE"])/255.0
+    #                     batch_img_x[k] = DataLoader.__genimg__(x_batch_lat_lon[b+k, 0], x_batch_lat_lon[b+k, 1], self.CTX["IMG_SIZE"])/255.0
 
     #                 y_batches_[b:b+MAX_BATCH_SIZE] = self.model.predict(x_batch[b:b+MAX_BATCH_SIZE], batch_img_x).numpy()
                 

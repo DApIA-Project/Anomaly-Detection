@@ -117,7 +117,7 @@ class DataLoader(AbstractDataLoader):
         fragment of sliding window to be able to compute the accuracy
         and the final label for the complete flight
     """
-    def __csv2array__(df, CTX):
+    def __df2array__(df, CTX):
 
         # remove each row where lat or lon is nan
         # df = df.dropna(subset=["latitude", "longitude"])
@@ -247,7 +247,7 @@ class DataLoader(AbstractDataLoader):
             if (label not in CTX["LABEL_FILTER"]):
                 continue
 
-            np_array = DataLoader.__csv2array__(df, CTX)
+            np_array = DataLoader.__df2array__(df, CTX)
 
 
             # Add the flight to the dataset
