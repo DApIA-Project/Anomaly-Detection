@@ -12,6 +12,8 @@ A_Dataset/
 
 scp_back
 
+./fix_icao.py
+
 
 
 _lib/*
