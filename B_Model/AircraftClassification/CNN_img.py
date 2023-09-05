@@ -74,14 +74,14 @@ class Model(AbstactModel):
         z = x
 
 
-        # split x in two parts of 11 features
-        zADSB = Lambda(lambda x: x[:, :, :11])(z)
-        if self.CTX["ADD_TAKE_OFF_CONTEXT"]:
-            zContext = Lambda(lambda x: x[:, :, 11:])(z)
+        # # split x in two parts of 11 features
+        # zADSB = Lambda(lambda x: x[:, :, :11])(z)
+        # if self.CTX["ADD_TAKE_OFF_CONTEXT"]:
+        #     zContext = Lambda(lambda x: x[:, :, 11:])(z)
 
         # stem layer
-        z = zADSB
-        Conv1DModule(11, 17, strides=4, padding="same")(z)
+        # z = zADSB
+        Conv1DModule(64, 9, strides=4, padding="same")(z)
 
         for f in [64, 128, 128]:
             for _ in range(n):
@@ -91,34 +91,35 @@ class Model(AbstactModel):
         zADSB = Flatten()(z)
 
 
-        if self.CTX["ADD_TAKE_OFF_CONTEXT"]:
+        # if self.CTX["ADD_TAKE_OFF_CONTEXT"]:
 
-            z1 = zContext
+        #     z1 = zContext
 
-            z = Conv1D(32, 1, padding="same")(z1)
-            z = BatchNormalization()(z)
-            z = Activation("relu")(z)
+        #     z = Conv1D(32, 1, padding="same")(z1)
+        #     z = BatchNormalization()(z)
+        #     z = Activation("relu")(z)
 
-            Conv1DModule(32, 17, strides=4, padding="same")(z)
+        #     Conv1DModule(64, 17, strides=4, padding="same")(z)
 
-            for f in [64, 128, 128]:
-                for _ in range(n):
-                    z = Conv1DModule(f, padding="same")(z)
-                z = MaxPooling1D()(z)
+        #     for f in [64, 128, 128]:
+        #         for _ in range(n):
+        #             z = Conv1DModule(f, padding="same")(z)
+        #         z = MaxPooling1D()(z)
 
-            zContext = Flatten()(z)
+        #     zContext = Flatten()(z)
 
 
         input_shape_img = (self.CTX["IMG_SIZE"], self.CTX["IMG_SIZE"], 3)
         x_img = tf.keras.Input(shape=input_shape_img, name='input_img')
         z_img = x_img
         
+        n=1
         for _ in range(n):
-            z_img = Conv2DModule(16, 3, padding="same")(z_img)
+            z_img = Conv2DModule(64, 3, padding="same")(z_img)
         z_img = AveragePooling2D()(z_img)
 
         for _ in range(n):
-            z_img = Conv2DModule(32, 3, padding="same")(z_img)
+            z_img = Conv2DModule(64, 3, padding="same")(z_img)
         z_img = AveragePooling2D()(z_img)
 
         for _ in range(n):
@@ -127,10 +128,10 @@ class Model(AbstactModel):
 
         z_img = Flatten()(z_img)
 
-        if self.CTX["ADD_TAKE_OFF_CONTEXT"]:
-            z = Concatenate()([zADSB, zContext, z_img])
-        else:
-            z = Concatenate()([zADSB, z_img])
+        # if self.CTX["ADD_TAKE_OFF_CONTEXT"]:
+        #     z = Concatenate()([zADSB, zContext, z_img])
+        # else:
+        z = Concatenate()([zADSB, z_img])
 
         z = DenseModule(256, dropout=self.dropout)(z)
 

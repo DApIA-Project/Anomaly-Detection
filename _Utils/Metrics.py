@@ -55,3 +55,15 @@ def perClassAccuracy(y, y_):
     diag = np.diag(mat)
     diag = diag / np.sum(mat, axis=1)
     return diag * 100
+
+
+def computeTimeserieVarienceRate(x):
+
+    # x : [len]
+
+    if (len(x) == 0):
+        return 0
+    if (len(x) == 1):
+        return 0
+
+    return np.mean(np.abs(np.diff(x)))

@@ -1,11 +1,11 @@
 
-LEARNING_RATE = 0.00008
+LEARNING_RATE = 0.00006
 EPOCHS = 80
-BATCH_SIZE = 256
+BATCH_SIZE = 128
 NB_BATCH = 32
 
 
-HISTORY = 256
+HISTORY = 128
 DILATION_RATE = 2
 INPUT_LEN = HISTORY // DILATION_RATE
 
@@ -17,7 +17,7 @@ TRAINING_NOISE = 0.0
 
 
 LAYERS = 2
-DROPOUT = 0.3
+DROPOUT = 0.2
 
 
 USED_FEATURES = [
@@ -31,17 +31,17 @@ USED_FEATURES = [
 FEATURES_IN = len(USED_FEATURES)
 FEATURE_MAP = dict([[USED_FEATURES[i], i] for i in range(len(USED_FEATURES))])
 
-ADD_TAKE_OFF_CONTEXT = False
+ADD_TAKE_OFF_CONTEXT = True
 
 MERGE_LABELS = { # no merge by default
-    2: [1, 2, 3, 4], # PLANE
-    5: [6], # MEDIUM
-    9: [9,12], # HELICOPTER
-    # 10: [7, 10], # ULM
-    # 12: [12,], # SAMU
-    # 11: [11,], # military
+    2: [1, 2, 3, 4, 5], # PLANE
+    # 5: [5], # Normal
+    6: [6, 7, 10], # SMALL
+    9: [9, 12], # HELICOPTER
+    # 12: [12], # SAMU
+    11: [11], # military
 
-    0: [5, 7, 10, 8, 11] # not classified
+    0: [8] # not classified
 }
 FEATURES_OUT = len(MERGE_LABELS)-1
 

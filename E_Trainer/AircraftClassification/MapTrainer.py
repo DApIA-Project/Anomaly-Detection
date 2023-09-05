@@ -3,7 +3,7 @@
 
 import _Utils.mlflow as mlflow
 import _Utils.Metrics as Metrics
-from _Utils.save import write, load
+from _Utils.save import write, load, formatJson
 
 
 from B_Model.AbstractModel import Model as _Model_
@@ -19,6 +19,9 @@ import os
 import matplotlib.pyplot as plt 
 
 import time
+import json
+
+
 
 
 
@@ -226,6 +229,8 @@ class Trainer(AbstractTrainer):
 
         failed_files = []
 
+        # clear output eval folder
+        os.system("rm ./A_Dataset/AircraftClassification/Outputs/Eval/*")
 
         for i in range(len(files)):
             LEN = 20
@@ -266,10 +271,9 @@ class Trainer(AbstractTrainer):
             global_correct_count += 1 if (pred_count == true) else 0
             global_correct_max += 1 if (pred_max == true) else 0
 
-            # print(global_pred_max, global_true)
-            
+            # print(global_pred_max, global_true)            
             if (pred_max != true):
-                failed_files.append((file, self.dl.yScaler.classes_[true]))
+                failed_files.append((file, int(self.dl.yScaler.classes_[true]), int(self.dl.yScaler.classes_[pred_max])))
 
             
             # compute binary (0/1) correct prediction
@@ -327,7 +331,34 @@ class Trainer(AbstractTrainer):
         # print files of failed predictions
         print("failed files : ")
         for i in range(len(failed_files)):
-            print("\t-",failed_files[i][0], " label : ", failed_files[i][1])
+            print("\t-",failed_files[i][0], "\tY : ", failed_files[i][1], " Ŷ : ", failed_files[i][2], sep="", flush=True)
+
+        # fail counter
+        if os.path.exists("./_Artefact/"+self.model.name+".fails.json"):
+            file = open("./_Artefact/"+self.model.name+".fails.json", "r")
+            json_ = file.read()
+            file.close()
+            fails = json.loads(json_)
+            
+            fails = {}
+        else:
+            fails = {}
+
+        for i in range(len(failed_files)):
+            if (failed_files[i][0] not in fails):
+                fails[failed_files[i][0]] = {}
+            if (failed_files[i][1] not in fails[failed_files[i][0]]):
+                fails[failed_files[i][0]][failed_files[i][1]] = 1
+            else:
+                fails[failed_files[i][0]][failed_files[i][1]] += 1
+        # sort by nb of fails
+        fails = {k: v for k, v in sorted(fails.items(), key=lambda item: sum(item[1].values()), reverse=True)}
+        json_ = json.dumps(fails)
+        
+
+        file = open("./_Artefact/"+self.model.name+".fails.json", "w")
+        file.write(formatJson(json_))
+
 
         print("", flush=True)
 

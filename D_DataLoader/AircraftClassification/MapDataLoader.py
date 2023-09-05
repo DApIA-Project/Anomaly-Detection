@@ -17,6 +17,8 @@ from D_DataLoader.AircraftClassification.Utils import batchPreProcess, add_noise
 
 import time
 
+from _Utils.Metrics import computeTimeserieVarienceRate
+
 
 __icao_db__ = None
 
@@ -335,6 +337,7 @@ class DataLoader(AbstractDataLoader):
 
         # Fit the y scaler
         # x scaler will be fitted later after batch preprocessing
+        print(self.y)
         self.y = self.yScaler.fit_transform(self.y)
         self.y = np.array(self.y, dtype=np.float32)
 
@@ -384,6 +387,7 @@ class DataLoader(AbstractDataLoader):
 
         LAT_I = self.CTX["FEATURE_MAP"]["latitude"]
         LON_I = self.CTX["FEATURE_MAP"]["longitude"]
+        ALT_I = self.CTX["FEATURE_MAP"]["altitude"]
 
         label_i = -1
         time_step = -1
@@ -396,20 +400,36 @@ class DataLoader(AbstractDataLoader):
             if (BALENCED_LABEL):
                 # Pick flight based on a label to have a balanced dataset
                 # And find a flight with this label
-                # label_i = np.random.randint(0, self.yScaler.classes_.shape[0])
-                label_i = n % self.yScaler.classes_.shape[0] # TODO very well balanced dataset
-                flight_i = -1
-                while flight_i == -1 or self.y_train[flight_i, label_i] != 1:
-                    flight_i = np.random.randint(0, len(self.x_train))
-                # Pick a random fragment of this flight (starting timestep) (can start before the flight to simulate a new incoming flight with missing data)
-                time_step = np.random.randint(-self.CTX["HISTORY"]+1, len(self.x_train[flight_i]) - self.CTX["HISTORY"])
-            else:
-                # Pick a random flight
-                flight_i = np.random.randint(0, len(self.x_train))
-                # get his label
-                label_i = np.argmax(self.y_train[flight_i])
-                # Pick a random fragment of this flight (starting timestep) (can start before the flight to simulate a new incoming flight with missing data)
-                time_step = np.random.randint(-self.CTX["HISTORY"]+1, len(self.x_train[flight_i]) - self.CTX["HISTORY"])
+                label_i = np.random.randint(0, self.yScaler.classes_.shape[0])
+                # label_i = n % self.yScaler.classes_.shape[0] # TODO very well balanced dataset
+                while True:
+                    flight_i = -1
+                    while flight_i == -1 or self.y_train[flight_i, label_i] != 1:
+                        flight_i = np.random.randint(0, len(self.x_train))
+                    # Pick a random fragment of this flight (starting timestep)
+                    # check if the fragment is interesting, with a high enough variance on the altitude
+                    time_step = -1
+                    max_try = 100
+                    negative = np.random.randint(0, 100) <= 5
+                    while(time_step == -1 or (not(negative) > 0 and\
+                        computeTimeserieVarienceRate(self.x_train[flight_i][time_step:time_step+self.CTX["HISTORY"], ALT_I]) < 4.0)):
+                        if (negative):
+                            time_step = np.random.randint(-self.CTX["HISTORY"]+1, 0)
+                        else:
+                            time_step = np.random.randint(0, len(self.x_train[flight_i]) - self.CTX["HISTORY"])
+                        max_try -= 1
+                        if (max_try == 0):
+                            break # stop infinite loop and rety
+
+                    if (max_try != 0):
+                        break # success stop retrying
+            # else:
+            #     # Pick a random flight
+            #     flight_i = np.random.randint(0, len(self.x_train))
+            #     # get his label
+            #     label_i = np.argmax(self.y_train[flight_i])
+            #     # Pick a random fragment of this flight (starting timestep) (can start before the flight to simulate a new incoming flight with missing data)
+            #     time_step = np.random.randint(-self.CTX["HISTORY"]+1, len(self.x_train[flight_i]) - self.CTX["HISTORY"])
 
             # compute the bounds of the fragment
             start = max(0, time_step)
@@ -469,6 +489,7 @@ class DataLoader(AbstractDataLoader):
             # (localization of where is the takeoff very important !!!)
             if (self.CTX["ADD_TAKE_OFF_CONTEXT"]):
                 x_batches_takeoff[n, :, :] = batchPreProcess(self.CTX, x_batches_takeoff[n, :, :])
+
 
 
         # concatenate the takeoff context to the flight data
