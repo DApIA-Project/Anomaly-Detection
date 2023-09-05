@@ -346,11 +346,11 @@ class Trainer(AbstractTrainer):
 
         for i in range(len(failed_files)):
             if (failed_files[i][0] not in fails):
-                fails[failed_files[i][0]] = {}
-            if (failed_files[i][1] not in fails[failed_files[i][0]]):
-                fails[failed_files[i][0]][failed_files[i][1]] = 1
+                fails[failed_files[i][0]] = {"Y":failed_files[i][1]}
+            if (failed_files[i][2] not in fails[failed_files[i][0]]):
+                fails[failed_files[i][0]][failed_files[i][2]] = 1
             else:
-                fails[failed_files[i][0]][failed_files[i][1]] += 1
+                fails[failed_files[i][0]][failed_files[i][2]] += 1
         # sort by nb of fails
         fails = {k: v for k, v in sorted(fails.items(), key=lambda item: sum(item[1].values()), reverse=True)}
         json_ = json.dumps(fails)
