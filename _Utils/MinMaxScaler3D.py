@@ -28,10 +28,10 @@ class MinMaxScaler3D:
 
         for b in range(len(X)):
             # for f in range(len(X[b][0])):
-            _min = np.min(X[b], axis=0)
-            _max = np.max(X[b], axis=0)
-            self.mins = np.min([self.mins, _min], axis=0)
-            self.maxs = np.max([self.maxs, _max], axis=0)
+            _min = np.nanmin(X[b], axis=0)
+            _max = np.nanmax(X[b], axis=0)
+            self.mins = np.nanmin([self.mins, _min], axis=0)
+            self.maxs = np.nanmax([self.maxs, _max], axis=0)
         return self
 
     def transform(self, X):

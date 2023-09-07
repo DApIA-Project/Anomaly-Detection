@@ -52,58 +52,6 @@ def distance_with_bounding_box_border(lat, lon):
 
    
 
-# def post_process_preds(y_, df):
-#     """
-#     post process predictions
-#     y_: np.array of shape (timesteps, class_probability)
-
-#     return: 0, 1, 2, ..., n, the most probable class
-#     """
-
-#     # remove predictions with a distance to the border of the bounding box < 1000m
-#     start = 0
-#     end = len(y_) - 1
-#     while (start < len(y_) and distance_with_bounding_box_border(df["latitude"].iloc[start], df["longitude"].iloc[start]) < 5000):
-#         start += 1
-#     while (end >= 0 and distance_with_bounding_box_border(df["latitude"].iloc[end], df["longitude"].iloc[end]) < 5000):
-#         end -= 1
-
-#     sub_y_ = y_.copy()
-#     sub_df = df.copy()
-
-#     if (end - start >= 500):
-#         sub_y_ = y_[start:end+1]
-#         sub_df = df.iloc[start:end+1]
-    
-
-
-#     models_confidency = np.max(sub_y_, axis=1)
-
-#     if (False):
-#         tmp_labels = np.argmax(sub_y_, axis=1)
-#         colors = ['tab:red', 'tab:blue', 'tab:green', 'tab:orange', 'tab:purple', 'tab:brown', 'tab:pink', 'tab:gray', 'tab:olive', 'tab:cyan']
-#         # plot confidence line, with color depending on the predicted class
-#         for i in range(len(SCALER_LABELS)):
-#             wre = np.where(tmp_labels==i)
-#             conf = models_confidency[wre]
-#             ts = df["timestamp"].iloc[wre]
-#             plt.scatter(ts, conf, c=colors[i], s=1, label=SCALER_LABELS[i])
-#         plt.legend()
-#         plt.show()
-    
-
-#     # sort y_ by confidence
-#     y_sorted = sub_y_[np.argsort(models_confidency)]
-
-#     P = 100
-#     y_important = y_sorted[-P:]
-
-#     # mean
-#     mean = np.mean(y_important, axis=0)
-#     return np.argmax(mean)
-
-
-
 def post_process_preds(y_, df):
     """
     post process predictions
@@ -128,47 +76,99 @@ def post_process_preds(y_, df):
         sub_df = df.iloc[start:end+1]
     
 
-    per_timestep_label_pred = np.argmax(sub_y_, axis=1)
 
-    # split into area of consecutive same predictions
-    # [
-    #   [Start, End, Label],
-    #   [Start, End, Label],
-    #   ...
-    # ]
-    split = []
-    start = 0
-    end = 0
-    label = per_timestep_label_pred[0]
-    for i in range(1, len(per_timestep_label_pred)):
-        if (per_timestep_label_pred[i] != label):
-            split.append([start, end, label])
-            start = i
-            end = i
-            label = per_timestep_label_pred[i]
-        else:
-            end = i
-    split.append([start, end, label])
+    models_confidency = np.max(sub_y_, axis=1)
 
-    # remove area with less than 5% of the total time
-    to_remove = []
-    for i in range(len(split)):
-        lenght = split[i][1] - split[i][0]
-        if (lenght / len(sub_y_) * 100 < 5):
-            to_remove.append(i)
+    if (False):
+        tmp_labels = np.argmax(sub_y_, axis=1)
+        colors = ['tab:red', 'tab:blue', 'tab:green', 'tab:orange', 'tab:purple', 'tab:brown', 'tab:pink', 'tab:gray', 'tab:olive', 'tab:cyan']
+        # plot confidence line, with color depending on the predicted class
+        for i in range(len(SCALER_LABELS)):
+            wre = np.where(tmp_labels==i)
+            conf = models_confidency[wre]
+            ts = df["timestamp"].iloc[wre]
+            plt.scatter(ts, conf, c=colors[i], s=1, label=SCALER_LABELS[i])
+        plt.legend()
+        plt.show()
     
-    for i in reversed(to_remove):
-        split.pop(i)
 
-    pred = np.zeros(len(SCALER_LABELS))
+    # sort y_ by confidence
+    y_sorted = sub_y_[np.argsort(models_confidency)]
 
-    for i in range(len(split)):
-        window = sub_y_[split[i][0]:split[i][1]+1]
-        label = split[i][2]
+    P = 100
+    y_important = y_sorted[-P:]
 
-        pred[label] += np.sum(window[:, label], axis=0)
+    # mean
+    mean = np.mean(y_important, axis=0)
+    return np.argmax(mean)
 
-    return np.argmax(pred)
+
+
+# def post_process_preds(y_, df):
+#     """
+#     post process predictions
+#     y_: np.array of shape (timesteps, class_probability)
+
+#     return: 0, 1, 2, ..., n, the most probable class
+#     """
+
+#     # remove predictions with a distance to the border of the bounding box < 1000m
+#     start = 0
+#     end = len(y_) - 1
+#     while (start < len(y_) and distance_with_bounding_box_border(df["latitude"].iloc[start], df["longitude"].iloc[start]) < 5000):
+#         start += 1
+#     while (end >= 0 and distance_with_bounding_box_border(df["latitude"].iloc[end], df["longitude"].iloc[end]) < 5000):
+#         end -= 1
+
+#     sub_y_ = y_.copy()
+#     sub_df = df.copy()
+
+#     if (end - start >= 500):
+#         sub_y_ = y_[start:end+1]
+#         sub_df = df.iloc[start:end+1]
+    
+
+#     per_timestep_label_pred = np.argmax(sub_y_, axis=1)
+
+#     # split into area of consecutive same predictions
+#     # [
+#     #   [Start, End, Label],
+#     #   [Start, End, Label],
+#     #   ...
+#     # ]
+#     split = []
+#     start = 0
+#     end = 0
+#     label = per_timestep_label_pred[0]
+#     for i in range(1, len(per_timestep_label_pred)):
+#         if (per_timestep_label_pred[i] != label):
+#             split.append([start, end, label])
+#             start = i
+#             end = i
+#             label = per_timestep_label_pred[i]
+#         else:
+#             end = i
+#     split.append([start, end, label])
+
+#     # remove area with less than 5% of the total time
+#     to_remove = []
+#     for i in range(len(split)):
+#         lenght = split[i][1] - split[i][0]
+#         if (lenght / len(sub_y_) * 100 < 5):
+#             to_remove.append(i)
+    
+#     for i in reversed(to_remove):
+#         split.pop(i)
+
+#     pred = np.zeros(len(SCALER_LABELS))
+
+#     for i in range(len(split)):
+#         window = sub_y_[split[i][0]:split[i][1]+1]
+#         label = split[i][2]
+
+#         pred[label] += np.sum(window[:, label], axis=0)
+
+#     return np.argmax(pred)
 
 
 

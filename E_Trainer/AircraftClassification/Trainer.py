@@ -7,7 +7,7 @@ from _Utils.save import write, load, formatJson
 
 
 from B_Model.AbstractModel import Model as _Model_
-from D_DataLoader.AircraftClassification.MapDataLoader import DataLoader
+from D_DataLoader.AircraftClassification.DataLoader import DataLoader
 from E_Trainer.AbstractTrainer import Trainer as AbstractTrainer
 
 
@@ -21,6 +21,21 @@ import matplotlib.pyplot as plt
 import time
 import json
 
+def reshape(x):
+    """
+    x = [batch size][[x],[takeoff],[map]]
+    x = [[x of batch size], [takeoff of batch size], [map of batch size]]
+    """
+    x_reshaped = []
+    for i in range(len(x[0])):
+        x_reshaped.append([])
+
+        for j in range(len(x)):
+            x_reshaped[i].append(x[j][i])
+
+        x_reshaped[i] = np.array(x_reshaped[i])
+
+    return x_reshaped
 
 
 
@@ -80,35 +95,41 @@ class Trainer(AbstractTrainer):
             os.makedirs("./_Artefact")
 
 
+
+
+
     def train(self):
         """
         Train the model.
         Plot the loss curves into Artefacts folder.
         """
+        CTX = self.CTX
         
         history = [[], []]
 
         best_variables = None
         best_loss= 10000000
 
-        for ep in range(1, self.CTX["EPOCHS"] + 1):
+        for ep in range(1, CTX["EPOCHS"] + 1):
             ##############################
             #         Training           #
             ##############################
             start = time.time()
-            x_batches, x_img, y_batches = self.dl.genEpochTrain(self.CTX["NB_BATCH"], self.CTX["BATCH_SIZE"])
+            x_inputs, y_batches = self.dl.genEpochTrain(CTX["NB_BATCH"], CTX["BATCH_SIZE"])
+
+            print(np.array(x_inputs).shape, flush=True)
 
             train_loss = 0
             train_y_ = []
             train_y = []
-            for batch in range(len(x_batches)):
-                loss, output = self.model.training_step(x_batches[batch], x_img[batch], y_batches[batch])
+            for batch in range(len(x_inputs)):
+                loss, output = self.model.training_step(x_inputs[batch], y_batches[batch])
                 train_loss += loss
 
                 train_y_.append(output)
                 train_y.append(y_batches[batch])
 
-            train_loss /= len(x_batches)
+            train_loss /= len(x_inputs)
             train_y_ = np.concatenate(train_y_, axis=0)
             train_y = np.concatenate(train_y, axis=0)
 
@@ -118,20 +139,19 @@ class Trainer(AbstractTrainer):
             ##############################
             #          Testing           #
             ##############################
-            test_x, x_img, test_y = self.dl.genEpochTest()
+            x_inputs, test_y = self.dl.genEpochTest()
             test_loss = 0
             n = 0
-            test_y_ = np.zeros((len(test_x), self.CTX["FEATURES_OUT"]), dtype=np.float32)
-            for batch in range(0, len(test_x), self.CTX["BATCH_SIZE"]):
-                sub_test_x = test_x[batch:batch+self.CTX["BATCH_SIZE"]]
-                sub_x_img = x_img[batch:batch+self.CTX["BATCH_SIZE"]]
-                sub_test_y = test_y[batch:batch+self.CTX["BATCH_SIZE"]]
+            test_y_ = np.zeros((len(x_inputs), CTX["FEATURES_OUT"]), dtype=np.float32)
+            for batch in range(0, len(x_inputs), CTX["BATCH_SIZE"]):
+                sub_test_x = x_inputs[batch:batch+CTX["BATCH_SIZE"]]
+                sub_test_y = test_y[batch:batch+CTX["BATCH_SIZE"]]
 
-                sub_loss, sub_output = self.model.compute_loss(sub_test_x, sub_x_img, sub_test_y)
+                sub_loss, sub_output = self.model.compute_loss(reshape(sub_test_x), sub_test_y)
 
                 test_loss += sub_loss
                 n += 1
-                test_y_[batch:batch+self.CTX["BATCH_SIZE"]] = sub_output
+                test_y_[batch:batch+CTX["BATCH_SIZE"]] = sub_output
 
             test_loss /= n
             test_acc = Metrics.perClassAccuracy(test_y, test_y_)
@@ -139,7 +159,7 @@ class Trainer(AbstractTrainer):
 
             # Verbose area
             print()
-            print(f"Epoch {ep}/{self.CTX['EPOCHS']} - train_loss: {train_loss:.4f} - test_loss: {test_loss:.4f} - time: {time.time() - start:.0f}s" , flush=True)
+            print(f"Epoch {ep}/{CTX['EPOCHS']} - train_loss: {train_loss:.4f} - test_loss: {test_loss:.4f} - time: {time.time() - start:.0f}s" , flush=True)
             print()
             print("classes   : ", "|".join([str(int(round(v, 0))).rjust(3, " ") for v in self.dl.yScaler.classes_]))
             print("train_acc : ", "|".join([str(int(round(v, 0))).rjust(3, " ") for v in train_acc]))
@@ -196,10 +216,18 @@ class Trainer(AbstractTrainer):
 
 
         write("./_Artefact/"+self.model.name+".w", self.model.getVariables())
-
+        write("./_Artefact/"+self.model.name+".xts", self.dl.xTakeOffScaler.getVariables())
         write("./_Artefact/"+self.model.name+".xs", self.dl.xScaler.getVariables())
-
         write("./_Artefact/"+self.model.name+".ys", self.dl.yScaler.getVariables())
+
+    def load(self):
+        """
+        Load the model's weights from the _Artefact folder
+        """
+        self.model.setVariables(load("./_Artefact/"+self.model.name+".w"))
+        self.dl.xScaler.setVariables(load("./_Artefact/"+self.model.name+".xs"))
+        self.dl.xTakeOffScaler.setVariables(load("./_Artefact/"+self.model.name+".xts"))
+        self.dl.yScaler.setVariables(load("./_Artefact/"+self.model.name+".ys"))
 
 
     def eval(self):
@@ -213,7 +241,7 @@ class Trainer(AbstractTrainer):
         metrics : dict
             The metrics dictionary of the model's performance
         """
-
+        CTX = self.CTX
         FOLDER = "./A_Dataset/AircraftClassification/Eval"
         files = os.listdir(FOLDER)
         files = [file for file in files if file.endswith(".csv")]
@@ -239,22 +267,17 @@ class Trainer(AbstractTrainer):
 
 
             file = files[i]
-            x_batches, x_img, y_batches = self.dl.genEval(os.path.join(FOLDER, file))
-            if (len(x_batches) == 0): # skip empty file (no label)
-                # print("[WARNING] no label for file : ", file, flush=True)
+            x_inputs, y_batches = self.dl.genEval(os.path.join(FOLDER, file))
+            if (len(x_inputs) == 0): # skip empty file (no label)
                 continue
 
-
-
             start = time.time()
-            y_batches_ = np.zeros((len(x_batches), nb_classes), dtype=np.float32)
-            for b in range(0, len(x_batches), self.CTX["BATCH_SIZE"]):
-                x_batch = x_batches[b:b+self.CTX["BATCH_SIZE"]]
-                x_i = x_img[b:b+self.CTX["BATCH_SIZE"]]
+            y_batches_ = np.zeros((len(x_inputs), nb_classes), dtype=np.float32)
 
-
-                pred =  self.model.predict(x_batch, x_i).numpy()
-                y_batches_[b:b+self.CTX["BATCH_SIZE"]] = pred
+            for b in range(0, len(x_inputs), CTX["BATCH_SIZE"]):
+                x_batch = x_inputs[b:b+CTX["BATCH_SIZE"]]
+                pred =  self.model.predict(reshape(x_batch)).numpy()
+                y_batches_[b:b+CTX["BATCH_SIZE"]] = pred
 
 
 
@@ -277,9 +300,9 @@ class Trainer(AbstractTrainer):
 
             
             # compute binary (0/1) correct prediction
-            correct_predict = np.full((len(x_batches)), np.nan, dtype=np.float32)
+            correct_predict = np.full((len(x_inputs)), np.nan, dtype=np.float32)
             #   start at history to remove padding
-            for t in range(0, len(x_batches)):
+            for t in range(0, len(x_inputs)):
                 correct_predict[t] = np.argmax(y_batches_[t]) == np.argmax(y_batches[t])
             # check if A_dataset/output/ doesn't exist, create it
             if not os.path.exists("./A_Dataset/AircraftClassification/Outputs/Eval"):
@@ -289,7 +312,7 @@ class Trainer(AbstractTrainer):
             # save the input df + prediction in A_dataset/output/
             df = pd.read_csv(os.path.join("./A_Dataset/AircraftClassification/Eval", file))
 
-            if (self.CTX["PAD_MISSING_INPUT_LEN"]):
+            if (CTX["PAD_MISSING_INPUT_LEN"]):
                 # list all missing timestep in df["timestamp"] (sec)
                 print("pad missing timesteps for ", file, " ...")
                 missing_timestep_i = []
@@ -417,7 +440,7 @@ class Trainer(AbstractTrainer):
     #             for b in range(0, len(x_batch), MAX_BATCH_SIZE):
     #                 batch_img_x = np.zeros((len(x_batch[b:b+MAX_BATCH_SIZE]), self.CTX["IMG_SIZE"], self.CTX["IMG_SIZE"], 3), dtype=np.float32)
     #                 for k in range(len(batch_img_x)):
-    #                     batch_img_x[k] = DataLoader.__genimg__(x_batch_lat_lon[b+k, 0], x_batch_lat_lon[b+k, 1], self.CTX["IMG_SIZE"])/255.0
+    #                     batch_img_x[k] = DataLoader.genMap(x_batch_lat_lon[b+k, 0], x_batch_lat_lon[b+k, 1], self.CTX["IMG_SIZE"])/255.0
 
     #                 y_batches_[b:b+MAX_BATCH_SIZE] = self.model.predict(x_batch[b:b+MAX_BATCH_SIZE], batch_img_x).numpy()
                 

@@ -52,7 +52,11 @@ class Trainer:
         metrics : dict
             The metrics dictionary of the model's performance
         """
-        self.train()
+        if (self.CTX["EPOCHS"] > 0):
+            self.train()
+        else:
+            self.load()
+
         # return {} # leave early
         return self.eval()
 
@@ -64,6 +68,12 @@ class Trainer:
         raise NotImplementedError
 
         # train you'r model as you want here
+
+    def load(self):
+        """
+        Load the model from a file
+        """
+        raise NotImplementedError
 
     def eval(self):
         """

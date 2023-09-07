@@ -63,13 +63,27 @@ class Model(AbstactModel):
 
         # save the number of training steps
         self.nb_train = 0
-    
 
-        # build model's architecture
-        feature_in = self.CTX["FEATURES_IN"] * (2 if self.CTX["ADD_TAKE_OFF_CONTEXT"] else 1)
-        input_shape = (self.CTX["INPUT_LEN"], feature_in)
-        x = tf.keras.Input(shape=input_shape, name='input')
-        z = x
+
+        x_input_shape = (self.CTX["INPUT_LEN"], self.CTX["FEATURES_IN"])
+        if (CTX["ADD_TAKE_OFF_CONTEXT"]): takeoff_input_shape = (self.CTX["INPUT_LEN"], self.CTX["FEATURES_IN"])
+        if (CTX["ADD_MAP_CONTEXT"]): map_input_shape = (self.CTX["IMG_SIZE"], self.CTX["IMG_SIZE"], 3)
+    
+        x = tf.keras.Input(shape=x_input_shape, name='input')
+        inputs = [x]
+        if (CTX["ADD_TAKE_OFF_CONTEXT"]): 
+            takeoff = tf.keras.Input(shape=takeoff_input_shape, name='takeoff')
+            inputs.append(takeoff)
+
+        if (CTX["ADD_MAP_CONTEXT"]): 
+            map = tf.keras.Input(shape=map_input_shape, name='map')
+            inputs.append(map)
+
+        # concat takeoff and x
+        if (CTX["ADD_TAKE_OFF_CONTEXT"]): 
+            z = Concatenate(axis=2)([x, takeoff])
+        else:
+            z = x
 
         # stem layer
         z = Conv1D(32, 7, strides=2, padding="same")(z)
@@ -88,14 +102,34 @@ class Model(AbstactModel):
         # z = GlobalAveragePooling1D()(z)
         z = Flatten()(z)
 
+        if (CTX["ADD_MAP_CONTEXT"]):
+            z = map
+
+            n=1
+            for _ in range(n):
+                z_img = Conv2DModule(64, 3, padding="same")(z_img)
+            z_img = MaxPooling2D()(z_img)
+
+            for _ in range(n):
+                z_img = Conv2DModule(64, 3, padding="same")(z_img)
+            z_img = MaxPooling2D()(z_img)
+
+            for _ in range(n):
+                z_img = Conv2DModule(16, 3, padding="same")(z_img)
+            z_img = GlobalAveragePooling2D()(z_img)
+            z_img = Flatten()(z_img)
+
+        
+        to_concat = [z]
+        if (CTX["ADD_MAP_CONTEXT"]): to_concat.append(z_img)
+
+        z = Concatenate()(to_concat)
         z = DenseModule(256, dropout=self.dropout)(z)
-        z = DenseModule(32, dropout=self.dropout)(z)
-        z = Dense(self.outs, activation=self.CTX["ACTIVATION"])(z)
-
+        z = Dense(self.outs, activation="softmax")(z)
         y = z
-
-
-        self.model = tf.keras.Model(inputs=[x], outputs=[y])
+            
+            
+        self.model = tf.keras.Model(inputs, y)
 
 
         # define loss function

@@ -8,7 +8,7 @@ import C_Constants.AircraftClassification.CNN as CTX
 import C_Constants.AircraftClassification.DefaultCTX as DefaultCTX
 
 # Import the training loop adapted to the model
-from E_Trainer.AircraftClassification.RawTrainer import Trainer
+from E_Trainer.AircraftClassification.Trainer import Trainer
 
 # Choose the training method
 #   * simple_fit: Classical way to fit the model : once

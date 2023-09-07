@@ -84,7 +84,7 @@ def __preprocess__(timestamp,latitude,longitude,groundspeed,track,vertical_rate,
     )
 
 
-    array = DataLoader.__df2array__(df, CTX)
+    array = DataLoader.dfToFeatures(df, CTX)
     array = array[CTX["DILATION_RATE"]-1::CTX["DILATION_RATE"]]
     return array
 
@@ -156,7 +156,7 @@ def predictAircraftType(timestamp,latitude,longitude,groundspeed,track,vertical_
 
         if ("img" in model.name):
             # gen geogaphic map
-            img = np.array([DataLoader.__genimg__(
+            img = np.array([DataLoader.genMap(
                     xi[-1][CTX["FEATURE_MAP"]["latitude"]], 
                     xi[-1][CTX["FEATURE_MAP"]["longitude"]], 
                     CTX["IMG_SIZE"]) for xi in x]) / 255.0

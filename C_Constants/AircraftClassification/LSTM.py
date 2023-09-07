@@ -28,7 +28,7 @@ USED_FEATURES = [
     
 ]
 FEATURES_IN = len(USED_FEATURES)
-FEATURE_MAP = dict([[USED_FEATURES[i], i] for i in range(len(USED_FEATURES))])
+FEATURE_MAP = dict([[USED_FEATURES[i], i] for i in range(FEATURES_IN)])
 
 
 # for training a batch concerning a single aircraft flight
