@@ -67,3 +67,25 @@ def computeTimeserieVarienceRate(x):
         return 0
 
     return np.mean(np.abs(np.diff(x)))
+
+
+def plotConusionMatrix(png, confusion_matrix, SCALER_LABELS):
+    # plot confusion matrix
+    import matplotlib.pyplot as plt
+
+    fig, ax = plt.subplots(figsize=(7.5, 7.5))
+    ax.matshow(confusion_matrix, cmap=plt.cm.Blues, alpha=0.3)
+    for i in range(confusion_matrix.shape[0]):
+        for j in range(confusion_matrix.shape[1]):
+            ax.text(x=j, y=i,s=confusion_matrix[i, j], va='center', ha='center', size='xx-large')
+
+    acc = np.sum(np.diag(confusion_matrix)) / np.sum(confusion_matrix)
+    
+    plt.xlabel('Predictions', fontsize=18)
+    plt.ylabel('Actuals', fontsize=18)
+    plt.xticks(range(len(SCALER_LABELS)), SCALER_LABELS, fontsize=14)
+    plt.yticks(range(len(SCALER_LABELS)), SCALER_LABELS, fontsize=14)
+    plt.gca().xaxis.tick_bottom()
+    plt.title('Accuracy ' + str(round(acc*100, 1))+"%", fontsize=18)
+    plt.savefig(png)
+    plt.close()

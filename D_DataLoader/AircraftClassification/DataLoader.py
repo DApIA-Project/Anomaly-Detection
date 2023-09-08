@@ -18,6 +18,7 @@ import D_DataLoader.AircraftClassification.Utils as U
 import time
 
 from _Utils.Metrics import computeTimeserieVarienceRate
+from _Utils import Color
 
 
 __icao_db__ = None
@@ -154,14 +155,6 @@ class DataLoader(AbstractDataLoader):
         """
 
 
-        # Load the labelisation.
-        # Associate Icao imatriculation to a flight type
-
-        
-
-        # Loading the flight.
-
-        # List files in the folder
         data_files = os.listdir(path)
         data_files = [f for f in data_files if f.endswith(".csv")]
         x = []
@@ -199,7 +192,13 @@ class DataLoader(AbstractDataLoader):
 
     def __init__(self, CTX, path) -> None:    
         self.CTX = CTX
-        self.x, self.y = self.__get_dataset__(path)
+
+        
+        if (CTX["EPOCHS"]):
+            self.x, self.y = self.__get_dataset__(path)
+        else:
+            self.x, self.y = [], []
+        
 
         # Create the scalers
         self.xScaler = MinMaxScaler3D()
@@ -209,9 +208,10 @@ class DataLoader(AbstractDataLoader):
 
         # Fit the y scaler
         # x scaler will be fitted later after batch preprocessing
-        print(self.y)
-        self.y = self.yScaler.fit_transform(self.y)
-        self.y = np.array(self.y, dtype=np.float32)
+        if (CTX["EPOCHS"]):
+            self.y = self.yScaler.fit_transform(self.y)
+            self.y = np.array(self.y, dtype=np.float32)
+
 
 
         # Split the dataset into train and test according to the ratio in context
@@ -228,10 +228,12 @@ class DataLoader(AbstractDataLoader):
         print("Train dataset size :", len(self.x_train))
         print("Test dataset size :", len(self.x_test))
 
-        # fit the scalers
-        self.genEpochTrain(1, 1024)
+        # fit the scalers and define the min values
+        self.FEATURES_MIN_VALUES = np.full((CTX["FEATURES_IN"],), np.nan)
+        if (CTX["EPOCHS"]):
+            self.genEpochTrain(1, 4096)
 
-
+        print("="*100)
 
 
 
@@ -252,10 +254,7 @@ class DataLoader(AbstractDataLoader):
         LON_I = self.CTX["FEATURE_MAP"]["longitude"]
         LAT_I = self.CTX["FEATURE_MAP"]["latitude"]
         ALT_I = self.CTX["FEATURE_MAP"]["altitude"]
-        # the min values of each feature
-        X_MIN_VALUES = self.xScaler.mins if len(self.xScaler.mins) > 0 else np.full((CTX["FEATURES_IN"],), np.nan)
-        if (CTX["ADD_TAKE_OFF_CONTEXT"]):
-            TAKEOFF_MIN_VALUES = self.xTakeOffScaler.mins if len(self.xTakeOffScaler.mins) > 0 else np.full((CTX["FEATURES_IN"],), np.nan)
+        GEO_I = self.CTX["FEATURE_MAP"]["geoaltitude"]
 
         # Allocate memory for the batches
         x_batches = np.zeros((nb_batches * batch_size, CTX["INPUT_LEN"],CTX["FEATURES_IN"]))
@@ -267,24 +266,23 @@ class DataLoader(AbstractDataLoader):
 
             # Pick a random label
             label_i = np.random.randint(0, self.yScaler.classes_.shape[0])
-            flight_i, time_step = U.pick_an_interesting_aircraft(CTX, self.x_train, self.y_train, label_i)
+            flight_i, t = U.pick_an_interesting_aircraft(CTX, self.x_train, self.y_train, label_i)
                     
             # compute the bounds of the fragment
-            start = max(0, time_step)
-            end = time_step + CTX["HISTORY"]
+            start = max(0, t+1-CTX["HISTORY"])
+            end = t+1
             length = end - start
             pad_lenght = (CTX["HISTORY"] - length)//CTX["DILATION_RATE"]
             
             # shift to always have the last timestep as part of the fragment !!
             shift = U.compute_shift(start, end, CTX["DILATION_RATE"])
             # build the batch
+
             
             x_batch = self.x_train[flight_i][start+shift:end:CTX["DILATION_RATE"]]
-            x_batches[n] = np.concatenate((
-                x_batch, np.full((pad_lenght, CTX["FEATURES_IN"]), X_MIN_VALUES)), axis=0)
+            x_batches[n, :pad_lenght] = self.FEATURES_MIN_VALUES
+            x_batches[n, pad_lenght:] = x_batch
 
-            x_batches[n] = U.batchPreProcess(CTX, x_batches[n], CTX["RELATIVE_POSITION"], CTX["RELATIVE_HEADING"], CTX["RANDOM_HEADING"])
-            
 
             if CTX["ADD_TAKE_OFF_CONTEXT"]:
                 # compute the bounds of the fragment
@@ -293,16 +291,15 @@ class DataLoader(AbstractDataLoader):
                 shift = U.compute_shift(start, end, CTX["DILATION_RATE"])
 
                 # build the batch
-                if (self.x_train[flight_i][0,ALT_I] < 1000):
-                    takeoff = np.full((len(x_batch), CTX["FEATURES_IN"]), TAKEOFF_MIN_VALUES)
+                if (self.x_train[flight_i][0,ALT_I] > 1000 or self.x_train[flight_i][0,GEO_I] > 1000):
+                    takeoff = np.full((len(x_batch), CTX["FEATURES_IN"]), self.FEATURES_MIN_VALUES)
                 else:
                     takeoff = self.x_train[flight_i][start+shift:end:CTX["DILATION_RATE"]]
                 
                 # add padding and add to the batch
-                x_batches_takeoff[n] = np.concatenate((
-                    takeoff, np.full((pad_lenght, CTX["FEATURES_IN"]), TAKEOFF_MIN_VALUES)), axis=0)
+                x_batches_takeoff[n, :pad_lenght] = self.FEATURES_MIN_VALUES
+                x_batches_takeoff[n, pad_lenght:] = takeoff
 
-                x_batches_takeoff[n] = U.batchPreProcess(CTX, x_batches_takeoff[n])
 
 
             if CTX["ADD_MAP_CONTEXT"]:
@@ -311,16 +308,28 @@ class DataLoader(AbstractDataLoader):
 
             # get label
             y_batches[n] = self.y_train[flight_i]
-            
+
+        # fit the min values before preprocessing
+        if not(self.xScaler.isFitted()):
+            self.FEATURES_MIN_VALUES = np.nanmin(x_batches, axis=(0,1))
+   
+
+        # preprocess the batches
+        for n in range(len(x_batches)):
+            x_batches[n] = U.batchPreProcess(CTX, x_batches[n], CTX["RELATIVE_POSITION"], CTX["RELATIVE_HEADING"], CTX["RANDOM_HEADING"])
+            if CTX["ADD_TAKE_OFF_CONTEXT"]:
+                x_batches_takeoff[n] = U.batchPreProcess(CTX, x_batches_takeoff[n])
+
+  
         # fit the scaler on the first epoch
         if not(self.xScaler.isFitted()):
             self.xScaler.fit(x_batches)
             if (CTX["ADD_TAKE_OFF_CONTEXT"]): self.xTakeOffScaler.fit(x_batches_takeoff)
 
-            print(self.xScaler.mins, self.xScaler.maxs)
-            print(self.xTakeOffScaler.mins, self.xTakeOffScaler.maxs)
         x_batches = self.xScaler.transform(x_batches)
         if (CTX["ADD_TAKE_OFF_CONTEXT"]): x_batches_takeoff = self.xTakeOffScaler.transform(x_batches_takeoff)
+
+
 
         # noise the data and the output for a more continuous probability output (avoid only 1 and 0 output (binary))
         for i in range(len(x_batches)):
@@ -363,10 +372,7 @@ class DataLoader(AbstractDataLoader):
         LON_I = self.CTX["FEATURE_MAP"]["longitude"]
         LAT_I = self.CTX["FEATURE_MAP"]["latitude"]
         ALT_I = self.CTX["FEATURE_MAP"]["altitude"]
-        # the min values of each feature
-        X_MIN_VALUES = self.xScaler.mins if len(self.xScaler.mins) > 0 else np.zeros((CTX["FEATURES_IN"],))
-        if (CTX["ADD_TAKE_OFF_CONTEXT"]): 
-            TAKEOFF_MIN_VALUES = self.xTakeOffScaler.mins if len(self.xTakeOffScaler.mins) > 0 else np.zeros((CTX["FEATURES_IN"],))
+        GEO_I = self.CTX["FEATURE_MAP"]["geoaltitude"]
 
         # Allocate memory for the batches
         x_batches = np.zeros((NB_BATCHES, CTX["INPUT_LEN"],CTX["FEATURES_IN"]))
@@ -378,11 +384,11 @@ class DataLoader(AbstractDataLoader):
 
             # Pick a random label
             label_i = np.random.randint(0, self.yScaler.classes_.shape[0])
-            flight_i, time_step = U.pick_an_interesting_aircraft(CTX, self.x_test, self.y_test, label_i)
+            flight_i, t = U.pick_an_interesting_aircraft(CTX, self.x_test, self.y_test, label_i)
                     
             # compute the bounds of the fragment
-            start = max(0, time_step)
-            end = time_step + CTX["HISTORY"]
+            start = max(0, t+1-CTX["HISTORY"])
+            end = t+1
             length = end - start
             pad_lenght = (CTX["HISTORY"] - length)//CTX["DILATION_RATE"]
             
@@ -391,12 +397,9 @@ class DataLoader(AbstractDataLoader):
             # build the batch
 
             x_batch = self.x_test[flight_i][start+shift:end:CTX["DILATION_RATE"]]
-            x_batches[n] = np.concatenate((
-                x_batch, np.full((pad_lenght, CTX["FEATURES_IN"]), X_MIN_VALUES)), axis=0)
+            x_batches[n, :pad_lenght] = self.FEATURES_MIN_VALUES
+            x_batches[n, pad_lenght:] = x_batch
 
-            # preprocess the flight : mainly normalize, and make lat, lon, heading relative (if asked) with right projections ...
-            x_batches[n] = U.batchPreProcess(CTX, x_batches[n], CTX["RELATIVE_POSITION"], CTX["RELATIVE_HEADING"], CTX["RANDOM_HEADING"])
-            
 
             if CTX["ADD_TAKE_OFF_CONTEXT"]:
                 # compute the bounds of the fragment
@@ -405,16 +408,15 @@ class DataLoader(AbstractDataLoader):
                 shift = U.compute_shift(start, end, CTX["DILATION_RATE"])
 
                 # build the batch
-                if (self.x_test[flight_i][0,ALT_I] < 1000):
-                    takeoff = np.full((len(x_batch), CTX["FEATURES_IN"]), TAKEOFF_MIN_VALUES)
+                if (self.x_test[flight_i][0,ALT_I] > 1000 or self.x_test[flight_i][0,GEO_I] > 1000):
+                    takeoff = np.full((len(x_batch), CTX["FEATURES_IN"]), self.FEATURES_MIN_VALUES)
                 else:
                     takeoff = self.x_test[flight_i][start+shift:end:CTX["DILATION_RATE"]]
                 
                 # add padding and add to the batch
-                x_batches_takeoff[n] = np.concatenate((
-                    takeoff, np.full((pad_lenght, CTX["FEATURES_IN"]), TAKEOFF_MIN_VALUES)), axis=0)
+                x_batches_takeoff[n, :pad_lenght] = self.FEATURES_MIN_VALUES
+                x_batches_takeoff[n, pad_lenght:] = takeoff
                 
-                x_batches_takeoff[n] = U.batchPreProcess(CTX, x_batches_takeoff[n])
 
             if CTX["ADD_MAP_CONTEXT"]:
                 lat, lon = x_batches[n, -1, LAT_I], x_batches[n, -1, LON_I]
@@ -422,6 +424,12 @@ class DataLoader(AbstractDataLoader):
 
             # get label
             y_batches[n] = self.y_test[flight_i]
+        
+        # preprocess the batches
+        for n in range(len(x_batches)):
+            x_batches[n] = U.batchPreProcess(CTX, x_batches[n], CTX["RELATIVE_POSITION"], CTX["RELATIVE_HEADING"], CTX["RANDOM_HEADING"])
+            if CTX["ADD_TAKE_OFF_CONTEXT"]:
+                x_batches_takeoff[n] = U.batchPreProcess(CTX, x_batches_takeoff[n])
 
             
         x_batches = self.xScaler.transform(x_batches)
@@ -466,9 +474,7 @@ class DataLoader(AbstractDataLoader):
         LON_I = self.CTX["FEATURE_MAP"]["longitude"]
         LAT_I = self.CTX["FEATURE_MAP"]["latitude"]
         ALT_I = self.CTX["FEATURE_MAP"]["altitude"]
-        X_MIN_VALUES = self.xScaler.mins if len(self.xScaler.mins) > 0 else np.zeros((CTX["FEATURES_IN"],))
-        if (CTX["ADD_TAKE_OFF_CONTEXT"]):
-            TAKEOFF_MIN_VALUES = self.xTakeOffScaler.mins if len(self.xTakeOffScaler.mins) > 0 else np.zeros((CTX["FEATURES_IN"],))
+        GEO_I = self.CTX["FEATURE_MAP"]["geoaltitude"]
 
 
         df = pd.read_csv(path, sep=",",dtype={"callsign":str, "icao24":str})
@@ -479,7 +485,7 @@ class DataLoader(AbstractDataLoader):
         array = U.dfToFeatures(df, CTX)
         label = U.getLabel(CTX, icao, callsign)
         if (label == 0):
-            return [], [], []
+            return [], []
         y = self.yScaler.transform([label])[0]
 
         # allocate the required memory
@@ -489,21 +495,19 @@ class DataLoader(AbstractDataLoader):
         if (CTX["ADD_MAP_CONTEXT"]): x_batches_map = np.zeros((len(array), self.CTX["IMG_SIZE"], self.CTX["IMG_SIZE"],3), dtype=np.float32)
 
         # generate the sub windows
-        for t in range(-CTX["HISTORY"]+1, len(array)):
-            start = max(0, t-CTX["HISTORY"])
-            end = t
+        for t in range(0, len(array)):
+            start = max(0, t+1-CTX["HISTORY"])
+            end = t+1
             length = end - start
             pad_lenght = (CTX["HISTORY"] - length)//CTX["DILATION_RATE"]
 
             shift = U.compute_shift(start, end, CTX["DILATION_RATE"])
 
             x_batch = array[start+shift:end:CTX["DILATION_RATE"]]
-            print(x_batch.shape)
-            x_batches[t] = np.concatenate((
-                x_batch, np.full((pad_lenght, CTX["FEATURES_IN"]), X_MIN_VALUES)), axis=0)
-            
-            x_batches[t] = U.batchPreProcess(CTX, x_batches[t], CTX["RELATIVE_POSITION"], CTX["RELATIVE_HEADING"], CTX["RANDOM_HEADING"])
 
+            x_batches[t, :pad_lenght] = self.FEATURES_MIN_VALUES
+            x_batches[t, pad_lenght:] = x_batch
+            
             
             if CTX["ADD_TAKE_OFF_CONTEXT"]:
                 # compute the bounds of the fragment
@@ -512,21 +516,26 @@ class DataLoader(AbstractDataLoader):
                 shift = U.compute_shift(start, end, CTX["DILATION_RATE"])
 
                 # build the batch
-                if (array[0,ALT_I] < 1000):
-                    takeoff = np.full((len(x_batch), CTX["FEATURES_IN"]), TAKEOFF_MIN_VALUES)
+                if (array[0,ALT_I] > 1000 or array[0,GEO_I] > 1000):
+                    takeoff = np.full((len(x_batch), CTX["FEATURES_IN"]), self.FEATURES_MIN_VALUES)
                 else:
                     takeoff = array[start+shift:end:CTX["DILATION_RATE"]]
                 
                 # add padding and add to the batch
-                x_batches_takeoff[t] = np.concatenate((
-                    takeoff, np.full((pad_lenght, CTX["FEATURES_IN"]), TAKEOFF_MIN_VALUES)), axis=0)
-                
-                x_batches_takeoff[t] = U.batchPreProcess(CTX, x_batches_takeoff[t])
+                x_batches_takeoff[t, :pad_lenght] = self.FEATURES_MIN_VALUES
+                x_batches_takeoff[t, pad_lenght:] = takeoff
                 
             if CTX["ADD_MAP_CONTEXT"]:
                 lat, lon = x_batches[t, -1, LAT_I], x_batches[t, -1, LON_I]
                 x_batches_map[t] = U.genMap(lat, lon, self.CTX["IMG_SIZE"]) / 255.0
-                
+
+
+        # preprocess the batches
+        for n in range(len(x_batches)):
+            x_batches[n] = U.batchPreProcess(CTX, x_batches[n], CTX["RELATIVE_POSITION"], CTX["RELATIVE_HEADING"], CTX["RANDOM_HEADING"])
+            if CTX["ADD_TAKE_OFF_CONTEXT"]:
+                x_batches_takeoff[n] = U.batchPreProcess(CTX, x_batches_takeoff[n])
+
 
 
         x_batches = self.xScaler.transform(x_batches)

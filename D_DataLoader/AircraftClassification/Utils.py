@@ -3,7 +3,7 @@ import math
 import pandas as pd
 import os
 from PIL import Image
-
+from _Utils import Color
 
 
 def batchPreProcess(CTX, flight, relative_position=False, relative_heading=False, random_heading=False):
@@ -36,6 +36,7 @@ def batchPreProcess(CTX, flight, relative_position=False, relative_heading=False
     heading = flight[:, FEATURE_MAP["track"]]
     baro_altitude = flight[:, FEATURE_MAP["altitude"]]
     geo_altitude = flight[:, FEATURE_MAP["geoaltitude"]]
+    groundspeed = flight[:, FEATURE_MAP["groundspeed"]]
 
 
 
@@ -97,6 +98,14 @@ def batchPreProcess(CTX, flight, relative_position=False, relative_heading=False
     # kind of normalized
     # baro_altitude = baro_altitude - baro_altitude[-1]
     # geo_altitude = geo_altitude - geo_altitude[-1]
+
+    if (relative_position):
+        # if we use relative position, and the begining of the fragment is padding
+        # (detected thanks to the ground speed = -1)
+        # we shound not use the relative position for the padding
+        # so each lat lon where ground speed is -1 is set to 0, 0
+        lat = np.where(groundspeed == -1, 0, lat)
+        lon = np.where(groundspeed == -1, 0, lon)
     
     flight[:, FEATURE_MAP["latitude"]] = lat
     flight[:, FEATURE_MAP["longitude"]] = lon
@@ -324,10 +333,84 @@ def pick_an_interesting_aircraft(CTX, x, y, label):
     while flight_i == -1 or y[flight_i, label] != 1:
         flight_i = np.random.randint(0, len(x))
     # pick a timestep in the flight (if negative, the fragment is not yet full of timesteps -> padding)
-    negative = np.random.randint(0, 100) <= 5
+    negative = np.random.randint(0, 100) <= 1000
     if (negative):
-        time_step = np.random.randint(-CTX["HISTORY"]+1, 0)
+        time_step = np.random.randint(0, CTX["HISTORY"]-1)
     else:
-        time_step = np.random.randint(0, len(x[flight_i]) - CTX["HISTORY"])
+        time_step = np.random.randint(CTX["HISTORY"]-1, len(x[flight_i]))
 
     return flight_i, time_step
+
+def to_scientific_notation(number):
+    """"
+    compute n the value and e the exponent
+    """
+    if (np.isnan(number)):
+        return np.nan, 0
+    e = 0
+    if (number != 0):
+        e = math.floor(math.log10(abs(number)))
+        n = number / (10**e)
+    else:
+        n = 0
+    return n, e
+
+def round_to_first_non_zero(number):
+    if (number == 0):
+        return 0
+    n, e = to_scientific_notation(number)
+    if (e >= 0):
+        return round(number, 1)
+    if (e <= -10):
+        return round(number, 0)
+    
+    return round(number, -e)
+
+def round_to_first_non_zero_array(array):
+    for i in range(len(array)):
+        for j in range(len(array[i])):
+            array[i][j] = round_to_first_non_zero(array[i][j])
+    return array
+
+def print_2D_timeserie(CTX, array, max_len=10):
+    """
+    shape : [time_step, feature]
+    """
+    # round numbers to the first non zero decimal
+    array = round_to_first_non_zero_array(array)
+    array = array.astype(str)
+    # remove ending .0
+    for i in range(len(array)):
+        for j in range(len(array[i])):
+            while ("." in array[i][j] and array[i][j].endswith("0")):
+                array[i][j] = array[i][j][:-1]
+            if (array[i][j].endswith(".")):
+                array[i][j] = array[i][j][:-1]
+            if (array[i][j].startswith("-0.") or array[i][j] == "-0"):
+                array[i][j] = array[i][j][1:]
+
+    max_length = []
+
+    # header
+    for i in range(CTX["FEATURES_IN"]):
+        # length
+        max_feature_length = max([len(array[t][i]) for t in range(len(array))])
+        max_length.append(max(max_feature_length, len(CTX["USED_FEATURES"][i])))
+
+    # print header
+    for i in range(CTX["FEATURES_IN"]):
+        print(Color.GREEN + CTX["USED_FEATURES"][i].ljust(max_length[i]) + Color.RESET, end="|" if i < CTX["FEATURES_IN"]-1 else "\n")
+
+
+    indexs = np.arange(0, len(array))
+    if (len(array) > max_len):
+        half = (max_len + 1) // 2
+        indexs = np.concatenate([indexs[:half], [-1], indexs[-half:]])
+
+    for t in indexs:
+        if (t == -1):
+            print("...".rjust(max_length[0]), end="|" if i < CTX["FEATURES_IN"]-1 else "\n")
+            continue
+        for i in range(CTX["FEATURES_IN"]):
+            print(array[t][i].rjust(max_length[i]), end="|" if i < CTX["FEATURES_IN"]-1 else "\n")
+    print()

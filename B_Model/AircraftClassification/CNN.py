@@ -86,47 +86,51 @@ class Model(AbstactModel):
             z = x
 
         # stem layer
-        z = Conv1D(32, 7, strides=2, padding="same")(z)
+        z = Conv1D(128, 7, strides=2, padding="same")(z)
 
         n = self.CTX["LAYERS"]
         for _ in range(n):
-            z = Conv1DModule(32, 3, padding="same")(z)
-        z = MaxPooling1D()(z)
-        for _ in range(n):
-            z = Conv1DModule(64, 3, padding="same")(z)
-        z = MaxPooling1D()(z)
-        for _ in range(n):
             z = Conv1DModule(128, 3, padding="same")(z)
+        z = MaxPooling1D()(z)
+        z__ = TimeDistributed(Dense(self.outs))(z)
+        z__ = GlobalAveragePooling1D()(z__)
+        for _ in range(n):
+            z = Conv1DModule(256, 3, padding="same")(z)
+        z = MaxPooling1D()(z)
+        for _ in range(n):
+            z = Conv1DModule(512, 3, padding="same")(z)
+        
+        z = Conv1DModule(self.outs, 3, padding="same")(z)
 
         # z = Attention(heads=1)(z)
-        # z = GlobalAveragePooling1D()(z)
+        z_ = GlobalAveragePooling1D()(z)
         z = Flatten()(z)
 
         if (CTX["ADD_MAP_CONTEXT"]):
-            z = map
+            y_map = map
 
             n=1
             for _ in range(n):
-                z_img = Conv2DModule(64, 3, padding="same")(z_img)
-            z_img = MaxPooling2D()(z_img)
+                y_map = Conv2DModule(64, 3, padding="same")(y_map)
+            y_map = MaxPooling2D()(y_map)
 
             for _ in range(n):
-                z_img = Conv2DModule(64, 3, padding="same")(z_img)
-            z_img = MaxPooling2D()(z_img)
+                y_map = Conv2DModule(64, 3, padding="same")(y_map)
+            y_map = MaxPooling2D()(y_map)
 
             for _ in range(n):
-                z_img = Conv2DModule(16, 3, padding="same")(z_img)
-            z_img = GlobalAveragePooling2D()(z_img)
-            z_img = Flatten()(z_img)
+                y_map = Conv2DModule(16, 3, padding="same")(y_map)
+            y_map = GlobalAveragePooling2D()(y_map)
+            y_map = Flatten()(y_map)
 
         
         to_concat = [z]
-        if (CTX["ADD_MAP_CONTEXT"]): to_concat.append(z_img)
+        if (CTX["ADD_MAP_CONTEXT"]): to_concat.append(y_map)
 
         z = Concatenate()(to_concat)
         z = DenseModule(256, dropout=self.dropout)(z)
         z = Dense(self.outs, activation="softmax")(z)
-        y = z
+        y = z * 0.6 + z_ * 0.2 + z__ * 0.2
             
             
         self.model = tf.keras.Model(inputs, y)
@@ -175,14 +179,9 @@ class Model(AbstactModel):
         Generate a visualization of the model's architecture
         """
         
-        # Only plot if we train on CPU 
-        # Assuming that if you train on GPU (GPU cluster) it mean that 
-        # you don't need to check your model's architecture
-        device = tf.test.gpu_device_name()
-        if "GPU" not in device:
             
-            filename = os.path.join(save_path, self.name+".png")
-            tf.keras.utils.plot_model(self.model, to_file=filename, show_shapes=True)
+        filename = os.path.join(save_path, self.name+".png")
+        tf.keras.utils.plot_model(self.model, to_file=filename, show_shapes=True)
 
 
 

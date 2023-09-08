@@ -22,7 +22,7 @@ LABEL_NAMES = [
     "GLIDER",
     "HELICOPTER",
     "ULM",
-    "MILITARY"
+    "MILITARY",
     "SAMU"
 ]
 

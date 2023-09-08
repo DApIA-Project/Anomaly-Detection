@@ -140,6 +140,7 @@ copy_past_py(
 # copy weights
 os.system(f"cp ../_Artefact/{used_model}.w ./AircraftClassifier/w")
 os.system(f"cp ../_Artefact/{used_model}.xs ./AircraftClassifier/xs")
+os.system(f"cp ../_Artefact/{used_model}.xts ./AircraftClassifier/xs")
 os.system(f"cp ../_Artefact/{used_model}.ys ./AircraftClassifier/ys")
 
 

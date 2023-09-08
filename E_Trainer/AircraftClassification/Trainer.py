@@ -117,8 +117,6 @@ class Trainer(AbstractTrainer):
             start = time.time()
             x_inputs, y_batches = self.dl.genEpochTrain(CTX["NB_BATCH"], CTX["BATCH_SIZE"])
 
-            print(np.array(x_inputs).shape, flush=True)
-
             train_loss = 0
             train_y_ = []
             train_y = []
@@ -216,9 +214,11 @@ class Trainer(AbstractTrainer):
 
 
         write("./_Artefact/"+self.model.name+".w", self.model.getVariables())
-        write("./_Artefact/"+self.model.name+".xts", self.dl.xTakeOffScaler.getVariables())
+        if (CTX["ADD_TAKE_OFF_CONTEXT"]):
+            write("./_Artefact/"+self.model.name+".xts", self.dl.xTakeOffScaler.getVariables())
         write("./_Artefact/"+self.model.name+".xs", self.dl.xScaler.getVariables())
         write("./_Artefact/"+self.model.name+".ys", self.dl.yScaler.getVariables())
+        write("./_Artefact/"+self.model.name+".min", self.dl.FEATURES_MIN_VALUES)
 
     def load(self):
         """
@@ -226,8 +226,10 @@ class Trainer(AbstractTrainer):
         """
         self.model.setVariables(load("./_Artefact/"+self.model.name+".w"))
         self.dl.xScaler.setVariables(load("./_Artefact/"+self.model.name+".xs"))
-        self.dl.xTakeOffScaler.setVariables(load("./_Artefact/"+self.model.name+".xts"))
+        if (self.CTX["ADD_TAKE_OFF_CONTEXT"]):
+            self.dl.xTakeOffScaler.setVariables(load("./_Artefact/"+self.model.name+".xts"))
         self.dl.yScaler.setVariables(load("./_Artefact/"+self.model.name+".ys"))
+        self.dl.FEATURES_MIN_VALUES = load("./_Artefact/"+self.model.name+".min")
 
 
     def eval(self):
@@ -253,7 +255,9 @@ class Trainer(AbstractTrainer):
         global_correct_mean = 0
         global_correct_count = 0
         global_correct_max = 0
+        global_ts_confusion_matrix = np.zeros((nb_classes, nb_classes), dtype=int)
         global_confusion_matrix = np.zeros((nb_classes, nb_classes), dtype=int)
+
 
         failed_files = []
 
@@ -281,7 +285,7 @@ class Trainer(AbstractTrainer):
 
 
 
-            global_confusion_matrix = global_confusion_matrix + Metrics.confusionMatrix(y_batches, y_batches_)
+            global_ts_confusion_matrix = global_ts_confusion_matrix + Metrics.confusionMatrix(y_batches, y_batches_)
 
             pred_mean = np.argmax(np.mean(y_batches_, axis=0))
             pred_count = np.argmax(np.bincount(np.argmax(y_batches_, axis=1), minlength=nb_classes))
@@ -294,9 +298,11 @@ class Trainer(AbstractTrainer):
             global_correct_count += 1 if (pred_count == true) else 0
             global_correct_max += 1 if (pred_max == true) else 0
 
+            global_confusion_matrix[true, pred_max] += 1
+
             # print(global_pred_max, global_true)            
             if (pred_max != true):
-                failed_files.append((file, int(self.dl.yScaler.classes_[true]), int(self.dl.yScaler.classes_[pred_max])))
+                failed_files.append((file, str(self.dl.yScaler.classes_[true]), str(self.dl.yScaler.classes_[pred_max])))
 
             
             # compute binary (0/1) correct prediction
@@ -335,10 +341,13 @@ class Trainer(AbstractTrainer):
             df["y_"] = df_y_
             df.to_csv(os.path.join("./A_Dataset/AircraftClassification/Outputs/Eval", file), index=False)
 
+        self.CTX["LABEL_NAMES"] = np.array(self.CTX["LABEL_NAMES"])
+        Metrics.plotConusionMatrix("./_Artefact/confusion_matrix.png", global_confusion_matrix, self.CTX["LABEL_NAMES"][self.dl.yScaler.classes_])
+        Metrics.plotConusionMatrix("./_Artefact/ts_confusion_matrix.png", global_ts_confusion_matrix, self.CTX["LABEL_NAMES"][self.dl.yScaler.classes_])
 
-        print()
-        print(global_confusion_matrix)
+
         accuracy_per_class = np.diag(global_confusion_matrix) / np.sum(global_confusion_matrix, axis=1)
+        accuracy_per_class = np.nan_to_num(accuracy_per_class, nan=0)
         nbSample = np.sum(global_confusion_matrix, axis=1)
         accuracy = np.sum(np.diag(global_confusion_matrix)) / np.sum(global_confusion_matrix)
 
@@ -362,8 +371,7 @@ class Trainer(AbstractTrainer):
             json_ = file.read()
             file.close()
             fails = json.loads(json_)
-            
-            fails = {}
+            print(fails)
         else:
             fails = {}
 
@@ -375,7 +383,13 @@ class Trainer(AbstractTrainer):
             else:
                 fails[failed_files[i][0]][failed_files[i][2]] += 1
         # sort by nb of fails
-        fails = {k: v for k, v in sorted(fails.items(), key=lambda item: sum(item[1].values()), reverse=True)}
+        fails_counts = {}
+        for file in fails:
+            fails_counts[file] = 0
+            for pred in fails[file]:
+                if (pred != "Y"):
+                    fails_counts[file] += fails[file][pred]
+        fails = {k: v for k, v in sorted(fails.items(), key=lambda item: fails_counts[item[0]], reverse=True)}
         json_ = json.dumps(fails)
         
 
@@ -394,11 +408,6 @@ class Trainer(AbstractTrainer):
             "count accuracy":global_correct_count / global_nb,
             "max accuracy":global_correct_max / global_nb,
         }
-
-
-
-    
-    
 
 
     # def eval_alterated(self):

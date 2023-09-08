@@ -5,7 +5,6 @@ from keras.layers import *
 from B_Model.AbstractModel import Model as AbstactModel
 from B_Model.Utils.TF_Modules import *
 
-
 import numpy as np
 
 import os
@@ -61,44 +60,73 @@ class Model(AbstactModel):
         self.CTX = CTX
         self.dropout = CTX["DROPOUT"]
         self.outs = CTX["FEATURES_OUT"]
-        units = CTX["UNITS"]
 
         # save the number of training steps
         self.nb_train = 0
-    
 
-        # build model's architecture
-        feature_in = self.CTX["FEATURES_IN"] * (2 if self.CTX["ADD_TAKE_OFF_CONTEXT"] else 1)
-        input_shape = (self.CTX["INPUT_LEN"], feature_in)
-        x = tf.keras.Input(shape=input_shape, name='input')
-        z = x
+
+        x_input_shape = (self.CTX["INPUT_LEN"], self.CTX["FEATURES_IN"])
+        if (CTX["ADD_TAKE_OFF_CONTEXT"]): takeoff_input_shape = (self.CTX["INPUT_LEN"], self.CTX["FEATURES_IN"])
+        if (CTX["ADD_MAP_CONTEXT"]): map_input_shape = (self.CTX["IMG_SIZE"], self.CTX["IMG_SIZE"], 3)
+    
+        x = tf.keras.Input(shape=x_input_shape, name='input')
+        inputs = [x]
+        if (CTX["ADD_TAKE_OFF_CONTEXT"]): 
+            takeoff = tf.keras.Input(shape=takeoff_input_shape, name='takeoff')
+            inputs.append(takeoff)
+
+        if (CTX["ADD_MAP_CONTEXT"]): 
+            map = tf.keras.Input(shape=map_input_shape, name='map')
+            inputs.append(map)
+
+        # concat takeoff and x
+        if (CTX["ADD_TAKE_OFF_CONTEXT"]): 
+            z = Concatenate(axis=2)([x, takeoff])
+        else:
+            z = x
 
         # stem layer
-        z = Conv1D(self.CTX["UNITS"], 9, strides=4, padding="same")(z)
 
         n = self.CTX["LAYERS"]
-        residual_freq = self.CTX["RESIDUAL"]
-        r = 0
-
-        save = z
-
         for i in range(n):
-            seq = (i < n-1)
-            z = LSTM(self.CTX["UNITS"], dropout=self.dropout, return_sequences=seq)(z)
+            z = resLSTM(256, 2, self.dropout, i < n - 1)(z)
 
-            r += 1
-            if (r == residual_freq):
-                z = Add()([z, save])
-                save = z
-                r = 0
+        # z = Attention(heads=1)(z)
+        # z = GlobalAveragePooling1D()(z)
+        z = Flatten()(z)
 
+        if (CTX["ADD_MAP_CONTEXT"]):
+            y_map = map
+
+            n=1
+            for _ in range(n):
+                y_map = Conv2DModule(64, 3, padding="same")(y_map)
+            y_map = MaxPooling2D()(y_map)
+
+            for _ in range(n):
+                y_map = Conv2DModule(64, 3, padding="same")(y_map)
+            y_map = MaxPooling2D()(y_map)
+
+            for _ in range(n):
+                y_map = Conv2DModule(16, 3, padding="same")(y_map)
+            y_map = GlobalAveragePooling2D()(y_map)
+            y_map = Flatten()(y_map)
+
+        
+        to_concat = [z]
+        if (CTX["ADD_MAP_CONTEXT"]): to_concat.append(y_map)
+
+        z = Concatenate()(to_concat)
+        z = DenseModule(256, dropout=self.dropout)(z)
         z = Dense(self.outs, activation="softmax")(z)
-
         y = z
-        self.model = tf.keras.Model(inputs=[x], outputs=[y])
+            
+            
+        self.model = tf.keras.Model(inputs, y)
 
 
         # define loss function
+        # self.loss = tf.keras.losses.CategoricalCrossentropy()
         self.loss = tf.keras.losses.MeanSquaredError()
 
         # define optimizer
@@ -140,14 +168,9 @@ class Model(AbstactModel):
         Generate a visualization of the model's architecture
         """
         
-        # Only plot if we train on CPU 
-        # Assuming that if you train on GPU (GPU cluster) it mean that 
-        # you don't need to check your model's architecture
-        device = tf.test.gpu_device_name()
-        if "GPU" not in device:
             
-            filename = os.path.join(save_path, self.name+".png")
-            tf.keras.utils.plot_model(self.model, to_file=filename, show_shapes=True)
+        filename = os.path.join(save_path, self.name+".png")
+        tf.keras.utils.plot_model(self.model, to_file=filename, show_shapes=True)
 
 
 

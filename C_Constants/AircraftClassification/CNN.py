@@ -1,15 +1,15 @@
 
-LEARNING_RATE = 0.00006
-EPOCHS = 1
+LEARNING_RATE = 0.00007
+EPOCHS = 80
 BATCH_SIZE = 128
 NB_BATCH = 32
 
 
-HISTORY = 128
+HISTORY = 256
 DILATION_RATE = 2
 INPUT_LEN = HISTORY // DILATION_RATE
 
-RELATIVE_POSITION = True
+RELATIVE_POSITION = False
 RELATIVE_HEADING = False
 RANDOM_HEADING = False
 TRAINING_NOISE = 0.0
@@ -24,7 +24,7 @@ USED_FEATURES = [
     "latitude", "longitude",
     "groundspeed", "track",
     "vertical_rate", "onground",
-    "alert", "spi", #"squawk",
+    "alert", "spi", "squawk",
     "altitude", "geoaltitude",
     # 
 ]
@@ -32,7 +32,7 @@ FEATURES_IN = len(USED_FEATURES)
 FEATURE_MAP = dict([[USED_FEATURES[i], i] for i in range(FEATURES_IN)])
 
 ADD_TAKE_OFF_CONTEXT = True
-ADD_MAP_CONTEXT = False
+ADD_MAP_CONTEXT = True
 
 MERGE_LABELS = { # no merge by default
     2: [1, 2, 3, 4, 5], # PLANE
