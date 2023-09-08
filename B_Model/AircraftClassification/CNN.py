@@ -85,8 +85,6 @@ class Model(AbstactModel):
         else:
             z = x
 
-        # stem layer
-        z = Conv1D(128, 7, strides=2, padding="same")(z)
 
         n = self.CTX["LAYERS"]
         for _ in range(n):
