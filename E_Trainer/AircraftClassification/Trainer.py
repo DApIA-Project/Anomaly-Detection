@@ -86,7 +86,11 @@ class Trainer(AbstractTrainer):
         self.CTX = CTX
 
         self.model:_Model_ = Model(CTX)
-        self.model.visualize()
+        
+        try:
+            self.model.visualize()
+        except:
+            print("WARNING : visualization of the model failed")
 
         self.dl = DataLoader(CTX, "./A_Dataset/AircraftClassification/Train")
         
@@ -105,10 +109,17 @@ class Trainer(AbstractTrainer):
         """
         CTX = self.CTX
         
-        history = [[], []]
+        history = [[], [], [], []]
 
         best_variables = None
         best_loss= 10000000
+
+        # if _Artefact/modelsW folder exists and is not empty, clear it
+        if os.path.exists("./_Artefact/modelsW"):
+            if (len(os.listdir("./_Artefact/modelsW")) > 0):
+                os.system("rm ./_Artefact/modelsW/*")
+        else:
+            os.makedirs("./_Artefact/modelsW")
 
         for ep in range(1, CTX["EPOCHS"] + 1):
             ##############################
@@ -164,8 +175,9 @@ class Trainer(AbstractTrainer):
             print("train_acc : ", "|".join([str(int(round(v, 0))).rjust(3, " ") for v in train_acc]))
             print("test_acc  : ", "|".join([str(int(round(v, 0))).rjust(3, " ") for v in test_acc]))
             print()
-            print(f"train acc: {Metrics.accuracy(train_y, train_y_):.1f}")
-            print(f"test acc : {Metrics.accuracy(test_y, test_y_):.1f}")
+            train_acc, test_acc = Metrics.accuracy(train_y, train_y_), Metrics.accuracy(test_y, test_y_)
+            print(f"train acc: {train_acc:.1f}")
+            print(f"test acc : {test_acc:.1f}")
             print()
 
             if test_loss < best_loss:
@@ -175,36 +187,34 @@ class Trainer(AbstractTrainer):
             # Save the model loss
             history[0].append(train_loss)
             history[1].append(test_loss)
+            history[2].append(train_acc)
+            history[3].append(test_acc)
             
             # Log metrics to mlflow
             mlflow.log_metric("train_loss", train_loss, step=ep)
             mlflow.log_metric("test_loss", test_loss, step=ep)
             mlflow.log_metric("epoch", ep, step=ep)
 
+            # Save the model weights
+            write("./_Artefact/modelsW/"+self.model.name+"_"+str(ep)+" "+str(round(test_acc, 1))+".w", self.model.getVariables())
+
         # load best model
 
 
         # Compute the moving average of the loss for a better visualization
-        history_avg = [[], []]
+        history_avg = [[], [], [], []]
         window_len = 5
         for i in range(len(history[0])):
             min_ = max(0, i - window_len)
             max_ = min(len(history[0]), i + window_len)
             history_avg[0].append(np.mean(history[0][min_:max_]))
             history_avg[1].append(np.mean(history[1][min_:max_]))
+            history_avg[2].append(np.mean(history[2][min_:max_]))
+            history_avg[3].append(np.mean(history[3][min_:max_]))
 
 
-        # Plot the loss curves
-        fig, ax = plt.subplots(1, 1, figsize=(10, 6))
-        ax.grid()
-        ax.plot(np.array(history[0]) * 100.0, c="tab:blue", linewidth=0.5)
-        ax.plot(np.array(history[1]) * 100.0, c="tab:orange", linewidth=0.5)
-        ax.plot(np.array(history_avg[0]) * 100.0, c="tab:blue", ls="--", label="train loss")
-        ax.plot(np.array(history_avg[1]) * 100.0, c="tab:orange", ls="--", label="test loss")
-        ax.set_xlabel("epoch")
-        ax.set_ylabel("loss (%)")
-        ax.legend()
-        fig.savefig("./_Artefact/loss.png")
+        Metrics.plotLoss(history, history_avg)
+        Metrics.plotAccuracy(history, history_avg)
 
         #  load back best model
         if (len(history[1]) > 0):

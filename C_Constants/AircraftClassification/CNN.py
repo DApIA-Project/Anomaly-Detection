@@ -42,7 +42,7 @@ MERGE_LABELS = { # no merge by default
     # 12: [12], # SAMU
     # 11: [11], # military
 
-    0: [8] # not classified
+    0: [8, 11] # not classified
 }
 FEATURES_OUT = len(MERGE_LABELS)-1
 

@@ -89,3 +89,34 @@ def plotConusionMatrix(png, confusion_matrix, SCALER_LABELS):
     plt.title('Accuracy ' + str(round(acc*100, 1))+"%", fontsize=18)
     plt.savefig(png)
     plt.close()
+
+
+
+def plotLoss(history, history_avg):
+    # Plot the loss curves
+    import matplotlib.pyplot as plt
+    fig, ax = plt.subplots(1, 1, figsize=(10, 6))
+    ax.grid()
+    ax.plot(np.array(history[0]) * 100.0, c="tab:blue", linewidth=0.5)
+    ax.plot(np.array(history[1]) * 100.0, c="tab:orange", linewidth=0.5)
+    ax.plot(np.array(history_avg[0]) * 100.0, c="tab:blue", ls="--", label="train loss")
+    ax.plot(np.array(history_avg[1]) * 100.0, c="tab:orange", ls="--", label="test loss")
+    ax.set_xlabel("epoch")
+    ax.set_ylabel("loss")
+    ax.legend()
+    fig.savefig("./_Artefact/loss.png")
+
+
+def plotAccuracy(history, history_avg):
+        # Plot the loss curves
+    import matplotlib.pyplot as plt
+    fig, ax = plt.subplots(1, 1, figsize=(10, 6))
+    ax.grid()
+    ax.plot(np.array(history[2]) * 100.0, c="tab:blue", linewidth=0.5)
+    ax.plot(np.array(history[3]) * 100.0, c="tab:orange", linewidth=0.5)
+    ax.plot(np.array(history_avg[2]) * 100.0, c="tab:blue", ls="--", label="train loss")
+    ax.plot(np.array(history_avg[3]) * 100.0, c="tab:orange", ls="--", label="test loss")
+    ax.set_xlabel("epoch")
+    ax.set_ylabel("accuracy (%)")
+    ax.legend()
+    fig.savefig("./_Artefact/accuracy.png")
