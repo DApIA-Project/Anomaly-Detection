@@ -3,7 +3,7 @@
 import tensorflow as tf
 from keras.layers import *
 
-
+ACTIVATION = ELU
 
 class Conv1DModule(tf.Module):
 
@@ -14,7 +14,7 @@ class Conv1DModule(tf.Module):
         self.bn = None
         if (batch_norm):
             self.bn = BatchNormalization()
-        self.act = ReLU()
+        self.act = ACTIVATION()
 
     def __call__(self, x):
         x = self.conv(x)
@@ -32,7 +32,7 @@ class Conv2DModule(tf.Module):
         self.bn = None
         if (batch_norm):
             self.bn = BatchNormalization()
-        self.act = ReLU()
+        self.act = ACTIVATION()
 
     def __call__(self, x):
         x = self.conv(x)
@@ -51,7 +51,7 @@ class DenseModule(tf.Module):
             self.dropout = None
             if (dropout > 0):
                 self.dropout = Dropout(dropout)
-            self.act = LeakyReLU()
+            self.act = ACTIVATION()
     
         def __call__(self, x):
             x = self.dense(x)

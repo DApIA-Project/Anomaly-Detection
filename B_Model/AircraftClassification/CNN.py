@@ -86,24 +86,6 @@ class Model(AbstactModel):
             z = x
 
 
-        n = self.CTX["LAYERS"]
-        for _ in range(n):
-            z = Conv1DModule(128, 3, padding="same")(z)
-        z = MaxPooling1D()(z)
-        z__ = TimeDistributed(Dense(self.outs))(z)
-        z__ = GlobalAveragePooling1D()(z__)
-        for _ in range(n):
-            z = Conv1DModule(256, 3, padding="same")(z)
-        z = MaxPooling1D()(z)
-        for _ in range(n):
-            z = Conv1DModule(512, 3, padding="same")(z)
-        
-        z = Conv1DModule(self.outs, 3, padding="same")(z)
-
-        # z = Attention(heads=1)(z)
-        z_ = GlobalAveragePooling1D()(z)
-        z = Flatten()(z)
-
         if (CTX["ADD_MAP_CONTEXT"]):
             y_map = map
 
@@ -117,19 +99,31 @@ class Model(AbstactModel):
             y_map = MaxPooling2D()(y_map)
 
             for _ in range(n):
-                y_map = Conv2DModule(16, 3, padding="same")(y_map)
+                y_map = Conv2DModule(128, 3, padding="same")(y_map)
             y_map = GlobalAveragePooling2D()(y_map)
             y_map = Flatten()(y_map)
+            y_map = RepeatVector(self.CTX["INPUT_LEN"] // 2)(y_map)
 
+
+        n = self.CTX["LAYERS"]
+        for _ in range(n):
+            z = Conv1DModule(128, 3, padding="same")(z)
+        z = MaxPooling1D()(z)
+
+        if (CTX["ADD_MAP_CONTEXT"]): z = Concatenate()([z, y_map])
+
+        for _ in range(n):
+            z = Conv1DModule(256, 3, padding="same")(z)
         
-        to_concat = [z]
-        if (CTX["ADD_MAP_CONTEXT"]): to_concat.append(y_map)
-        if (len(to_concat) > 1):
-            z = Concatenate()(to_concat)
+        z = Conv1DModule(self.outs, 3, padding="same")(z)
+
+        z_ = GlobalAveragePooling1D()(z)
+        z = Flatten()(z)
+
+
             
-        z = DenseModule(256, dropout=self.dropout)(z)
         z = Dense(self.outs, activation="softmax")(z)
-        y = z * 0.6 + z_ * 0.2 + z__ * 0.2
+        y = z * 0.7 + z_ * 0.3
             
             
         self.model = tf.keras.Model(inputs, y)

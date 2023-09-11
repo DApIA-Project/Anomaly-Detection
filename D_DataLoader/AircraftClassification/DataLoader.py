@@ -262,7 +262,7 @@ class DataLoader(AbstractDataLoader):
         if (CTX["ADD_TAKE_OFF_CONTEXT"]): x_batches_takeoff = np.zeros((nb_batches * batch_size, CTX["INPUT_LEN"],CTX["FEATURES_IN"]))
         if (CTX["ADD_MAP_CONTEXT"]): x_batches_map = np.zeros((nb_batches * batch_size, self.CTX["IMG_SIZE"], self.CTX["IMG_SIZE"],3), dtype=np.float32)
 
-        NB=10
+        NB=self.CTX["NB_TRAIN_SAMPLES"]
 
         for n in range(0, len(x_batches), NB):
 
@@ -273,8 +273,6 @@ class DataLoader(AbstractDataLoader):
 
             for i in range(len(ts)):
                 t = ts[i]       
-
-                print(i,":",n+i,"/",len(x_batches), end="\r")
             
                 # compute the bounds of the fragment
                 start = max(0, t+1-CTX["HISTORY"])
