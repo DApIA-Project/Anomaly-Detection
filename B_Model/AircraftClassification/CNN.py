@@ -124,8 +124,9 @@ class Model(AbstactModel):
         
         to_concat = [z]
         if (CTX["ADD_MAP_CONTEXT"]): to_concat.append(y_map)
-
-        z = Concatenate()(to_concat)
+        if (len(to_concat) > 1):
+            z = Concatenate()(to_concat)
+            
         z = DenseModule(256, dropout=self.dropout)(z)
         z = Dense(self.outs, activation="softmax")(z)
         y = z * 0.6 + z_ * 0.2 + z__ * 0.2

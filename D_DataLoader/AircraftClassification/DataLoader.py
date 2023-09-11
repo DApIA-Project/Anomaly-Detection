@@ -177,7 +177,6 @@ class DataLoader(AbstractDataLoader):
             if (label == 0):
                 continue
 
-
             # Add the flight to the dataset
             x.append(array)
             y.append(label)
@@ -198,7 +197,8 @@ class DataLoader(AbstractDataLoader):
             self.x, self.y = self.__get_dataset__(path)
         else:
             self.x, self.y = [], []
-        
+
+        print(self.y)
 
         # Create the scalers
         self.xScaler = MinMaxScaler3D()
