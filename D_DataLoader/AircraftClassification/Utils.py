@@ -328,7 +328,7 @@ def compute_shift(start, end, dilatation):
 
 
 
-def pick_an_interesting_aircraft(CTX, x, y, label):
+def pick_an_interesting_aircraft(CTX, x, y, label, n=1):
     flight_i = -1
     while flight_i == -1 or y[flight_i, label] != 1:
         flight_i = np.random.randint(0, len(x))
@@ -337,9 +337,9 @@ def pick_an_interesting_aircraft(CTX, x, y, label):
     if (negative):
         time_step = np.random.randint(0, CTX["HISTORY"]-1)
     else:
-        time_step = np.random.randint(CTX["HISTORY"]-1, len(x[flight_i]))
+        time_step = np.random.randint(CTX["HISTORY"]-1, len(x[flight_i])-(n-1))
 
-    return flight_i, time_step
+    return flight_i, np.arange(time_step, time_step+n)
 
 def to_scientific_notation(number):
     """"

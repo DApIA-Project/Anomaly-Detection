@@ -120,6 +120,7 @@ class Trainer(AbstractTrainer):
             train_loss = 0
             train_y_ = []
             train_y = []
+            print(np.array(x_inputs).shape, np.array(y_batches).shape, flush=True)
             for batch in range(len(x_inputs)):
                 loss, output = self.model.training_step(x_inputs[batch], y_batches[batch])
                 train_loss += loss

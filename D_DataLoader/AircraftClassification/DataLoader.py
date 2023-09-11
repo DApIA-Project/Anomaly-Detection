@@ -262,52 +262,68 @@ class DataLoader(AbstractDataLoader):
         if (CTX["ADD_TAKE_OFF_CONTEXT"]): x_batches_takeoff = np.zeros((nb_batches * batch_size, CTX["INPUT_LEN"],CTX["FEATURES_IN"]))
         if (CTX["ADD_MAP_CONTEXT"]): x_batches_map = np.zeros((nb_batches * batch_size, self.CTX["IMG_SIZE"], self.CTX["IMG_SIZE"],3), dtype=np.float32)
 
-        for n in range(len(x_batches)):
+        NB=10
+
+        for n in range(0, len(x_batches), NB):
 
             # Pick a random label
             label_i = np.random.randint(0, self.yScaler.classes_.shape[0])
-            flight_i, t = U.pick_an_interesting_aircraft(CTX, self.x_train, self.y_train, label_i)
-                    
-            # compute the bounds of the fragment
-            start = max(0, t+1-CTX["HISTORY"])
-            end = t+1
-            length = end - start
-            pad_lenght = (CTX["HISTORY"] - length)//CTX["DILATION_RATE"]
+            nb = min(NB, len(x_batches) - n)
+            flight_i, ts = U.pick_an_interesting_aircraft(CTX, self.x_train, self.y_train, label_i, n=nb)
+
+            for i in range(len(ts)):
+                t = ts[i]       
+
+                print(i,":",n+i,"/",len(x_batches), end="\r")
             
-            # shift to always have the last timestep as part of the fragment !!
-            shift = U.compute_shift(start, end, CTX["DILATION_RATE"])
-            # build the batch
-
-            
-            x_batch = self.x_train[flight_i][start+shift:end:CTX["DILATION_RATE"]]
-            x_batches[n, :pad_lenght] = self.FEATURES_MIN_VALUES
-            x_batches[n, pad_lenght:] = x_batch
-
-
-            if CTX["ADD_TAKE_OFF_CONTEXT"]:
                 # compute the bounds of the fragment
-                start = 0
-                end = length
-                shift = U.compute_shift(start, end, CTX["DILATION_RATE"])
-
-                # build the batch
-                if (self.x_train[flight_i][0,ALT_I] > 1000 or self.x_train[flight_i][0,GEO_I] > 1000):
-                    takeoff = np.full((len(x_batch), CTX["FEATURES_IN"]), self.FEATURES_MIN_VALUES)
-                else:
-                    takeoff = self.x_train[flight_i][start+shift:end:CTX["DILATION_RATE"]]
+                start = max(0, t+1-CTX["HISTORY"])
+                end = t+1
+                length = end - start
+                pad_lenght = (CTX["HISTORY"] - length)//CTX["DILATION_RATE"]
                 
-                # add padding and add to the batch
-                x_batches_takeoff[n, :pad_lenght] = self.FEATURES_MIN_VALUES
-                x_batches_takeoff[n, pad_lenght:] = takeoff
+                # shift to always have the last timestep as part of the fragment !!
+                shift = U.compute_shift(start, end, CTX["DILATION_RATE"])
+                # build the batch
+
+                
+                x_batch = self.x_train[flight_i][start+shift:end:CTX["DILATION_RATE"]]
+                x_batches[n+i, :pad_lenght] = self.FEATURES_MIN_VALUES
+                x_batches[n+i, pad_lenght:] = x_batch
+
+
+                if CTX["ADD_TAKE_OFF_CONTEXT"]:
+                    # compute the bounds of the fragment
+                    start = 0
+                    end = length
+                    shift = U.compute_shift(start, end, CTX["DILATION_RATE"])
+
+                    # build the batch
+                    if (self.x_train[flight_i][0,ALT_I] > 1000 or self.x_train[flight_i][0,GEO_I] > 1000):
+                        takeoff = np.full((len(x_batch), CTX["FEATURES_IN"]), self.FEATURES_MIN_VALUES)
+                    else:
+                        takeoff = self.x_train[flight_i][start+shift:end:CTX["DILATION_RATE"]]
+                    
+                    # add padding and add to the batch
+                    x_batches_takeoff[n+i, :pad_lenght] = self.FEATURES_MIN_VALUES
+                    x_batches_takeoff[n+i, pad_lenght:] = takeoff
 
 
 
-            if CTX["ADD_MAP_CONTEXT"]:
-                lat, lon = x_batches[n, -1, LAT_I], x_batches[n, -1, LON_I]
-                x_batches_map[n] = U.genMap(lat, lon, self.CTX["IMG_SIZE"]) / 255.0
+                if CTX["ADD_MAP_CONTEXT"]:
+                    lat, lon = x_batches[n+i, -1, LAT_I], x_batches[n+i, -1, LON_I]
+                    x_batches_map[n+i] = U.genMap(lat, lon, self.CTX["IMG_SIZE"]) / 255.0
 
-            # get label
-            y_batches[n] = self.y_train[flight_i]
+                # get label
+                y_batches[n+i] = self.y_train[flight_i]
+
+        # reorder the batches
+        combinations = np.arange(len(x_batches))
+        np.random.shuffle(combinations)
+        x_batches = x_batches[combinations]
+        y_batches = y_batches[combinations]
+        if (CTX["ADD_TAKE_OFF_CONTEXT"]): x_batches_takeoff = x_batches_takeoff[combinations]
+        if (CTX["ADD_MAP_CONTEXT"]): x_batches_map = x_batches_map[combinations]
 
         # fit the min values before preprocessing
         if not(self.xScaler.isFitted()):
@@ -385,6 +401,7 @@ class DataLoader(AbstractDataLoader):
             # Pick a random label
             label_i = np.random.randint(0, self.yScaler.classes_.shape[0])
             flight_i, t = U.pick_an_interesting_aircraft(CTX, self.x_test, self.y_test, label_i)
+            t = t[0]
                     
             # compute the bounds of the fragment
             start = max(0, t+1-CTX["HISTORY"])
