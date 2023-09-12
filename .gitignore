@@ -2,7 +2,8 @@
 scpScript.py
 
 mlruns/
-_Artefact/
+_Artefact/*
+!_Artefact/readme.md
 
 __pycache__/
 
@@ -18,15 +19,15 @@ scp_back
 
 
 _Lib/*
-_dist
 !_Lib/build.py
 !_Lib/AircraftClassifier/
 _Lib/AircraftClassifier/*
 !_Lib/AircraftClassifier/__init__.py
 !_Lib/AircraftClassifier/AircraftClassification.py
+_dist
 
 
-_AircraftClassificationDatasetGenerator/_Artefact
+_AircraftClassificationDatasetGenerator/_Artefact/*
 !_AircraftClassificationDatasetGenerator/_Artefact/readme.md
 
 _AircraftClassificationDatasetGenerator/**/*.csv
