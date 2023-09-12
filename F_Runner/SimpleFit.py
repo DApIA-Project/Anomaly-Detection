@@ -34,9 +34,6 @@ def simple_fit(Model:"type[_Model_]", Trainer:"type[_Trainer_]", CTX, default_CT
     """
 
 
-    # desactivate warnings
-    import warnings
-    warnings.filterwarnings("ignore")
     
     # Init mlflow
     run_number = mlflow.init_ml_flow(experiment_name)

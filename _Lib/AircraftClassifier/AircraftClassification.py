@@ -18,9 +18,6 @@ import pickle
 
 import os
 
-import warnings
-warnings.filterwarnings("ignore")
-
 HERE = os.path.abspath(os.path.dirname(__file__))
 
 # Convert CTX to dict and log it

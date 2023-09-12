@@ -211,19 +211,14 @@ def dfToFeatures(df, CTX):
         print(df["callsign"][0], df["icao24"][0], "is too short")
         return []
 
-    # Remove interpolated rows (to test the impact of not using interpolation)
-    # remplace them by full row of NaN
-    # rows = df[df["interpolated"] == True].index
-    # df.loc[rows] = np.nan
-
-    # Remove useless columns
-    df = df[CTX["USED_FEATURES"]]
-
-
     # Cast booleans into numeric
     for col in df.columns:
         if (df[col].dtype == bool):
             df[col] = df[col].astype(int)
+
+    
+    # Remove useless columns
+    df = df[CTX["USED_FEATURES"]]
 
         
     # Fill NaN with -1

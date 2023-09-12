@@ -36,10 +36,6 @@ def multi_fit(Model:"type[_Model_]", Trainer:"type[_Trainer_]", CTX, iteration=3
         Name of the experiment to log to mlflow
     """
 
-
-    # desactivate warnings
-    import warnings
-    warnings.filterwarnings("ignore")
     
     # Init mlflow
     run_number = mlflow.init_ml_flow(experiment_name)

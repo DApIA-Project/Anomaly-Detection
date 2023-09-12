@@ -6,9 +6,10 @@ _Artefact/
 
 __pycache__/
 
-*.csv
 
-A_Dataset/
+
+A_Dataset/**/*.csv
+A_Dataset/**/map.png
 
 scp_back
 
@@ -16,10 +17,17 @@ scp_back
 
 
 
-_lib/*
+_Lib/*
 _dist
-!_lib/build.py
-!_lib/AircraftClassifier/
-_lib/AircraftClassifier/*
-!_lib/AircraftClassifier/__init__.py
-!_lib/AircraftClassifier/AircraftClassification.py
+!_Lib/build.py
+!_Lib/AircraftClassifier/
+_Lib/AircraftClassifier/*
+!_Lib/AircraftClassifier/__init__.py
+!_Lib/AircraftClassifier/AircraftClassification.py
+
+
+_AircraftClassificationDatasetGenerator/_Artefact
+!_AircraftClassificationDatasetGenerator/_Artefact/readme.md
+
+_AircraftClassificationDatasetGenerator/**/*.csv
+_AircraftClassificationDatasetGenerator/**/*.parquet
