@@ -4,7 +4,7 @@ from _Utils.Scaler3D import MinMaxScaler3D, StandardScaler3D, fillNaN3D
 from _Utils.SparceLabelBinarizer import SparceLabelBinarizer
 from _Utils.Metrics import computeTimeserieVarienceRate
 import _Utils.Color as C
-from _Utils.Color import color_print
+from _Utils.Color import prntC
 
 from D_DataLoader.AbstractDataLoader import DataLoader as AbstractDataLoader
 import D_DataLoader.AircraftClassification.Utils as U
@@ -161,6 +161,8 @@ class DataLoader(AbstractDataLoader):
         data_files = [f for f in data_files if f.endswith(".csv")]
         data_files.sort()
 
+        data_files = data_files[0:1000]
+
         x = []
         y = []
 
@@ -190,8 +192,8 @@ class DataLoader(AbstractDataLoader):
                 print("\r|"+done_20*"="+(20-done_20)*" "+f"| {(f+1)}/{len(data_files)}", end=" "*20)
         print("\n", flush=True)
 
-        x = x[0:1000]
-        y = y[0:1000]
+        x = x
+        y = y
 
 
         return x, y
@@ -207,13 +209,45 @@ class DataLoader(AbstractDataLoader):
         else:
             self.x, self.y = [], []
 
-        
-        # fit the scalers and define the min values
+
         self.FEATURES_MIN_VALUES = np.full((CTX["FEATURES_IN"],), np.nan)
+        self.FEATURES_MAX_VALUES = np.full((CTX["FEATURES_IN"],), np.nan)
         for i in range(len(self.x)):
             self.FEATURES_MIN_VALUES = np.nanmin([self.FEATURES_MIN_VALUES, np.nanmin(self.x[i], axis=0)], axis=0)
+            self.FEATURES_MAX_VALUES = np.nanmax([self.FEATURES_MAX_VALUES, np.nanmax(self.x[i], axis=0)], axis=0)
 
-        self.x = fillNaN3D(self.x, self.FEATURES_MIN_VALUES)
+
+        
+        # fit the scalers and define the min values
+        self.FEATURES_PAD_VALUES = self.FEATURES_MIN_VALUES.copy()
+        for f in range(len(CTX["USED_FEATURES"])):
+            feature = CTX["USED_FEATURES"][f]
+            if (feature == "latitude"):
+                if (CTX["RELATIVE_POSITION"]):
+                    self.FEATURES_PAD_VALUES[f] = 0
+                else:
+                    self.FEATURES_PAD_VALUES[f] = self.CTX["BOUNDING_BOX"][0][0]
+
+            elif (feature == "longitude"):
+                if (CTX["RELATIVE_POSITION"]):
+                    self.FEATURES_PAD_VALUES[f] = 0
+                else:
+                    self.FEATURES_PAD_VALUES[f] = self.CTX["BOUNDING_BOX"][0][1]
+
+            elif (feature == "altitude" 
+                  or feature == "geoaltitude" 
+                  or feature == "vertical_rate" 
+                  or feature == "groundspeed" 
+                  or feature == "track" 
+                  or feature == "relative_track" 
+                  or feature == "timestamp"):
+                
+                self.FEATURES_PAD_VALUES[f] = 0
+
+
+
+
+        self.x = fillNaN3D(self.x, self.FEATURES_PAD_VALUES)
 
         # Create the scalers
         self.xScaler = StandardScaler3D()
@@ -240,8 +274,8 @@ class DataLoader(AbstractDataLoader):
         # self.x_test = self.x_train.copy()
         # self.y_test =  self.y_train.copy()
 
-        color_print("Train dataset size :", C.BLUE, len(self.x_train))
-        color_print("Test dataset size :", C.BLUE, len(self.x_test))
+        prntC("Train dataset size :", C.BLUE, len(self.x_train))
+        prntC("Test dataset size :", C.BLUE, len(self.x_test))
 
 
         print("="*100)
@@ -297,7 +331,7 @@ class DataLoader(AbstractDataLoader):
 
                 
                 x_batch = self.x_train[flight_i][start+shift:end:CTX["DILATION_RATE"]]
-                x_batches[n+i, :pad_lenght] = self.FEATURES_MIN_VALUES
+                x_batches[n+i, :pad_lenght] = self.FEATURES_PAD_VALUES
                 x_batches[n+i, pad_lenght:] = x_batch
 
 
@@ -309,12 +343,12 @@ class DataLoader(AbstractDataLoader):
 
                     # build the batch
                     if (self.x_train[flight_i][0,ALT_I] > 1000 or self.x_train[flight_i][0,GEO_I] > 1000):
-                        takeoff = np.full((len(x_batch), CTX["FEATURES_IN"]), self.FEATURES_MIN_VALUES)
+                        takeoff = np.full((len(x_batch), CTX["FEATURES_IN"]), self.FEATURES_PAD_VALUES)
                     else:
                         takeoff = self.x_train[flight_i][start+shift:end:CTX["DILATION_RATE"]]
                     
                     # add padding and add to the batch
-                    x_batches_takeoff[n+i, :pad_lenght] = self.FEATURES_MIN_VALUES
+                    x_batches_takeoff[n+i, :pad_lenght] = self.FEATURES_PAD_VALUES
                     x_batches_takeoff[n+i, pad_lenght:] = takeoff
 
 
@@ -323,8 +357,15 @@ class DataLoader(AbstractDataLoader):
                     lat, lon = x_batches[n+i, -1, LAT_I], x_batches[n+i, -1, LON_I]
                     x_batches_map[n+i] = U.genMap(lat, lon, self.CTX["IMG_SIZE"])
 
+
+                x_batches[n+i, pad_lenght:] = U.batchPreProcess(CTX, x_batches[n+i, pad_lenght:], CTX["RELATIVE_POSITION"], CTX["RELATIVE_TRACK"], CTX["RANDOM_TRACK"])
+                if CTX["ADD_TAKE_OFF_CONTEXT"]:
+                    x_batches_takeoff[n+i, pad_lenght:] = U.batchPreProcess(CTX, x_batches_takeoff[n+i, pad_lenght:])
+
                 # get label
                 y_batches[n+i] = self.y_train[flight_i]
+
+        
 
         # reorder the batches
         combinations = np.arange(len(x_batches))
@@ -334,11 +375,6 @@ class DataLoader(AbstractDataLoader):
         if (CTX["ADD_TAKE_OFF_CONTEXT"]): x_batches_takeoff = x_batches_takeoff[combinations]
         if (CTX["ADD_MAP_CONTEXT"]): x_batches_map = x_batches_map[combinations]
 
-        # preprocess the batches
-        for n in range(len(x_batches)):
-            x_batches[n] = U.batchPreProcess(CTX, x_batches[n], CTX["RELATIVE_POSITION"], CTX["RELATIVE_TRACK"], CTX["RANDOM_TRACK"])
-            if CTX["ADD_TAKE_OFF_CONTEXT"]:
-                x_batches_takeoff[n] = U.batchPreProcess(CTX, x_batches_takeoff[n])
 
   
         # fit the scaler on the first epoch
@@ -346,11 +382,13 @@ class DataLoader(AbstractDataLoader):
             self.xScaler.fit(x_batches)
 
             if (CTX["ADD_TAKE_OFF_CONTEXT"]): self.xTakeOffScaler.fit(x_batches_takeoff)
-
-            print("|".join(self.CTX["USED_FEATURES"]))
-            print("|".join([str(round(v, 1)).ljust(len(self.CTX["USED_FEATURES"][i])) for i, v in enumerate(self.xScaler.means)]))
-            print("|".join([str(round(v, 1)).ljust(len(self.CTX["USED_FEATURES"][i])) for i, v in enumerate(self.xScaler.stds)]))
-            print("|".join([str(round(v, 1)).ljust(len(self.CTX["USED_FEATURES"][i])) for i, v in enumerate(self.FEATURES_MIN_VALUES)]))
+            print("DEBUG SCALLERS : ")
+            prntC("feature:","|".join(self.CTX["USED_FEATURES"]), start=C.BRIGHT_BLUE)
+            print("mean   :","|".join([str(round(v, 1)).ljust(len(self.CTX["USED_FEATURES"][i])) for i, v in enumerate(self.xScaler.means)]))
+            print("std dev:","|".join([str(round(v, 4)).ljust(len(self.CTX["USED_FEATURES"][i])) for i, v in enumerate(self.xScaler.stds)]))
+            print("nan pad:","|".join([str(round(v, 1)).ljust(len(self.CTX["USED_FEATURES"][i])) for i, v in enumerate(self.FEATURES_PAD_VALUES)]))
+            print("min    :","|".join([str(round(v, 1)).ljust(len(self.CTX["USED_FEATURES"][i])) for i, v in enumerate(self.FEATURES_MIN_VALUES)]))
+            print("max    :","|".join([str(round(v, 1)).ljust(len(self.CTX["USED_FEATURES"][i])) for i, v in enumerate(self.FEATURES_MAX_VALUES)]))
             
 
         x_batches = self.xScaler.transform(x_batches)
@@ -425,7 +463,7 @@ class DataLoader(AbstractDataLoader):
             # build the batch
 
             x_batch = self.x_test[flight_i][start+shift:end:CTX["DILATION_RATE"]]
-            x_batches[n, :pad_lenght] = self.FEATURES_MIN_VALUES
+            x_batches[n, :pad_lenght] = self.FEATURES_PAD_VALUES
             x_batches[n, pad_lenght:] = x_batch
 
 
@@ -437,12 +475,12 @@ class DataLoader(AbstractDataLoader):
 
                 # build the batch
                 if (self.x_test[flight_i][0,ALT_I] > 1000 or self.x_test[flight_i][0,GEO_I] > 1000):
-                    takeoff = np.full((len(x_batch), CTX["FEATURES_IN"]), self.FEATURES_MIN_VALUES)
+                    takeoff = np.full((len(x_batch), CTX["FEATURES_IN"]), self.FEATURES_PAD_VALUES)
                 else:
                     takeoff = self.x_test[flight_i][start+shift:end:CTX["DILATION_RATE"]]
                 
                 # add padding and add to the batch
-                x_batches_takeoff[n, :pad_lenght] = self.FEATURES_MIN_VALUES
+                x_batches_takeoff[n, :pad_lenght] = self.FEATURES_PAD_VALUES
                 x_batches_takeoff[n, pad_lenght:] = takeoff
                 
 
@@ -450,14 +488,14 @@ class DataLoader(AbstractDataLoader):
                 lat, lon = x_batches[n, -1, LAT_I], x_batches[n, -1, LON_I]
                 x_batches_map[n] = U.genMap(lat, lon, self.CTX["IMG_SIZE"])
 
+            x_batches[n, pad_lenght:] = U.batchPreProcess(CTX, x_batches[n, pad_lenght:], CTX["RELATIVE_POSITION"], CTX["RELATIVE_TRACK"], CTX["RANDOM_TRACK"])
+            if CTX["ADD_TAKE_OFF_CONTEXT"]:
+                x_batches_takeoff[n, pad_lenght:] = U.batchPreProcess(CTX, x_batches_takeoff[n, pad_lenght:])
+
             # get label
             y_batches[n] = self.y_test[flight_i]
         
-        # preprocess the batches
-        for n in range(len(x_batches)):
-            x_batches[n] = U.batchPreProcess(CTX, x_batches[n], CTX["RELATIVE_POSITION"], CTX["RELATIVE_TRACK"], CTX["RANDOM_TRACK"])
-            if CTX["ADD_TAKE_OFF_CONTEXT"]:
-                x_batches_takeoff[n] = U.batchPreProcess(CTX, x_batches_takeoff[n])
+
 
             
         x_batches = self.xScaler.transform(x_batches)
@@ -515,7 +553,7 @@ class DataLoader(AbstractDataLoader):
         if (label == 0):
             return [], []
         
-        array = fillNaN3D([array], self.FEATURES_MIN_VALUES)[0]
+        array = fillNaN3D([array], self.FEATURES_PAD_VALUES)[0]
         y = self.yScaler.transform([label])[0]
 
         # allocate the required memory
@@ -535,7 +573,7 @@ class DataLoader(AbstractDataLoader):
 
             x_batch = array[start+shift:end:CTX["DILATION_RATE"]]
 
-            x_batches[t, :pad_lenght] = self.FEATURES_MIN_VALUES
+            x_batches[t, :pad_lenght] = self.FEATURES_PAD_VALUES
             x_batches[t, pad_lenght:] = x_batch
             
             
@@ -547,24 +585,21 @@ class DataLoader(AbstractDataLoader):
 
                 # build the batch
                 if (array[0,ALT_I] > 1000 or array[0,GEO_I] > 1000):
-                    takeoff = np.full((len(x_batch), CTX["FEATURES_IN"]), self.FEATURES_MIN_VALUES)
+                    takeoff = np.full((len(x_batch), CTX["FEATURES_IN"]), self.FEATURES_PAD_VALUES)
                 else:
                     takeoff = array[start+shift:end:CTX["DILATION_RATE"]]
                 
                 # add padding and add to the batch
-                x_batches_takeoff[t, :pad_lenght] = self.FEATURES_MIN_VALUES
+                x_batches_takeoff[t, :pad_lenght] = self.FEATURES_PAD_VALUES
                 x_batches_takeoff[t, pad_lenght:] = takeoff
                 
             if CTX["ADD_MAP_CONTEXT"]:
                 lat, lon = x_batches[t, -1, LAT_I], x_batches[t, -1, LON_I]
                 x_batches_map[t] = U.genMap(lat, lon, self.CTX["IMG_SIZE"])
-
-
-        # preprocess the batches
-        for n in range(len(x_batches)):
-            x_batches[n] = U.batchPreProcess(CTX, x_batches[n], CTX["RELATIVE_POSITION"], CTX["RELATIVE_TRACK"], CTX["RANDOM_TRACK"])
+            
+            x_batches[t, pad_lenght:] = U.batchPreProcess(CTX, x_batches[t, pad_lenght:], CTX["RELATIVE_POSITION"], CTX["RELATIVE_TRACK"], CTX["RANDOM_TRACK"])
             if CTX["ADD_TAKE_OFF_CONTEXT"]:
-                x_batches_takeoff[n] = U.batchPreProcess(CTX, x_batches_takeoff[n])
+                x_batches_takeoff[t, pad_lenght:] = U.batchPreProcess(CTX, x_batches_takeoff[t, pad_lenght:])
 
 
 

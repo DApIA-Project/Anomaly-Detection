@@ -9,7 +9,7 @@ HISTORY = 128
 DILATION_RATE = 2
 INPUT_LEN = HISTORY // DILATION_RATE
 
-RELATIVE_POSITION = True
+RELATIVE_POSITION = True # /!\ fix PADDING
 RELATIVE_TRACK = False
 RANDOM_TRACK = False
 TRAINING_NOISE = 0.0
@@ -27,7 +27,7 @@ USED_FEATURES = [
     # "alert", "spi", "squawk",
     "altitude", "geoaltitude",
     # 
-    "relative_track"
+    "relative_track", "timestamp"
 ]
 FEATURES_IN = len(USED_FEATURES)
 FEATURE_MAP = dict([[USED_FEATURES[i], i] for i in range(FEATURES_IN)])

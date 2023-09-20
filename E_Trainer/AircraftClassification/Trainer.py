@@ -5,7 +5,7 @@ import _Utils.mlflow as mlflow
 import _Utils.Metrics as Metrics
 from _Utils.save import write, load, formatJson
 import _Utils.Color as C
-from _Utils.Color import color_print
+from _Utils.Color import prntC
 from _Utils.plotADSB import plotADSB
 
 
@@ -180,9 +180,9 @@ class Trainer(AbstractTrainer):
             print()
             print(f"Epoch {ep}/{CTX['EPOCHS']} - train_loss: {train_loss:.4f} - test_loss: {test_loss:.4f} - time: {time.time() - start:.0f}s" , flush=True)
             print()
-            color_print("classes   : ",C.BLUE, (C.RESET+"|"+C.BLUE).join([str(int(round(v, 0))).rjust(3, " ") for v in self.dl.yScaler.classes_]))
-            print("train_acc : ", "|".join([str(int(round(v, 0))).rjust(3, " ") for v in train_acc]))
-            print("test_acc  : ", "|".join([str(int(round(v, 0))).rjust(3, " ") for v in test_acc]))
+            prntC("classes   :",C.BLUE, (C.RESET+"|"+C.BLUE).join([str(int(round(v, 0))).rjust(3, " ") for v in self.dl.yScaler.classes_]))
+            print("train_acc :", "|".join([str(int(round(v, 0))).rjust(3, " ") for v in train_acc]))
+            print("test_acc  :", "|".join([str(int(round(v, 0))).rjust(3, " ") for v in test_acc]))
             print()
             train_acc, test_acc = Metrics.accuracy(train_y, train_y_), Metrics.accuracy(test_y, test_y_)
             print(f"train acc: {train_acc:.1f}")

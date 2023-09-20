@@ -6,6 +6,108 @@ from PIL import Image
 from _Utils import Color
 
 
+
+def dfToFeatures(df, CTX):
+    """
+    Convert a complete ADS-B trajectory dataframe into a numpy array
+    with the right features and preprocessing
+    """
+
+    if (CTX["PAD_MISSING_INPUT_LEN"]):
+        i = 0
+        while (i < len(df)-1):
+            if (df["timestamp"].iloc[i+1] != df["timestamp"].iloc[i]+1):
+                nb_row_to_add = df["timestamp"].iloc[i+1] - df["timestamp"].iloc[i] - 1
+
+                sub_df = pd.DataFrame([df.iloc[i]]*nb_row_to_add)
+                sub_df["timestamp"] = np.arange(df["timestamp"].iloc[i] + 1, df["timestamp"].iloc[i+1])
+
+                df = pd.concat([df.iloc[:i+1], sub_df, df.iloc[i+1:]]).reset_index(drop=True)
+
+                i += nb_row_to_add
+            i += 1
+
+    # if nan in latitude
+    if (df["latitude"].isna().sum() > 0):
+        print("NaN in latitude")
+        return []
+    if (df["longitude"].isna().sum() > 0):
+        print("NaN in longitude")
+        return []
+
+    # add sec (60), min (60), hour (24) and day_of_week (7) features
+    df["timestamp"] = pd.to_datetime(df["timestamp"], unit="s")
+    df["sec"] = df["timestamp"].dt.second
+    df["min"] = df["timestamp"].dt.minute
+    df["hour"] = df["timestamp"].dt.hour
+    df["day"] = df["timestamp"].dt.dayofweek
+
+    # cap altitude to min = 0
+    df["altitude"] = df["altitude"].clip(lower=0)
+    df["geoaltitude"] = df["geoaltitude"].clip(lower=0)
+
+    # add relative track
+    track = df["track"].values
+    relative_track = track.copy()
+    for i in range(1, len(relative_track)):
+        relative_track[i] = angle_diff(track[i-1], track[i])
+        # print(track[i-1], track[i], relative_track[i])
+    relative_track[0] = 0
+    df["relative_track"] = relative_track
+    df["timestamp"] = df["timestamp"].astype(np.int64) // 10**9
+    df["timestamp"] = df["timestamp"] - df["timestamp"].iloc[0]
+
+    # remove too short flights
+    if (len(df) < CTX["HISTORY"]):
+        print(df["callsign"][0], df["icao24"][0], "is too short")
+        return []
+
+    # Cast booleans into numeric
+    for col in df.columns:
+        if (df[col].dtype == bool):
+            df[col] = df[col].astype(int)
+
+    
+    # Remove useless columns
+    df = df[CTX["USED_FEATURES"]]
+
+        
+    np_array = df.to_numpy().astype(np.float32)
+    return np_array
+
+
+__icao_db__ = None
+def getLabel(CTX, icao, callsign):
+    """
+    Give the label of an aircraft based on his icao imatriculation
+    """
+    global __icao_db__
+    if __icao_db__ is None:
+        labels_file = os.path.join("./A_Dataset/AircraftClassification/labels.csv")
+        __icao_db__ = pd.read_csv(labels_file, sep=",", header=None, dtype={"icao24":str})
+        __icao_db__.columns = ["icao24", "label"]
+        __icao_db__ = __icao_db__.fillna("NULL")
+
+
+        # merge labels asked as similar
+        for label in CTX["MERGE_LABELS"]:
+            __icao_db__["label"] = __icao_db__["label"].replace(CTX["MERGE_LABELS"][label], label)
+
+        # to dict
+        __icao_db__ = __icao_db__.set_index("icao24").to_dict()["label"]
+
+    if (12 in CTX["MERGE_LABELS"] and callsign.startswith("SAMU")):
+        return 12
+
+    if (icao in __icao_db__):
+        return __icao_db__[icao]
+    
+    print("[Warning]", icao, "not found in labels.csv")
+    
+    return 0
+
+
+
 def batchPreProcess(CTX, flight, relative_position=False, relative_track=False, random_track=False):
     """
     Additional method of preprocessing after
@@ -35,6 +137,8 @@ def batchPreProcess(CTX, flight, relative_position=False, relative_track=False, 
     lon = flight[:, FEATURE_MAP["longitude"]]
     track = flight[:, FEATURE_MAP["track"]]
     groundspeed = flight[:, FEATURE_MAP["groundspeed"]]
+
+
 
 
 
@@ -96,18 +200,22 @@ def batchPreProcess(CTX, flight, relative_position=False, relative_track=False, 
         # (detected thanks to the ground speed = -1)
         # we shound not use the relative position for the padding
         # so each lat lon where ground speed is -1 is set to 0, 0
-        lat = np.where(groundspeed == -1, 0, lat)
-        lon = np.where(groundspeed == -1, 0, lon)
+        # TODO
+        # lat = np.where(groundspeed == -1, 0, lat)
+        # lon = np.where(groundspeed == -1, 0, lon)
+        pass
+
+
     
     flight[:, FEATURE_MAP["latitude"]] = lat
     flight[:, FEATURE_MAP["longitude"]] = lon
     flight[:, FEATURE_MAP["track"]] = track
-    # To imlement and test : Track 180
-    # Add header 180 to remove the gap between 0 and 360
-    # of the original track feature.
-    # flight[:, FEATURE_MAP["track180"]] = track180
 
-    
+    if ("timestamp" in FEATURE_MAP):
+        timestamp = flight[:, FEATURE_MAP["timestamp"]]
+        timestamp = timestamp - timestamp[-1]
+        flight[:, FEATURE_MAP["timestamp"]] = timestamp
+
 
     return flight
     
@@ -182,95 +290,6 @@ def angle_diff(a, b):
 
 
 
-
-def dfToFeatures(df, CTX):
-    """
-    Convert a complete ADS-B trajectory dataframe into a numpy array
-    with the right features and preprocessing
-    """
-
-    if (CTX["PAD_MISSING_INPUT_LEN"]):
-        i = 0
-        while (i < len(df)-1):
-            if (df["timestamp"].iloc[i+1] != df["timestamp"].iloc[i]+1):
-                nb_row_to_add = df["timestamp"].iloc[i+1] - df["timestamp"].iloc[i] - 1
-
-                sub_df = pd.DataFrame([df.iloc[i]]*nb_row_to_add)
-                sub_df["timestamp"] = np.arange(df["timestamp"].iloc[i] + 1, df["timestamp"].iloc[i+1])
-
-                df = pd.concat([df.iloc[:i+1], sub_df, df.iloc[i+1:]]).reset_index(drop=True)
-
-                i += nb_row_to_add
-            i += 1
-
-    # add sec (60), min (60), hour (24) and day_of_week (7) features
-    df["timestamp"] = pd.to_datetime(df["timestamp"], unit="s")
-    df["sec"] = df["timestamp"].dt.second
-    df["min"] = df["timestamp"].dt.minute
-    df["hour"] = df["timestamp"].dt.hour
-    df["day"] = df["timestamp"].dt.dayofweek
-
-    # cap altitude to min = 0
-    df["altitude"] = df["altitude"].clip(lower=0)
-    df["geoaltitude"] = df["geoaltitude"].clip(lower=0)
-
-    # add relative track
-    track = df["track"].values
-    relative_track = track.copy()
-    for i in range(1, len(relative_track)):
-        relative_track[i] = angle_diff(track[i-1], track[i])
-    relative_track[0] = 0
-    df["relative_track"] = relative_track
-
-    # remove too short flights
-    if (len(df) < CTX["HISTORY"]):
-        print(df["callsign"][0], df["icao24"][0], "is too short")
-        return []
-
-    # Cast booleans into numeric
-    for col in df.columns:
-        if (df[col].dtype == bool):
-            df[col] = df[col].astype(int)
-
-    
-    # Remove useless columns
-    df = df[CTX["USED_FEATURES"]]
-
-        
-    np_array = df.to_numpy().astype(np.float32)
-    return np_array
-
-
-__icao_db__ = None
-def getLabel(CTX, icao, callsign):
-    """
-    Give the label of an aircraft based on his icao imatriculation
-    """
-    global __icao_db__
-    if __icao_db__ is None:
-        labels_file = os.path.join("./A_Dataset/AircraftClassification/labels.csv")
-        __icao_db__ = pd.read_csv(labels_file, sep=",", header=None, dtype={"icao24":str})
-        __icao_db__.columns = ["icao24", "label"]
-        __icao_db__ = __icao_db__.fillna("NULL")
-
-
-        # merge labels asked as similar
-        for label in CTX["MERGE_LABELS"]:
-            __icao_db__["label"] = __icao_db__["label"].replace(CTX["MERGE_LABELS"][label], label)
-
-        # to dict
-        __icao_db__ = __icao_db__.set_index("icao24").to_dict()["label"]
-
-    if (12 in CTX["MERGE_LABELS"] and callsign.startswith("SAMU")):
-        return 12
-
-    if (icao in __icao_db__):
-        return __icao_db__[icao]
-    
-    print("[Warning]", icao, "not found in labels.csv")
-    
-    return 0
-
 # load image as numpy array
 path = "A_Dataset/AircraftClassification/map.png"
 img = Image.open(path)
@@ -342,7 +361,7 @@ def pick_an_interesting_aircraft(CTX, x, y, label, n=1):
     while flight_i == -1 or y[flight_i, label] != 1:
         flight_i = np.random.randint(0, len(x))
     # pick a timestep in the flight (if negative, the fragment is not yet full of timesteps -> padding)
-    negative = np.random.randint(0, 100) <= 1000
+    negative = np.random.randint(0, 100) <= 5
     if (negative):
         time_step = np.random.randint(0, CTX["HISTORY"]-1)
     else:

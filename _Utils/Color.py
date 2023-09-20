@@ -17,16 +17,14 @@ BRIGHT_MAGENTA = "\033[95m"
 BRIGHT_CYAN = "\033[96m"
 BRIGHT_WHITE = "\033[97m"
 
-def color_print(*values, sep=' ', end=RESET+'\n'):
-    string = ''
+def is_color(color):
+    return (color[:2] == '\x1b[' and len(color) == 5)
+
+def prntC(*values, sep=' ', end=RESET+'\n', start=RESET):
+    values = [v.__str__() for v in values]
+    string = start
     for i in range(len(values)):
-        v = values[i]
-        # if v is a color
-        str_rep = v.__str__()
-        if (str_rep[:2] == '\033' and len(str_rep) == 5):
-            string += str_rep
-        else:
-            string += str_rep
-            if (i < len(values)-1):
-                string += sep
+        string += values[i]
+        if i + 1 < len(values) and not(is_color(values[i])): # and not(is_color(values[i + 1])):
+            string += sep
     print(string, end=end)
