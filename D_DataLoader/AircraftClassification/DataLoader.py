@@ -1,24 +1,26 @@
  
-import pandas as pd
-import numpy as np
-from _Utils.MinMaxScaler3D import MinMaxScaler3D
+
+from _Utils.Scaler3D import MinMaxScaler3D, StandardScaler3D, fillNaN3D
 from _Utils.SparceLabelBinarizer import SparceLabelBinarizer
+from _Utils.Metrics import computeTimeserieVarienceRate
+import _Utils.Color as C
+from _Utils.Color import color_print
+
 from D_DataLoader.AbstractDataLoader import DataLoader as AbstractDataLoader
-import os
-import math
-# MultiLabelBinirazer
-from sklearn.preprocessing import LabelBinarizer
-
-import matplotlib.pyplot as plt
-
-from PIL import Image
-
 import D_DataLoader.AircraftClassification.Utils as U
 
+import os
+import math
 import time
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
 
-from _Utils.Metrics import computeTimeserieVarienceRate
-from _Utils import Color
+
+
+
+
+
 
 
 __icao_db__ = None
@@ -157,6 +159,8 @@ class DataLoader(AbstractDataLoader):
 
         data_files = os.listdir(path)
         data_files = [f for f in data_files if f.endswith(".csv")]
+        data_files.sort()
+
         x = []
         y = []
 
@@ -167,12 +171,12 @@ class DataLoader(AbstractDataLoader):
             file = data_files[f]
             # set time as index
             df = pd.read_csv(os.path.join(path, file), sep=",",dtype={"callsign":str, "icao24":str})
-
-            array = U.dfToFeatures(df, CTX)
-
+            
             # Get the aircraft right label for his imatriculation
             icao24 = df["icao24"].iloc[0]
             callsign = df["callsign"].iloc[0]
+            
+            array = U.dfToFeatures(df, CTX)
             label = U.getLabel(CTX, icao24, callsign)
             if (label == 0):
                 continue
@@ -185,6 +189,11 @@ class DataLoader(AbstractDataLoader):
                 done_20 = int(((f+1)/len(data_files)*20))
                 print("\r|"+done_20*"="+(20-done_20)*" "+f"| {(f+1)}/{len(data_files)}", end=" "*20)
         print("\n", flush=True)
+
+        x = x[0:1000]
+        y = y[0:1000]
+
+
         return x, y
     
 
@@ -198,11 +207,17 @@ class DataLoader(AbstractDataLoader):
         else:
             self.x, self.y = [], []
 
-        print(self.y)
+        
+        # fit the scalers and define the min values
+        self.FEATURES_MIN_VALUES = np.full((CTX["FEATURES_IN"],), np.nan)
+        for i in range(len(self.x)):
+            self.FEATURES_MIN_VALUES = np.nanmin([self.FEATURES_MIN_VALUES, np.nanmin(self.x[i], axis=0)], axis=0)
+
+        self.x = fillNaN3D(self.x, self.FEATURES_MIN_VALUES)
 
         # Create the scalers
-        self.xScaler = MinMaxScaler3D()
-        if (self.CTX["ADD_TAKE_OFF_CONTEXT"]): self.xTakeOffScaler = MinMaxScaler3D()
+        self.xScaler = StandardScaler3D()
+        if (self.CTX["ADD_TAKE_OFF_CONTEXT"]): self.xTakeOffScaler = StandardScaler3D()
         self.yScaler = SparceLabelBinarizer()
 
 
@@ -225,13 +240,9 @@ class DataLoader(AbstractDataLoader):
         # self.x_test = self.x_train.copy()
         # self.y_test =  self.y_train.copy()
 
-        print("Train dataset size :", len(self.x_train))
-        print("Test dataset size :", len(self.x_test))
+        color_print("Train dataset size :", C.BLUE, len(self.x_train))
+        color_print("Test dataset size :", C.BLUE, len(self.x_test))
 
-        # fit the scalers and define the min values
-        self.FEATURES_MIN_VALUES = np.full((CTX["FEATURES_IN"],), np.nan)
-        if (CTX["EPOCHS"]):
-            self.genEpochTrain(1, 4096)
 
         print("="*100)
 
@@ -310,7 +321,7 @@ class DataLoader(AbstractDataLoader):
 
                 if CTX["ADD_MAP_CONTEXT"]:
                     lat, lon = x_batches[n+i, -1, LAT_I], x_batches[n+i, -1, LON_I]
-                    x_batches_map[n+i] = U.genMap(lat, lon, self.CTX["IMG_SIZE"]) / 255.0
+                    x_batches_map[n+i] = U.genMap(lat, lon, self.CTX["IMG_SIZE"])
 
                 # get label
                 y_batches[n+i] = self.y_train[flight_i]
@@ -323,14 +334,9 @@ class DataLoader(AbstractDataLoader):
         if (CTX["ADD_TAKE_OFF_CONTEXT"]): x_batches_takeoff = x_batches_takeoff[combinations]
         if (CTX["ADD_MAP_CONTEXT"]): x_batches_map = x_batches_map[combinations]
 
-        # fit the min values before preprocessing
-        if not(self.xScaler.isFitted()):
-            self.FEATURES_MIN_VALUES = np.nanmin(x_batches, axis=(0,1))
-   
-
         # preprocess the batches
         for n in range(len(x_batches)):
-            x_batches[n] = U.batchPreProcess(CTX, x_batches[n], CTX["RELATIVE_POSITION"], CTX["RELATIVE_HEADING"], CTX["RANDOM_HEADING"])
+            x_batches[n] = U.batchPreProcess(CTX, x_batches[n], CTX["RELATIVE_POSITION"], CTX["RELATIVE_TRACK"], CTX["RANDOM_TRACK"])
             if CTX["ADD_TAKE_OFF_CONTEXT"]:
                 x_batches_takeoff[n] = U.batchPreProcess(CTX, x_batches_takeoff[n])
 
@@ -338,7 +344,14 @@ class DataLoader(AbstractDataLoader):
         # fit the scaler on the first epoch
         if not(self.xScaler.isFitted()):
             self.xScaler.fit(x_batches)
+
             if (CTX["ADD_TAKE_OFF_CONTEXT"]): self.xTakeOffScaler.fit(x_batches_takeoff)
+
+            print("|".join(self.CTX["USED_FEATURES"]))
+            print("|".join([str(round(v, 1)).ljust(len(self.CTX["USED_FEATURES"][i])) for i, v in enumerate(self.xScaler.means)]))
+            print("|".join([str(round(v, 1)).ljust(len(self.CTX["USED_FEATURES"][i])) for i, v in enumerate(self.xScaler.stds)]))
+            print("|".join([str(round(v, 1)).ljust(len(self.CTX["USED_FEATURES"][i])) for i, v in enumerate(self.FEATURES_MIN_VALUES)]))
+            
 
         x_batches = self.xScaler.transform(x_batches)
         if (CTX["ADD_TAKE_OFF_CONTEXT"]): x_batches_takeoff = self.xTakeOffScaler.transform(x_batches_takeoff)
@@ -435,14 +448,14 @@ class DataLoader(AbstractDataLoader):
 
             if CTX["ADD_MAP_CONTEXT"]:
                 lat, lon = x_batches[n, -1, LAT_I], x_batches[n, -1, LON_I]
-                x_batches_map[n] = U.genMap(lat, lon, self.CTX["IMG_SIZE"]) / 255.0
+                x_batches_map[n] = U.genMap(lat, lon, self.CTX["IMG_SIZE"])
 
             # get label
             y_batches[n] = self.y_test[flight_i]
         
         # preprocess the batches
         for n in range(len(x_batches)):
-            x_batches[n] = U.batchPreProcess(CTX, x_batches[n], CTX["RELATIVE_POSITION"], CTX["RELATIVE_HEADING"], CTX["RANDOM_HEADING"])
+            x_batches[n] = U.batchPreProcess(CTX, x_batches[n], CTX["RELATIVE_POSITION"], CTX["RELATIVE_TRACK"], CTX["RANDOM_TRACK"])
             if CTX["ADD_TAKE_OFF_CONTEXT"]:
                 x_batches_takeoff[n] = U.batchPreProcess(CTX, x_batches_takeoff[n])
 
@@ -501,6 +514,8 @@ class DataLoader(AbstractDataLoader):
         label = U.getLabel(CTX, icao, callsign)
         if (label == 0):
             return [], []
+        
+        array = fillNaN3D([array], self.FEATURES_MIN_VALUES)[0]
         y = self.yScaler.transform([label])[0]
 
         # allocate the required memory
@@ -542,12 +557,12 @@ class DataLoader(AbstractDataLoader):
                 
             if CTX["ADD_MAP_CONTEXT"]:
                 lat, lon = x_batches[t, -1, LAT_I], x_batches[t, -1, LON_I]
-                x_batches_map[t] = U.genMap(lat, lon, self.CTX["IMG_SIZE"]) / 255.0
+                x_batches_map[t] = U.genMap(lat, lon, self.CTX["IMG_SIZE"])
 
 
         # preprocess the batches
         for n in range(len(x_batches)):
-            x_batches[n] = U.batchPreProcess(CTX, x_batches[n], CTX["RELATIVE_POSITION"], CTX["RELATIVE_HEADING"], CTX["RANDOM_HEADING"])
+            x_batches[n] = U.batchPreProcess(CTX, x_batches[n], CTX["RELATIVE_POSITION"], CTX["RELATIVE_TRACK"], CTX["RANDOM_TRACK"])
             if CTX["ADD_TAKE_OFF_CONTEXT"]:
                 x_batches_takeoff[n] = U.batchPreProcess(CTX, x_batches_takeoff[n])
 

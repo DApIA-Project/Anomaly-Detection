@@ -16,3 +16,17 @@ BRIGHT_BLUE = "\033[94m"
 BRIGHT_MAGENTA = "\033[95m"
 BRIGHT_CYAN = "\033[96m"
 BRIGHT_WHITE = "\033[97m"
+
+def color_print(*values, sep=' ', end=RESET+'\n'):
+    string = ''
+    for i in range(len(values)):
+        v = values[i]
+        # if v is a color
+        str_rep = v.__str__()
+        if (str_rep[:2] == '\033' and len(str_rep) == 5):
+            string += str_rep
+        else:
+            string += str_rep
+            if (i < len(values)-1):
+                string += sep
+    print(string, end=end)

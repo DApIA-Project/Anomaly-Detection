@@ -3,7 +3,7 @@
 import tensorflow as tf
 from keras.layers import *
 
-ACTIVATION = ELU
+ACTIVATION = LeakyReLU
 
 class Conv1DModule(tf.Module):
 

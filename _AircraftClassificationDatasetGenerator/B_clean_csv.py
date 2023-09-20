@@ -4,6 +4,7 @@ import math
 
 
 files = os.listdir('./csv/')
+files = [file for file in files if file.endswith('.csv')]
 
 for i in range(len(files)):
 
@@ -42,11 +43,20 @@ for i in range(len(files)):
         if lat_lon_nb[lat_lon] > 3:
             to_remove.append(lat_lon)
 
-    to_remove_i = []
+    to_remove_i = set()
     for lat_lon in to_remove:
         indexs = lats_lons_i[lat_lon]
         for index in indexs:
-            to_remove_i.append(index)
+            to_remove_i.add(index)
+
+
+    # drop aberrant vertrate
+    vertrate = df['vertical_rate'].values
+    for i in range(len(vertrate)):
+        if (vertrate[i] > 4224 or vertrate[i] < -4224):
+            to_remove_i.add(i)
+
+    to_remove_i = list(to_remove_i)
             
     if (len(to_remove_i) > 0):
         df.drop(to_remove_i, inplace=True)
@@ -75,6 +85,7 @@ MIN_DURATION = 10*60 # 15 minutes
 MAX_MISSING_PERCENT = 40 # 40%
 
 files = os.listdir('./csv/')
+files = [file for file in files if file.endswith('.csv')]
 
 for i in range(len(files)):
 
@@ -90,6 +101,8 @@ for i in range(len(files)):
     timestep_end = timestep[-1]
     lat = df["latitude"].values
     lon = df["longitude"].values
+
+
 
     duration = timestep_end - timestep_start
 
@@ -111,6 +124,7 @@ for i in range(len(files)):
     if duration < MIN_DURATION:
         os.remove('./csv/' + file)
         continue
+
 
     max_gap = 0
     for i in range(1, len(df)):
@@ -140,6 +154,14 @@ for i in range(len(files)):
     for i in range(1, len(lat_lon_angle)):
         mean_angle_diff += angle_diff(lat_lon_angle[i], lat_lon_angle[i-1])
     mean_angle_diff /= len(lat_lon_angle)
+
+
+    vertrate = df["vertical_rate"].values
+    vertrate_range = max(vertrate) - min(vertrate)
+    if (vertrate_range == 0):
+        os.remove('./csv/' + file)
+        continue
+    
     
     if (mean_angle_diff > 50):
         os.remove('./csv/' + file)

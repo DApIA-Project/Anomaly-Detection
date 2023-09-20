@@ -1,5 +1,7 @@
 .vscode/
 scpScript.py
+scpDataset.py
+test.py
 
 mlruns/
 _Artefact/*

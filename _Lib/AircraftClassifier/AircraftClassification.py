@@ -156,7 +156,7 @@ def predictAircraftType(timestamp,latitude,longitude,groundspeed,track,vertical_
             img = np.array([DataLoader.genMap(
                     xi[-1][CTX["FEATURE_MAP"]["latitude"]], 
                     xi[-1][CTX["FEATURE_MAP"]["longitude"]], 
-                    CTX["IMG_SIZE"]) for xi in x]) / 255.0
+                    CTX["IMG_SIZE"]) for xi in x])
 
         x = [batchPreProcess(CTX, flight) for flight in x]
         x = np.array(xScaler.transform(x))

@@ -4,22 +4,27 @@
 import _Utils.mlflow as mlflow
 import _Utils.Metrics as Metrics
 from _Utils.save import write, load, formatJson
+import _Utils.Color as C
+from _Utils.Color import color_print
+from _Utils.plotADSB import plotADSB
 
 
 from B_Model.AbstractModel import Model as _Model_
 from D_DataLoader.AircraftClassification.DataLoader import DataLoader
+from D_DataLoader.AircraftClassification.Utils import angle_diff
 from E_Trainer.AbstractTrainer import Trainer as AbstractTrainer
 
 
-import pandas as pd
-import numpy as np
-import time
-
 import os
-import matplotlib.pyplot as plt 
-
 import time
 import json
+import time
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt 
+from matplotlib.backends.backend_pdf import PdfPages
+
+
 
 def reshape(x):
     """
@@ -114,6 +119,8 @@ class Trainer(AbstractTrainer):
         best_variables = None
         best_loss= 10000000
 
+        test_save_x, test_save_y = None, None
+
         # if _Artefact/modelsW folder exists and is not empty, clear it
         if os.path.exists("./_Artefact/modelsW"):
             if (len(os.listdir("./_Artefact/modelsW")) > 0):
@@ -148,7 +155,10 @@ class Trainer(AbstractTrainer):
             ##############################
             #          Testing           #
             ##############################
-            x_inputs, test_y = self.dl.genEpochTest()
+            if (test_save_x is None):
+                test_save_x, test_save_y = self.dl.genEpochTest()
+            x_inputs, test_y = test_save_x, test_save_y
+
             test_loss = 0
             n = 0
             test_y_ = np.zeros((len(x_inputs), CTX["FEATURES_OUT"]), dtype=np.float32)
@@ -170,7 +180,7 @@ class Trainer(AbstractTrainer):
             print()
             print(f"Epoch {ep}/{CTX['EPOCHS']} - train_loss: {train_loss:.4f} - test_loss: {test_loss:.4f} - time: {time.time() - start:.0f}s" , flush=True)
             print()
-            print("classes   : ", "|".join([str(int(round(v, 0))).rjust(3, " ") for v in self.dl.yScaler.classes_]))
+            color_print("classes   : ",C.BLUE, (C.RESET+"|"+C.BLUE).join([str(int(round(v, 0))).rjust(3, " ") for v in self.dl.yScaler.classes_]))
             print("train_acc : ", "|".join([str(int(round(v, 0))).rjust(3, " ") for v in train_acc]))
             print("test_acc  : ", "|".join([str(int(round(v, 0))).rjust(3, " ") for v in test_acc]))
             print()
@@ -178,10 +188,6 @@ class Trainer(AbstractTrainer):
             print(f"train acc: {train_acc:.1f}")
             print(f"test acc : {test_acc:.1f}")
             print()
-
-            if test_loss < best_loss:
-                best_loss = test_loss
-                best_variables = self.model.getVariables()
 
             # Save the model loss
             history[0].append(train_loss)
@@ -195,7 +201,7 @@ class Trainer(AbstractTrainer):
             mlflow.log_metric("epoch", ep, step=ep)
 
             # Save the model weights
-            write("./_Artefact/modelsW/"+self.model.name+"_"+str(ep)+" "+str(round(test_acc, 1))+".w", self.model.getVariables())
+            write("./_Artefact/modelsW/"+self.model.name+"_"+str(ep)+".w", self.model.getVariables())
 
         # load best model
 
@@ -215,9 +221,14 @@ class Trainer(AbstractTrainer):
         Metrics.plotLoss(history, history_avg)
         Metrics.plotAccuracy(history, history_avg)
 
-        #  load back best model
+        # #  load back best model
         if (len(history[1]) > 0):
-            print("load best model, epoch : ", np.argmin(history[1]) + 1, " with loss : ", np.min(history[1]), flush=True)
+            # find best model epoch with history_avg_accuracy 
+            best_i = np.argmax(history_avg[3]) + 1
+
+            print("load best model, epoch : ", best_i, " with Acc : ", history[3][best_i-1], flush=True)
+            
+            best_variables = load("./_Artefact/modelsW/"+self.model.name+"_"+str(best_i)+".w")
             self.model.setVariables(best_variables)
         else:
             print("WARNING : no history of training has been saved")
@@ -234,7 +245,8 @@ class Trainer(AbstractTrainer):
         """
         Load the model's weights from the _Artefact folder
         """
-        self.model.setVariables(load("./_Artefact/"+self.model.name+".w"))
+        # self.model.setVariables(load("./_Artefact/"+self.model.name+".w"))
+        self.model.setVariables(load("./_Artefact/modelsW/CNN_80.w"))
         self.dl.xScaler.setVariables(load("./_Artefact/"+self.model.name+".xs"))
         if (self.CTX["ADD_TAKE_OFF_CONTEXT"]):
             self.dl.xTakeOffScaler.setVariables(load("./_Artefact/"+self.model.name+".xts"))
@@ -268,6 +280,8 @@ class Trainer(AbstractTrainer):
         global_ts_confusion_matrix = np.zeros((nb_classes, nb_classes), dtype=int)
         global_confusion_matrix = np.zeros((nb_classes, nb_classes), dtype=int)
 
+        # create a plotting pdf
+        pdf = PdfPages("./_Artefact/tmp")
 
         failed_files = []
 
@@ -288,10 +302,11 @@ class Trainer(AbstractTrainer):
             start = time.time()
             y_batches_ = np.zeros((len(x_inputs), nb_classes), dtype=np.float32)
 
-            for b in range(0, len(x_inputs), CTX["BATCH_SIZE"]):
-                x_batch = x_inputs[b:b+CTX["BATCH_SIZE"]]
+            jumps = CTX["BATCH_SIZE"] * CTX["NB_BATCH"]
+            for b in range(0, len(x_inputs),jumps):
+                x_batch = x_inputs[b:b+jumps]
                 pred =  self.model.predict(reshape(x_batch)).numpy()
-                y_batches_[b:b+CTX["BATCH_SIZE"]] = pred
+                y_batches_[b:b+jumps] = pred
 
 
 
@@ -310,9 +325,7 @@ class Trainer(AbstractTrainer):
 
             global_confusion_matrix[true, pred_max] += 1
 
-            # print(global_pred_max, global_true)            
-            if (pred_max != true):
-                failed_files.append((file, str(self.dl.yScaler.classes_[true]), str(self.dl.yScaler.classes_[pred_max])))
+
 
             
             # compute binary (0/1) correct prediction
@@ -351,6 +364,30 @@ class Trainer(AbstractTrainer):
             df["y_"] = df_y_
             df.to_csv(os.path.join("./A_Dataset/AircraftClassification/Outputs/Eval", file), index=False)
 
+                        # print(global_pred_max, global_true)            
+            if (pred_max != true):
+                failed_files.append((file, str(self.dl.yScaler.classes_[true]), str(self.dl.yScaler.classes_[pred_max])))
+                track = df["track"].values
+                relative_track = track.copy()
+                for i in range(1, len(relative_track)):
+                    relative_track[i] = angle_diff(track[i], track[i-1])
+                relative_track[0] = 0
+
+
+                fig, ax = plotADSB(CTX, self.dl.yScaler.classes_, 
+                                   f"{file}    Y : {self.dl.yScaler.classes_[true]} Ŷ : {self.dl.yScaler.classes_[pred_max]}", 
+                                   df["timestamp"].values, df['latitude'].values, df['longitude'].values, 
+                                   df['groundspeed'].values, df['track'].values, df['vertical_rate'].values, 
+                                   df['altitude'].values, df['geoaltitude'].values, 
+                                   y_batches_, self.dl.yScaler.classes_[true], [(relative_track, "relative_track")])
+                pdf.savefig(fig)
+                plt.close(fig)
+
+
+        pdf.close()
+        os.rename("./_Artefact/tmp", "./_Artefact/eval.pdf")
+
+
         self.CTX["LABEL_NAMES"] = np.array(self.CTX["LABEL_NAMES"])
         Metrics.plotConusionMatrix("./_Artefact/confusion_matrix.png", global_confusion_matrix, self.CTX["LABEL_NAMES"][self.dl.yScaler.classes_])
         Metrics.plotConusionMatrix("./_Artefact/ts_confusion_matrix.png", global_ts_confusion_matrix, self.CTX["LABEL_NAMES"][self.dl.yScaler.classes_])
@@ -366,9 +403,9 @@ class Trainer(AbstractTrainer):
         print("nbSample per class : ", "|".join([str(a).rjust(6, " ") for a in nbSample]))
         print("accuracy : ", accuracy)
 
-        print("global accuracy mean : ", global_correct_mean / global_nb, "(", global_correct_mean, "/", global_nb, ")")
-        print("global accuracy count : ", global_correct_count / global_nb, "(", global_correct_count, "/", global_nb, ")")
-        print("global accuracy max : ", global_correct_max / global_nb, "(", global_correct_max, "/", global_nb, ")")
+        print("global accuracy mean : ", round(global_correct_mean / global_nb*100.0, 1), "(", global_correct_mean, "/", global_nb, ")")
+        print("global accuracy count : ", round(global_correct_count / global_nb*100.0, 1), "(", global_correct_count, "/", global_nb, ")")
+        print("global accuracy max : ", round(global_correct_max / global_nb*100.0, 1), "(", global_correct_max, "/", global_nb, ")")
 
         # print files of failed predictions
         print("failed files : ")
@@ -381,7 +418,7 @@ class Trainer(AbstractTrainer):
             json_ = file.read()
             file.close()
             fails = json.loads(json_)
-            print(fails)
+            # print(fails)
         else:
             fails = {}
 
@@ -459,7 +496,7 @@ class Trainer(AbstractTrainer):
     #             for b in range(0, len(x_batch), MAX_BATCH_SIZE):
     #                 batch_img_x = np.zeros((len(x_batch[b:b+MAX_BATCH_SIZE]), self.CTX["IMG_SIZE"], self.CTX["IMG_SIZE"], 3), dtype=np.float32)
     #                 for k in range(len(batch_img_x)):
-    #                     batch_img_x[k] = DataLoader.genMap(x_batch_lat_lon[b+k, 0], x_batch_lat_lon[b+k, 1], self.CTX["IMG_SIZE"])/255.0
+    #                     batch_img_x[k] = DataLoader.genMap(x_batch_lat_lon[b+k, 0], x_batch_lat_lon[b+k, 1], self.CTX["IMG_SIZE"])
 
     #                 y_batches_[b:b+MAX_BATCH_SIZE] = self.model.predict(x_batch[b:b+MAX_BATCH_SIZE], batch_img_x).numpy()
                 

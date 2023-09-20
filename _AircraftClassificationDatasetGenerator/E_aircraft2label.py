@@ -39,7 +39,7 @@ TERMINAL_COLOR = {
 
 
 
-icaoToType = open("./labels/icao2type.csv", "r")
+icaoToType = open("./labels/icao2aircraft.csv", "r")
 icaoToType = icaoToType.readlines()
 icaoToType = [line.strip().split(",") for line in icaoToType]
 
@@ -56,6 +56,8 @@ if os.path.exists("./labels/aircraft2label.csv"):
 for key in labeledType.keys():
     typesToLabel.remove(key)
 
+print(typesToLabel)
+print(len(typesToLabel))
 os.system("open google.com")
 
 for key in typesToLabel:

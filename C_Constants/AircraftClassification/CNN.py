@@ -1,7 +1,7 @@
 
-LEARNING_RATE = 0.00005
-EPOCHS = 150
-BATCH_SIZE = 128
+LEARNING_RATE = 0.0001
+EPOCHS = 80
+BATCH_SIZE = 64
 NB_BATCH = 32
 
 
@@ -10,23 +10,24 @@ DILATION_RATE = 2
 INPUT_LEN = HISTORY // DILATION_RATE
 
 RELATIVE_POSITION = True
-RELATIVE_HEADING = False
-RANDOM_HEADING = False
+RELATIVE_TRACK = False
+RANDOM_TRACK = False
 TRAINING_NOISE = 0.0
 
 
 
-LAYERS = 2
+LAYERS = 1
 DROPOUT = 0.2
 
 
 USED_FEATURES = [
     "latitude", "longitude",
     "groundspeed", "track",
-    "vertical_rate", "onground",
-    "alert", "spi", "squawk",
+    "vertical_rate", #"onground",
+    # "alert", "spi", "squawk",
     "altitude", "geoaltitude",
     # 
+    "relative_track"
 ]
 FEATURES_IN = len(USED_FEATURES)
 FEATURE_MAP = dict([[USED_FEATURES[i], i] for i in range(FEATURES_IN)])

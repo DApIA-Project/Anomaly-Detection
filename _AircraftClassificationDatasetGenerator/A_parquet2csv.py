@@ -73,6 +73,7 @@ def flight_is_valid(flight_df):
 
 os.system("rm ./csv/*.csv")
 files = os.listdir('./parquets')
+files = [file for file in files if file.endswith('.parquet')]
 
 
 file = files[0]

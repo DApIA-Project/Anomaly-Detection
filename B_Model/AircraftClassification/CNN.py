@@ -8,7 +8,7 @@ from B_Model.Utils.TF_Modules import *
 import numpy as np
 
 import os
-
+from random import randint
 
 class Model(AbstactModel):
     """
@@ -55,115 +55,74 @@ class Model(AbstactModel):
         Define optimizer
         """
 
-
-        # load context
         self.CTX = CTX
-        self.dropout = CTX["DROPOUT"]
-        self.outs = CTX["FEATURES_OUT"]
 
-        # save the number of training steps
-        self.nb_train = 0
+        if (self.CTX["ADD_TAKE_OFF_CONTEXT"]):
+            self.takeoff_module = TakeOffModule(self.CTX)
+        self.ads_b_module = ADS_B_Module(self.CTX)
 
-
-        x_input_shape = (self.CTX["INPUT_LEN"], self.CTX["FEATURES_IN"])
-        if (CTX["ADD_TAKE_OFF_CONTEXT"]): takeoff_input_shape = (self.CTX["INPUT_LEN"], self.CTX["FEATURES_IN"])
-        if (CTX["ADD_MAP_CONTEXT"]): map_input_shape = (self.CTX["IMG_SIZE"], self.CTX["IMG_SIZE"], 3)
-    
-        x = tf.keras.Input(shape=x_input_shape, name='input')
-        inputs = [x]
-        if (CTX["ADD_TAKE_OFF_CONTEXT"]): 
-            takeoff = tf.keras.Input(shape=takeoff_input_shape, name='takeoff')
-            inputs.append(takeoff)
-
-        if (CTX["ADD_MAP_CONTEXT"]): 
-            map = tf.keras.Input(shape=map_input_shape, name='map')
-            inputs.append(map)
-
-        # concat takeoff and x
-        if (CTX["ADD_TAKE_OFF_CONTEXT"]): 
-            z = Concatenate(axis=2)([x, takeoff])
-        else:
-            z = x
-
-
-        if (CTX["ADD_MAP_CONTEXT"]):
-            y_map = map
-
-            n=1
-            for _ in range(n):
-                y_map = Conv2DModule(64, 3, padding="same")(y_map)
-            y_map = MaxPooling2D()(y_map)
-
-            for _ in range(n):
-                y_map = Conv2DModule(64, 3, padding="same")(y_map)
-            y_map = MaxPooling2D()(y_map)
-
-            for _ in range(n):
-                y_map = Conv2DModule(128, 3, padding="same")(y_map)
-            y_map = GlobalAveragePooling2D()(y_map)
-            y_map = Flatten()(y_map)
-            y_map = RepeatVector(self.CTX["INPUT_LEN"] // 2)(y_map)
-
-
-        n = self.CTX["LAYERS"]
-        for _ in range(n):
-            z = Conv1DModule(128, 3, padding="same")(z)
-        z = MaxPooling1D()(z)
-
-        if (CTX["ADD_MAP_CONTEXT"]): z = Concatenate()([z, y_map])
-
-        for _ in range(n):
-            z = Conv1DModule(256, 3, padding="same")(z)
-        
-        z = Conv1DModule(self.outs, 3, padding="same")(z)
-
-        z_ = GlobalAveragePooling1D()(z)
-        z = Flatten()(z)
-
-
-            
-        z = Dense(self.outs, activation="softmax")(z)
-        y = z * 0.7 + z_ * 0.3
-            
-            
-        self.model = tf.keras.Model(inputs, y)
-
-
-        # define loss function
-        # self.loss = tf.keras.losses.CategoricalCrossentropy()
         self.loss = tf.keras.losses.MeanSquaredError()
-
-        # define optimizer
-        self.opt = tf.keras.optimizers.Adam(learning_rate=CTX["LEARNING_RATE"])
+        self.nb_train = 0
 
         
     def predict(self, x):
         """
         Make prediction for x 
         """
-        return self.model(x)
+        inputs = [x[0]]
+        if (self.CTX["ADD_TAKE_OFF_CONTEXT"]):
+            takeoff_ctx, _ = self.takeoff_module(x[1])
+            inputs.append(takeoff_ctx)
+
+        return self.ads_b_module(inputs)[1]
 
     def compute_loss(self, x, y):
         """
         Make a prediction and compute the loss
         that will be used for training
         """
-        y_ = self.model(x)
-        return self.loss(y_, y), y_
+        inputs = [x[0]]
+        if (self.CTX["ADD_TAKE_OFF_CONTEXT"]):
+            takeoff_ctx, _ = self.takeoff_module(x[1])
+            inputs.append(takeoff_ctx)
+        y_ = self.ads_b_module(inputs)
+
+        loss = self.loss(y_[0], y)
+
+        return loss, y_[1]
 
     def training_step(self, x, y):
         """
         Do one forward pass and gradient descent
         for the given batch
         """
-        with tf.GradientTape(watch_accessed_variables=True) as tape:
-            loss, output = self.compute_loss(x, y)
+        # y *= 0.
+        train_adsb = True
+        adsb = x[0]
+        if (self.CTX["ADD_TAKE_OFF_CONTEXT"]):
+            takeoff = x[1]
+        if (self.CTX["ADD_MAP_CONTEXT"]):
+            map = x[2]
+        
+        adsb_inputs = [adsb]
+        if (self.CTX["ADD_TAKE_OFF_CONTEXT"]):
+            if (randint(0, 32-1) == 0):
+                train_adsb = False
+                loss, (takeoffctx, _) = self.takeoff_module.training_step(takeoff, y)
 
-            gradients = tape.gradient(loss, self.model.trainable_variables)
-            self.opt.apply_gradients(zip(gradients, self.model.trainable_variables))
+            else:
+                takeoffctx, _ = self.takeoff_module(takeoff)
+
+            adsb_inputs.append(takeoffctx)
+
+        if (train_adsb):
+            loss, outputs = self.ads_b_module.training_step(adsb_inputs, y)
+        else:
+            outputs = self.ads_b_module(adsb_inputs)
 
         self.nb_train += 1
-        return loss, output
+        loss = self.loss(outputs[0], y)
+        return loss, outputs[1]
 
 
 
@@ -171,10 +130,29 @@ class Model(AbstactModel):
         """
         Generate a visualization of the model's architecture
         """
-        
+        adsb = tf.keras.Input(shape=(self.CTX["INPUT_LEN"], self.CTX["FEATURES_IN"]), name='ads-b')
+        inputs = [adsb]
+        if (self.CTX["ADD_TAKE_OFF_CONTEXT"]):
+            take_off = tf.keras.Input(shape=(self.CTX["INPUT_LEN"], self.CTX["FEATURES_IN"]), name='take_off')
+            inputs.append(take_off)
+        if (self.CTX["ADD_MAP_CONTEXT"]):
+            # inputs.append(tf.keras.Input(shape=(MapModule.CTX_SIZE, ), name='map'))
+            pass
+
+        adsb_inputs = [adsb]
+        outputs = []
+        if (self.CTX["ADD_TAKE_OFF_CONTEXT"]):
+            takeoff_ctx, y_takeoff = self.takeoff_module(take_off)
+            adsb_inputs.append(takeoff_ctx)
+            outputs.append(y_takeoff)
+
+        y_ = self.ads_b_module(adsb_inputs)
+        outputs.append(y_)
+    
+        model = tf.keras.Model(inputs, outputs)
             
         filename = os.path.join(save_path, self.name+".png")
-        tf.keras.utils.plot_model(self.model, to_file=filename, show_shapes=True)
+        tf.keras.utils.plot_model(model, to_file=filename, show_shapes=True)
 
 
 
@@ -182,11 +160,134 @@ class Model(AbstactModel):
         """
         Return the variables of the model
         """
-        return self.model.trainable_variables
+        return [self.takeoff_module.model.trainable_variables, self.ads_b_module.model.trainable_variables]
 
     def setVariables(self, variables):
         """
         Set the variables of the model
         """
-        for i in range(len(variables)):
-            self.model.trainable_variables[i].assign(variables[i])
+        for i in range(len(variables[0])):
+            self.takeoff_module.model.trainable_variables[i].assign(variables[0][i])
+        for i in range(len(variables[1])):
+            self.ads_b_module.model.trainable_variables[i].assign(variables[1][i])
+
+
+
+
+
+
+
+class TakeOffModule(tf.Module):
+
+    CTX_SIZE = 128
+
+    def __init__(self, CTX):
+        self.CTX = CTX
+        self.layers = self.CTX["LAYERS"]
+        self.dropout = self.CTX["DROPOUT"]
+        self.outs = self.CTX["FEATURES_OUT"]
+
+        input_shape = (self.CTX["INPUT_LEN"], self.CTX["FEATURES_IN"])
+        x = tf.keras.Input(shape=input_shape, name='takeoff')
+        z = x
+        for _ in range(self.layers):
+            z = Conv1DModule(64, 3, padding="same")(z)
+        z = MaxPooling1D()(z)
+        for _ in range(self.layers):
+            z = Conv1DModule(128, 3, padding="same")(z)
+
+        z = Flatten()(z)
+        out_ctx = DenseModule(self.CTX_SIZE, dropout=self.dropout)(z)
+        gradiant_skip = Dense(self.outs, activation="sigmoid", name="skip")(out_ctx)
+
+        self.model = tf.keras.Model(x, [out_ctx, gradiant_skip])
+
+        self.loss = tf.keras.losses.MeanSquaredError()
+        self.opt = tf.keras.optimizers.Adam(learning_rate=CTX["LEARNING_RATE"])
+
+    def __call__(self, x):
+        return self.model(x)
+    
+    def training_step(self, x, y):
+        with tf.GradientTape() as tape:
+            variables = self.model.trainable_variables
+            tape.watch(variables)
+            
+            ctx, y_ = self.model(x)
+            loss = self.loss(y_, y)
+
+            gradients = tape.gradient(loss, variables)
+            self.opt.apply_gradients(zip(gradients, variables))
+
+        return loss, (ctx, y_)
+    
+
+class ADS_B_Module(tf.Module):
+
+    def __init__(self, CTX):
+        self.CTX = CTX
+        self.layers = self.CTX["LAYERS"]
+        self.dropout = self.CTX["DROPOUT"]
+        self.outs = self.CTX["FEATURES_OUT"]
+
+        input_shape = (self.CTX["INPUT_LEN"], self.CTX["FEATURES_IN"])
+        adsb_x = tf.keras.Input(shape=input_shape, name='ads-b')
+
+        adsb = adsb_x
+
+        for _ in range(self.layers):
+            adsb = Conv1DModule(128, 3, padding="same")(adsb)
+        adsb = MaxPooling1D()(adsb)
+
+        
+        if (CTX["ADD_TAKE_OFF_CONTEXT"]): 
+            takeoff_input_shape = (TakeOffModule.CTX_SIZE, )
+            takeoff_x = tf.keras.Input(shape=takeoff_input_shape, name='takeoff')
+            takeoff = takeoff_x
+            takeoff = RepeatVector(self.CTX["INPUT_LEN"] // 2)(takeoff)
+
+            adsb = Concatenate()([adsb, takeoff])
+        
+        if (CTX["ADD_MAP_CONTEXT"]):
+            pass
+
+        for _ in range(self.layers):
+            adsb = Conv1DModule(256, 3, padding="same")(adsb)
+        adsb = Conv1DModule(self.outs, 3, padding="same")(adsb)
+
+
+        adsb = Flatten()(adsb)
+        adsb_raw = Dense(self.outs, activation="linear")(adsb)
+        # apply sigmoid 
+        adsb = Activation("sigmoid")(adsb_raw)
+
+        adsb_y = adsb
+        adsb_y_raw = adsb_raw
+
+
+        inputs = [adsb_x]
+        if (CTX["ADD_TAKE_OFF_CONTEXT"]): inputs.append(takeoff_x)
+        # if (CTX["ADD_MAP_CONTEXT"]): inputs.append(map)
+
+        self.model = tf.keras.Model(inputs, [adsb_y, adsb_y_raw])
+
+        self.loss = tf.keras.losses.MeanSquaredError()
+        self.opt = tf.keras.optimizers.Adam(learning_rate=CTX["LEARNING_RATE"])
+
+    def __call__(self, x):
+        return self.model(x)
+    
+
+    def training_step(self, x, y):
+        with tf.GradientTape() as tape:
+            variables = self.model.trainable_variables
+            tape.watch(variables)
+            
+            y_ = self.model(x) # return sigmoid output for training
+            loss = self.loss(y_[0], y)
+
+            gradients = tape.gradient(loss, variables)
+            self.opt.apply_gradients(zip(gradients, variables))
+
+        return loss, y_
+

@@ -2,6 +2,7 @@ import pandas as pd
 import os
 
 files = os.listdir('./csv/')
+files = [file for file in files if file.endswith('.csv')]
 
 icaos = {} 
 

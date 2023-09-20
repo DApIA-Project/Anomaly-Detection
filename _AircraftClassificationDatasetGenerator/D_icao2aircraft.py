@@ -36,7 +36,7 @@ TERMINAL_COLOR = {
 
 
 icao_to_labelize = open("./labels/icaos_list.csv", "r").read().splitlines()
-icao2type = {} # icao24 -> type
+icao2aircraft = {} # icao24 -> type
 
 LABELS = {
     "SUPER_HEAVY": 1, # machandises, passagers : > 255,000 lb (Boeing 747, Airbus A340)
@@ -62,28 +62,28 @@ for key in LABELS:
         max_label = LABELS[key]
 
 
-def save(icao2type):
+def save(icao2aircraft):
     # save db
-    file = open("./labels/icao2type.csv", "w")
-    for icao in icao2type:
-        file.write(icao + "," + icao2type[icao] + "\n")
+    file = open("./labels/icao2aircraft.csv", "w")
+    for icao in icao2aircraft:
+        file.write(icao + "," + icao2aircraft[icao] + "\n")
     file.close()
     
 
 def load():
-    _icao2type = {}
+    _icao2aircraft = {}
 
-    if (os.path.isfile("./labels/icao2type.csv")):
-        file = open("./labels/icao2type.csv", "r")
+    if (os.path.isfile("./labels/icao2aircraft.csv")):
+        file = open("./labels/icao2aircraft.csv", "r")
         for line in file:
             line = line[:-1]
             l = line.split(",")
             icao = l[0]
             type = l[1]
-            _icao2type[icao] = type
+            _icao2aircraft[icao] = type
         file.close()
 
-    return _icao2type
+    return _icao2aircraft
 
 
 
@@ -102,7 +102,7 @@ def _workaround_write(text):
 
 
 # read not.txt file
-icao2type = load()
+icao2aircraft = load()
 
 
 shortcut = [
@@ -112,7 +112,7 @@ shortcut = [
 for i in range(len(icao_to_labelize)):
     icao = icao_to_labelize[i]
 
-    if (icao in icao2type):
+    if (icao in icao2aircraft):
         continue
 
 
@@ -167,15 +167,15 @@ for i in range(len(icao_to_labelize)):
         time.sleep(0.1)
         aircraft_type = pyperclip.paste().strip()
         pyperclip.copy(aircraft_type)  
-        if (aircraft_type == "-"): aircraft_type = ""
+        if (aircraft_type == "-" or aircraft_type == ".."): aircraft_type = ""
         print("AIRCRAFT type :"+TERMINAL_COLOR["CYAN"], aircraft_type, end=TERMINAL_COLOR["RESET"]+" ")
 
 
         # check if aircraft is in the aircraft database (never seen but known aircraft type)
         if (aircraft_type != ""):
-            icao2type[icao] = aircraft_type
+            icao2aircraft[icao] = aircraft_type
         else:
-            icao2type[icao] = "UNKNOWN"
+            icao2aircraft[icao] = "UNKNOWN"
 
         # come back to former page
         pyautogui.moveTo(1492, 340)
@@ -189,7 +189,7 @@ for i in range(len(icao_to_labelize)):
     
 
     print("[save]\n")
-    save(icao2type)
+    save(icao2aircraft)
 
     # check if there is a .screenshot* file
     files = os.listdir("./")

@@ -6,7 +6,7 @@ from PIL import Image
 from _Utils import Color
 
 
-def batchPreProcess(CTX, flight, relative_position=False, relative_heading=False, random_heading=False):
+def batchPreProcess(CTX, flight, relative_position=False, relative_track=False, random_track=False):
     """
     Additional method of preprocessing after
     batch generation.
@@ -33,9 +33,7 @@ def batchPreProcess(CTX, flight, relative_position=False, relative_heading=False
     FEATURE_MAP = CTX["FEATURE_MAP"]
     lat = flight[:, FEATURE_MAP["latitude"]]
     lon = flight[:, FEATURE_MAP["longitude"]]
-    heading = flight[:, FEATURE_MAP["track"]]
-    baro_altitude = flight[:, FEATURE_MAP["altitude"]]
-    geo_altitude = flight[:, FEATURE_MAP["geoaltitude"]]
+    track = flight[:, FEATURE_MAP["track"]]
     groundspeed = flight[:, FEATURE_MAP["groundspeed"]]
 
 
@@ -46,15 +44,15 @@ def batchPreProcess(CTX, flight, relative_position=False, relative_heading=False
     Z = -CTX["BOX_CENTER"][1]
 
     if relative_position:
-        # R = heading[-1]
+        # R = track[-1]
         Y = lat[-1]
         Z = -lon[-1]
 
     
-    if relative_heading:
-        R = heading[-1]
+    if relative_track:
+        R = track[-1]
 
-    if random_heading:
+    if random_track:
         R = np.random.uniform(0, 360)
 
     # Normalize lat lon to 0, 0
@@ -85,19 +83,13 @@ def batchPreProcess(CTX, flight, relative_position=False, relative_heading=False
     lat = np.degrees(np.arcsin(zx))
     lon = np.degrees(np.arctan2(yx, xx))
 
-    # rotate heading as well
-    heading = heading - R
-    heading = np.remainder(heading, 360)
+    # rotate track as well
+    track = track - R
+    track = np.remainder(track, 360)
 
-    # print(lat[-10:], lon[-10:], heading[-10:], sep="\n\n")
+    # print(lat[-10:], lon[-10:], track[-10:], sep="\n\n")
     # exit(0)
     
-
-    # Normalise altitude 
-    # peharps not a good idea because vertrate is already 
-    # kind of normalized
-    # baro_altitude = baro_altitude - baro_altitude[-1]
-    # geo_altitude = geo_altitude - geo_altitude[-1]
 
     if (relative_position):
         # if we use relative position, and the begining of the fragment is padding
@@ -109,13 +101,12 @@ def batchPreProcess(CTX, flight, relative_position=False, relative_heading=False
     
     flight[:, FEATURE_MAP["latitude"]] = lat
     flight[:, FEATURE_MAP["longitude"]] = lon
-    flight[:, FEATURE_MAP["track"]] = heading
-    # To imlement and test : Heading 180
+    flight[:, FEATURE_MAP["track"]] = track
+    # To imlement and test : Track 180
     # Add header 180 to remove the gap between 0 and 360
-    # of the original heading feature.
-    # flight[:, FEATURE_MAP["heading180"]] = heading180
-    flight[:, FEATURE_MAP["altitude"]] = baro_altitude
-    flight[:, FEATURE_MAP["geoaltitude"]] = geo_altitude
+    # of the original track feature.
+    # flight[:, FEATURE_MAP["track180"]] = track180
+
     
 
     return flight
@@ -176,6 +167,19 @@ def num2deg(xtile, ytile, zoom):
     lat_deg = math.degrees(lat_rad)
     return (lat_deg, lon_deg)
 
+def angle_diff(a, b):
+    a = a % 360
+    b = b % 360
+
+    # compute relative angle
+    diff = b - a
+
+    if (diff > 180):
+        diff -= 360
+    elif (diff < -180):
+        diff += 360
+    return diff
+
 
 
 
@@ -206,6 +210,18 @@ def dfToFeatures(df, CTX):
     df["hour"] = df["timestamp"].dt.hour
     df["day"] = df["timestamp"].dt.dayofweek
 
+    # cap altitude to min = 0
+    df["altitude"] = df["altitude"].clip(lower=0)
+    df["geoaltitude"] = df["geoaltitude"].clip(lower=0)
+
+    # add relative track
+    track = df["track"].values
+    relative_track = track.copy()
+    for i in range(1, len(relative_track)):
+        relative_track[i] = angle_diff(track[i-1], track[i])
+    relative_track[0] = 0
+    df["relative_track"] = relative_track
+
     # remove too short flights
     if (len(df) < CTX["HISTORY"]):
         print(df["callsign"][0], df["icao24"][0], "is too short")
@@ -221,8 +237,6 @@ def dfToFeatures(df, CTX):
     df = df[CTX["USED_FEATURES"]]
 
         
-    # Fill NaN with -1
-    df = df.fillna(-1)
     np_array = df.to_numpy().astype(np.float32)
     return np_array
 
@@ -260,7 +274,7 @@ def getLabel(CTX, icao, callsign):
 # load image as numpy array
 path = "A_Dataset/AircraftClassification/map.png"
 img = Image.open(path)
-MAP =  np.array(img, dtype=np.float32)
+MAP =  np.array(img, dtype=np.float32) / 255.0
 def genMap(lat, lon, size):
     """Generate an image of the map with the flight at the center"""
 
