@@ -161,7 +161,7 @@ class DataLoader(AbstractDataLoader):
         data_files = [f for f in data_files if f.endswith(".csv")]
         data_files.sort()
 
-        data_files = data_files[0:1000]
+        # data_files = data_files[:]
 
         x = []
         y = []
@@ -222,17 +222,11 @@ class DataLoader(AbstractDataLoader):
         self.FEATURES_PAD_VALUES = self.FEATURES_MIN_VALUES.copy()
         for f in range(len(CTX["USED_FEATURES"])):
             feature = CTX["USED_FEATURES"][f]
-            if (feature == "latitude"):
-                if (CTX["RELATIVE_POSITION"]):
-                    self.FEATURES_PAD_VALUES[f] = 0
-                else:
-                    self.FEATURES_PAD_VALUES[f] = self.CTX["BOUNDING_BOX"][0][0]
 
+            if (feature == "latitude"):
+                self.FEATURES_PAD_VALUES[f] = 0
             elif (feature == "longitude"):
-                if (CTX["RELATIVE_POSITION"]):
-                    self.FEATURES_PAD_VALUES[f] = 0
-                else:
-                    self.FEATURES_PAD_VALUES[f] = self.CTX["BOUNDING_BOX"][0][1]
+                self.FEATURES_PAD_VALUES[f] = 0
 
             elif (feature == "altitude" 
                   or feature == "geoaltitude" 
@@ -342,7 +336,7 @@ class DataLoader(AbstractDataLoader):
                     shift = U.compute_shift(start, end, CTX["DILATION_RATE"])
 
                     # build the batch
-                    if (self.x_train[flight_i][0,ALT_I] > 1000 or self.x_train[flight_i][0,GEO_I] > 1000):
+                    if (self.x_train[flight_i][0,ALT_I] > 2000 or self.x_train[flight_i][0,GEO_I] > 2000):
                         takeoff = np.full((len(x_batch), CTX["FEATURES_IN"]), self.FEATURES_PAD_VALUES)
                     else:
                         takeoff = self.x_train[flight_i][start+shift:end:CTX["DILATION_RATE"]]
@@ -376,7 +370,6 @@ class DataLoader(AbstractDataLoader):
         if (CTX["ADD_MAP_CONTEXT"]): x_batches_map = x_batches_map[combinations]
 
 
-  
         # fit the scaler on the first epoch
         if not(self.xScaler.isFitted()):
             self.xScaler.fit(x_batches)
@@ -385,12 +378,11 @@ class DataLoader(AbstractDataLoader):
             print("DEBUG SCALLERS : ")
             prntC("feature:","|".join(self.CTX["USED_FEATURES"]), start=C.BRIGHT_BLUE)
             print("mean   :","|".join([str(round(v, 1)).ljust(len(self.CTX["USED_FEATURES"][i])) for i, v in enumerate(self.xScaler.means)]))
-            print("std dev:","|".join([str(round(v, 4)).ljust(len(self.CTX["USED_FEATURES"][i])) for i, v in enumerate(self.xScaler.stds)]))
+            print("std dev:","|".join([str(round(v, 1)).ljust(len(self.CTX["USED_FEATURES"][i])) for i, v in enumerate(self.xScaler.stds)]))
             print("nan pad:","|".join([str(round(v, 1)).ljust(len(self.CTX["USED_FEATURES"][i])) for i, v in enumerate(self.FEATURES_PAD_VALUES)]))
             print("min    :","|".join([str(round(v, 1)).ljust(len(self.CTX["USED_FEATURES"][i])) for i, v in enumerate(self.FEATURES_MIN_VALUES)]))
             print("max    :","|".join([str(round(v, 1)).ljust(len(self.CTX["USED_FEATURES"][i])) for i, v in enumerate(self.FEATURES_MAX_VALUES)]))
             
-
         x_batches = self.xScaler.transform(x_batches)
         if (CTX["ADD_TAKE_OFF_CONTEXT"]): x_batches_takeoff = self.xTakeOffScaler.transform(x_batches_takeoff)
 
@@ -474,7 +466,7 @@ class DataLoader(AbstractDataLoader):
                 shift = U.compute_shift(start, end, CTX["DILATION_RATE"])
 
                 # build the batch
-                if (self.x_test[flight_i][0,ALT_I] > 1000 or self.x_test[flight_i][0,GEO_I] > 1000):
+                if (self.x_test[flight_i][0,ALT_I] > 2000 or self.x_test[flight_i][0,GEO_I] > 2000):
                     takeoff = np.full((len(x_batch), CTX["FEATURES_IN"]), self.FEATURES_PAD_VALUES)
                 else:
                     takeoff = self.x_test[flight_i][start+shift:end:CTX["DILATION_RATE"]]
@@ -584,7 +576,7 @@ class DataLoader(AbstractDataLoader):
                 shift = U.compute_shift(start, end, CTX["DILATION_RATE"])
 
                 # build the batch
-                if (array[0,ALT_I] > 1000 or array[0,GEO_I] > 1000):
+                if (array[0,ALT_I] > 2000 or array[0,GEO_I] > 2000):
                     takeoff = np.full((len(x_batch), CTX["FEATURES_IN"]), self.FEATURES_PAD_VALUES)
                 else:
                     takeoff = array[start+shift:end:CTX["DILATION_RATE"]]

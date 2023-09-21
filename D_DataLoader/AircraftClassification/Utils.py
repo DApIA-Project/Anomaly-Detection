@@ -191,19 +191,7 @@ def batchPreProcess(CTX, flight, relative_position=False, relative_track=False, 
     track = track - R
     track = np.remainder(track, 360)
 
-    # print(lat[-10:], lon[-10:], track[-10:], sep="\n\n")
-    # exit(0)
-    
 
-    if (relative_position):
-        # if we use relative position, and the begining of the fragment is padding
-        # (detected thanks to the ground speed = -1)
-        # we shound not use the relative position for the padding
-        # so each lat lon where ground speed is -1 is set to 0, 0
-        # TODO
-        # lat = np.where(groundspeed == -1, 0, lat)
-        # lon = np.where(groundspeed == -1, 0, lon)
-        pass
 
 
     

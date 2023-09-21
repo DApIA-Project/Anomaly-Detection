@@ -73,11 +73,18 @@ def plotConusionMatrix(png, confusion_matrix, SCALER_LABELS):
     # plot confusion matrix
     import matplotlib.pyplot as plt
 
-    fig, ax = plt.subplots(figsize=(7.5, 7.5))
-    ax.matshow(confusion_matrix, cmap=plt.cm.Blues, alpha=0.3)
+    confusion_matrix_percent = np.zeros(confusion_matrix.shape)
     for i in range(confusion_matrix.shape[0]):
         for j in range(confusion_matrix.shape[1]):
-            ax.text(x=j, y=i,s=confusion_matrix[i, j], va='center', ha='center', size='xx-large')
+            confusion_matrix_percent[i, j] = confusion_matrix[i, j] / np.sum(confusion_matrix[i, :])
+
+
+    fig, ax = plt.subplots(figsize=(7.5, 7.5))
+    ax.matshow(confusion_matrix_percent, cmap=plt.cm.Blues, alpha=0.3)
+    for i in range(confusion_matrix.shape[0]):
+        for j in range(confusion_matrix.shape[1]):
+            s_rep = str(confusion_matrix[i, j]) + "\n" + str(round(confusion_matrix_percent[i, j]*100, 1))+"%"
+            ax.text(x=j, y=i,s=s_rep, va='center', ha='center', size='xx-large')
 
     acc = np.sum(np.diag(confusion_matrix)) / np.sum(confusion_matrix)
     

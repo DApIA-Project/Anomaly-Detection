@@ -160,16 +160,23 @@ class Model(AbstactModel):
         """
         Return the variables of the model
         """
-        return [self.takeoff_module.model.trainable_variables, self.ads_b_module.model.trainable_variables]
+        variables = []
+        variables.append(self.ads_b_module.model.trainable_variables)
+        if (self.CTX["ADD_TAKE_OFF_CONTEXT"]):
+            variables.append(self.takeoff_module.model.trainable_variables)
+
+        return variables
 
     def setVariables(self, variables):
         """
         Set the variables of the model
         """
         for i in range(len(variables[0])):
-            self.takeoff_module.model.trainable_variables[i].assign(variables[0][i])
-        for i in range(len(variables[1])):
-            self.ads_b_module.model.trainable_variables[i].assign(variables[1][i])
+            self.ads_b_module.model.trainable_variables[i].assign(variables[0][i])
+
+        if (self.CTX["ADD_TAKE_OFF_CONTEXT"]):
+            for i in range(len(variables[1])):
+                self.takeoff_module.model.trainable_variables[i].assign(variables[1][i])
 
 
 

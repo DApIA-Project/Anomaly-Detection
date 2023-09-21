@@ -155,9 +155,9 @@ class Trainer(AbstractTrainer):
             ##############################
             #          Testing           #
             ##############################
-            if (test_save_x is None):
-                test_save_x, test_save_y = self.dl.genEpochTest()
-            x_inputs, test_y = test_save_x, test_save_y
+            # if (test_save_x is None):
+            #     test_save_x, test_save_y = self.dl.genEpochTest()
+            x_inputs, test_y = self.dl.genEpochTest()
 
             test_loss = 0
             n = 0
@@ -245,8 +245,8 @@ class Trainer(AbstractTrainer):
         """
         Load the model's weights from the _Artefact folder
         """
-        # self.model.setVariables(load("./_Artefact/"+self.model.name+".w"))
-        self.model.setVariables(load("./_Artefact/modelsW/CNN_80.w"))
+        self.model.setVariables(load("./_Artefact/"+self.model.name+".w"))
+        # self.model.setVariables(load("./_Artefact/modelsW/CNN_80.w"))
         self.dl.xScaler.setVariables(load("./_Artefact/"+self.model.name+".xs"))
         if (self.CTX["ADD_TAKE_OFF_CONTEXT"]):
             self.dl.xTakeOffScaler.setVariables(load("./_Artefact/"+self.model.name+".xts"))

@@ -35,7 +35,7 @@ for folder in ["Train", "Eval"]:
         altitude = df['altitude'].values
         geoaltitude = df['geoaltitude'].values
 
-        if (altitude[0] > 1000 or geoaltitude[0] > 1000):
+        if (altitude[0] > 2000 or geoaltitude[0] > 2000):
             ignored_files.append(file)
 
 
