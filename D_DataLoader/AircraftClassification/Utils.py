@@ -7,7 +7,7 @@ from _Utils import Color
 
 
 
-def dfToFeatures(df, CTX):
+def dfToFeatures(df, label, CTX):
     """
     Convert a complete ADS-B trajectory dataframe into a numpy array
     with the right features and preprocessing
@@ -56,6 +56,23 @@ def dfToFeatures(df, CTX):
     df["relative_track"] = relative_track
     df["timestamp"] = df["timestamp"].astype(np.int64) // 10**9
     df["timestamp"] = df["timestamp"] - df["timestamp"].iloc[0]
+
+    if ("selected" in CTX["FEATURE_MAP"]):
+
+        if (label is None):
+            df["selected"] = 0
+        else:
+            label = CTX["USED_LABELS"].index(label)
+            y_ = df["y_"].values
+            y_ = np.array([y_[i].split(";") for i in range(len(y_))])
+            y_ = y_.astype(np.float32)
+            correct = np.argmax(y_, axis=1) == label
+            confidence = compute_confidence(y_)
+            mean = np.mean(confidence)
+            # print("mean confidence", mean,"min", np.min(confidence), "max", np.max(confidence))
+            selected = np.logical_and(correct, confidence > mean, confidence > 5)
+            df["selected"] = selected
+
 
     # remove too short flights
     if (len(df) < CTX["HISTORY"]):
@@ -345,15 +362,31 @@ def compute_shift(start, end, dilatation):
 
 
 def pick_an_interesting_aircraft(CTX, x, y, label, n=1):
+    
     flight_i = -1
     while flight_i == -1 or y[flight_i, label] != 1:
         flight_i = np.random.randint(0, len(x))
     # pick a timestep in the flight (if negative, the fragment is not yet full of timesteps -> padding)
     negative = np.random.randint(0, 100) <= 5
+    time_step = None
+
+    use_selected = "selected" in CTX["FEATURE_MAP"]
+
+
     if (negative):
         time_step = np.random.randint(0, CTX["HISTORY"]-1)
+
     else:
-        time_step = np.random.randint(CTX["HISTORY"]-1, len(x[flight_i])-(n-1))
+        nb = 100
+        while time_step is None \
+            or (use_selected and \
+            x[flight_i][time_step, CTX["FEATURE_MAP"]["selected"]]!=0):
+
+            time_step = np.random.randint(CTX["HISTORY"]-1, len(x[flight_i])-(n-1))
+            nb -= 1
+            if (nb == 0):
+                return pick_an_interesting_aircraft(CTX, x, y, label, n=n)
+
 
     return flight_i, np.arange(time_step, time_step+n)
 
@@ -430,3 +463,8 @@ def print_2D_timeserie(CTX, array, max_len=10):
         for i in range(CTX["FEATURES_IN"]):
             print(array[t][i].rjust(max_length[i]), end="|" if i < CTX["FEATURES_IN"]-1 else "\n")
     print()
+
+
+
+def compute_confidence(y_:np.ndarray):
+    return np.max(y_, axis=1) - (np.sum(y_, axis=1) - np.max(y_, axis=1)) / (y_.shape[1]-1)

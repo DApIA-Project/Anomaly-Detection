@@ -178,11 +178,19 @@ class DataLoader(AbstractDataLoader):
             icao24 = df["icao24"].iloc[0]
             callsign = df["callsign"].iloc[0]
             
-            array = U.dfToFeatures(df, CTX)
+
             label = U.getLabel(CTX, icao24, callsign)
             if (label == 0):
                 continue
 
+            array = U.dfToFeatures(df, label, CTX)
+            
+            if ("selected" in CTX["FEATURE_MAP"] \
+                and np.sum(1.0-array[:, CTX["FEATURE_MAP"]["selected"]]) <= CTX["HISTORY"]):
+
+                print("file", file, "is not containing enough relevant pattern")
+                continue
+            
             # Add the flight to the dataset
             x.append(array)
             y.append(label)
@@ -194,7 +202,6 @@ class DataLoader(AbstractDataLoader):
 
         x = x
         y = y
-
 
         return x, y
     
@@ -247,12 +254,13 @@ class DataLoader(AbstractDataLoader):
         self.xScaler = StandardScaler3D()
         if (self.CTX["ADD_TAKE_OFF_CONTEXT"]): self.xTakeOffScaler = StandardScaler3D()
         self.yScaler = SparceLabelBinarizer()
+        self.yScaler.setVariables(self.CTX["USED_LABELS"])
 
 
         # Fit the y scaler
         # x scaler will be fitted later after batch preprocessing
         if (CTX["EPOCHS"]):
-            self.y = self.yScaler.fit_transform(self.y)
+            self.y = self.yScaler.transform(self.y)
             self.y = np.array(self.y, dtype=np.float32)
 
 
@@ -540,10 +548,11 @@ class DataLoader(AbstractDataLoader):
         callsign = df["callsign"].iloc[0]
 
         # preprocess the trajectory
-        array = U.dfToFeatures(df, CTX)
+
         label = U.getLabel(CTX, icao, callsign)
-        if (label == 0):
+        if (label == 0): # no label -> skip
             return [], []
+        array = U.dfToFeatures(df, None, CTX)
         
         array = fillNaN3D([array], self.FEATURES_PAD_VALUES)[0]
         y = self.yScaler.transform([label])[0]

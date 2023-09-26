@@ -3,7 +3,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import math
 from PIL import Image
-from D_DataLoader.AircraftClassification.Utils import MAP, deg2num_int, deg2num, num2deg
+from D_DataLoader.AircraftClassification.Utils import MAP, deg2num_int, deg2num, num2deg, compute_confidence
 
 
 
@@ -47,7 +47,7 @@ def plotADSB(CTX, classes_, title, timestamp, lat, lon, groundspeed, track, vert
     # Y
     labels = np.argmax(probabilities, axis=1)
     labels = np.array([CLASSES_[label] for label in labels])
-    confiance = np.max(probabilities, axis=1)
+    confiance = compute_confidence(probabilities)
 
     # X
     timestamp = timestamp - timestamp[0]

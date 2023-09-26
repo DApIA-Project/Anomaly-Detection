@@ -42,6 +42,8 @@ MERGE_LABELS = { # no merge by default
 }
 
 FEATURES_OUT = len(MERGE_LABELS)
+USED_LABELS = [k for k in MERGE_LABELS.keys() if k != 0]
+
 
 
 BOUNDING_BOX = [

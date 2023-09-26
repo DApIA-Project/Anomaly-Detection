@@ -61,6 +61,3 @@ if gpus:
 #         CTX[param] = default_CTX[param]
 # dl = DataLoader(CTX, "./A_Dataset/AircraftClassification/Train")
 # x_train, y_train = dl.genEpochTrain(8, 4)
-
-# print(dl.xScaler.mins)
-# print(dl.xScaler.maxs)

@@ -81,7 +81,7 @@ def __preprocess__(timestamp,latitude,longitude,groundspeed,track,vertical_rate,
     )
 
 
-    array = DataLoader.dfToFeatures(df, CTX)
+    array = DataLoader.dfToFeatures(df, None, CTX)
     array = array[CTX["DILATION_RATE"]-1::CTX["DILATION_RATE"]]
     return array
 

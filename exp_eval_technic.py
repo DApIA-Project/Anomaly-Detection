@@ -239,7 +239,6 @@ for i in range(len(files)):
     df = pd.read_csv(os.path.join('./A_Dataset/AircraftClassification/Outputs/Eval/', file), sep=",", dtype={"icao24":str})
 
     if (df["icao24"].iloc[0] not in icao2label):
-        # print("unknown icao:", file)
         continue
 
     true_label = icao2label[df["icao24"].iloc[0]]

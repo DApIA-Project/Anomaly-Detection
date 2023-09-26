@@ -9,7 +9,7 @@ HISTORY = 128
 DILATION_RATE = 2
 INPUT_LEN = HISTORY // DILATION_RATE
 
-RELATIVE_POSITION = False 
+RELATIVE_POSITION = True 
 RELATIVE_TRACK = False
 RANDOM_TRACK = False
 TRAINING_NOISE = 0.0
@@ -27,12 +27,13 @@ USED_FEATURES = [
     # "alert", "spi", "squawk",
     "altitude", "geoaltitude",
     # 
-    "relative_track", "timestamp"
+    "relative_track", "timestamp",
+    "selected"
 ]
 FEATURES_IN = len(USED_FEATURES)
 FEATURE_MAP = dict([[USED_FEATURES[i], i] for i in range(FEATURES_IN)])
 
-ADD_TAKE_OFF_CONTEXT = False
+ADD_TAKE_OFF_CONTEXT = True
 ADD_MAP_CONTEXT = False
 
 MERGE_LABELS = { # no merge by default
@@ -46,6 +47,7 @@ MERGE_LABELS = { # no merge by default
     0: [8, 11] # not classified
 }
 FEATURES_OUT = len(MERGE_LABELS)-1
+USED_LABELS = [k for k in MERGE_LABELS.keys() if k != 0]
 
 # for training a batch concerning a single aircraft flight
 # the step is the jump between two consecutive batches

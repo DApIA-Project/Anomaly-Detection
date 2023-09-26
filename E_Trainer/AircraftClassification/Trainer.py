@@ -238,7 +238,6 @@ class Trainer(AbstractTrainer):
         if (CTX["ADD_TAKE_OFF_CONTEXT"]):
             write("./_Artefact/"+self.model.name+".xts", self.dl.xTakeOffScaler.getVariables())
         write("./_Artefact/"+self.model.name+".xs", self.dl.xScaler.getVariables())
-        write("./_Artefact/"+self.model.name+".ys", self.dl.yScaler.getVariables())
         write("./_Artefact/"+self.model.name+".min", self.dl.FEATURES_MIN_VALUES)
 
     def load(self):
@@ -250,7 +249,7 @@ class Trainer(AbstractTrainer):
         self.dl.xScaler.setVariables(load("./_Artefact/"+self.model.name+".xs"))
         if (self.CTX["ADD_TAKE_OFF_CONTEXT"]):
             self.dl.xTakeOffScaler.setVariables(load("./_Artefact/"+self.model.name+".xts"))
-        self.dl.yScaler.setVariables(load("./_Artefact/"+self.model.name+".ys"))
+        self.dl.yScaler.setVariables(self.CTX["USED_LABELS"])
         self.dl.FEATURES_MIN_VALUES = load("./_Artefact/"+self.model.name+".min")
 
 
@@ -339,7 +338,7 @@ class Trainer(AbstractTrainer):
 
 
             # save the input df + prediction in A_dataset/output/
-            df = pd.read_csv(os.path.join("./A_Dataset/AircraftClassification/Eval", file))
+            df = pd.read_csv(os.path.join("./A_Dataset/AircraftClassification/Eval", file),dtype={'icao24': str})
 
             if (CTX["PAD_MISSING_INPUT_LEN"]):
                 # list all missing timestep in df["timestamp"] (sec)
@@ -456,111 +455,3 @@ class Trainer(AbstractTrainer):
             "max accuracy":global_correct_max / global_nb,
         }
 
-
-    # def eval_alterated(self):
-
-    #     # get folder list in A_Dataset/AircraftClassification/Alterations/
-    #     alterations = os.listdir("./A_Dataset/AircraftClassification/Alterations/")
-
-    #     # keep only folder
-    #     alterations = [x for x in alterations if os.path.isdir(os.path.join("./A_Dataset/AircraftClassification/Alterations/", x))]
-
-    #     # for each folder
-    #     for alteration in alterations:
-            
-    #         print(alteration, " : ", flush=True)
-    #         x_batches, x_batches_lat_lon, y_batches, associated_files = self.dl.genEval(os.path.join("./A_Dataset/AircraftClassification/Alterations/", alteration))
-    #         nb_classes = self.dl.yScaler.classes_.shape[0]
-
-
-    #         i = 0
-    #         while i < len(x_batches):
-
-    #             # make a batch with all the time windows of the same file
-    #             batch_length = 1
-    #             i += 1
-    #             while i < len(x_batches) and (associated_files[i-1] == associated_files[i]):
-    #                 batch_length += 1
-    #                 i += 1
-
-    #             # get the batch
-    #             file = associated_files[i-1]
-    #             x_batch = x_batches[i-batch_length:i]
-    #             x_batch_lat_lon = x_batches_lat_lon[i-batch_length:i]
-    #             y_batch = y_batches[i-batch_length:i]
-
-
-    #             # predict with sub batches to avoid memory issues
-    #             y_batches_ = np.zeros((len(x_batch), nb_classes), dtype=np.float32)
-    #             MAX_BATCH_SIZE = self.CTX["BATCH_SIZE"]
-    #             for b in range(0, len(x_batch), MAX_BATCH_SIZE):
-    #                 batch_img_x = np.zeros((len(x_batch[b:b+MAX_BATCH_SIZE]), self.CTX["IMG_SIZE"], self.CTX["IMG_SIZE"], 3), dtype=np.float32)
-    #                 for k in range(len(batch_img_x)):
-    #                     batch_img_x[k] = DataLoader.genMap(x_batch_lat_lon[b+k, 0], x_batch_lat_lon[b+k, 1], self.CTX["IMG_SIZE"])
-
-    #                 y_batches_[b:b+MAX_BATCH_SIZE] = self.model.predict(x_batch[b:b+MAX_BATCH_SIZE], batch_img_x).numpy()
-                
-
-    #             # compute binary (0/1) correct prediction
-    #             correct_predict = np.full((len(x_batch)), np.nan, dtype=np.float32)
-    #             #   start at history to remove padding
-    #             for t in range(0, len(x_batch)):
-    #                 correct_predict[t] = np.argmax(y_batches_[t]) == np.argmax(y_batch[t])
-    #             # check if A_dataset/output/ doesn't exist, create it
-    #             if not os.path.exists("./A_Dataset/AircraftClassification/Outputs/Alterations/"+alteration):
-    #                 os.makedirs("./A_Dataset/AircraftClassification/Outputs/Alterations/"+alteration)
-
-    #             # save the input df + prediction in A_dataset/output/
-    #             df = pd.read_csv(os.path.join("./A_Dataset/AircraftClassification/Alterations/"+alteration, file))
-
-    #             print(y_batches_.shape, y_batch.shape, flush=True)
-
-    #             if (self.CTX["PAD_MISSING_INPUT_LEN"]):
-    #                 # list all missing timestep in df["timestamp"] (sec)
-    #                 print("pad missing timesteps for ", file, " ...")
-    #                 missing_timestep_i = []
-    #                 ind = 0
-    #                 for t in range(1, len(df["timestamp"])):
-    #                     if df["timestamp"][t - 1] != df["timestamp"][t] - 1:
-    #                         nb_missing_timestep = df["timestamp"][t] - df["timestamp"][t - 1] - 1
-    #                         for _ in range(nb_missing_timestep):
-    #                             missing_timestep_i.append(ind)
-    #                             ind += 1
-    #                     ind += 1
-
-    #                 # remove missing timestep from correct_predict
-    #                 correct_predict = np.delete(correct_predict, missing_timestep_i)
-    #                 y_batches_ = np.delete(y_batches_, missing_timestep_i, axis=0)
-
-
-    #             correct_predict = ["" if np.isnan(x) else "True" if x else "False" for x in correct_predict]
-    #             df_y_ = [";".join([str(x) for x in y]) for y in y_batches_]
-    #             df["prediction"] = correct_predict
-    #             df["y_"] = df_y_
-    #             df.to_csv(os.path.join("./A_Dataset/AircraftClassification/Outputs/Alterations/"+alteration, file), index=False)
-
-    #             global_true = np.argmax(np.mean(y_batch, axis=0))
-    #             global_pred_mean = np.argmax(np.mean(y_batches_, axis=0))
-    #             global_pred_count = np.argmax(np.bincount(np.argmax(y_batches_, axis=1), minlength=nb_classes))
-    #             global_pred_max = np.argmax(y_batches_[np.argmax(np.max(y_batches_, axis=1))])
-
-    #             print("File : ", file)
-    #             print("Expected class : ", self.dl.yScaler.classes_[global_true])
-    #             print("Ŷ: ", np.mean(y_batches_, axis=0))
-    #             print("Label : mean :", self.dl.yScaler.classes_[global_pred_mean], "   count :", self.dl.yScaler.classes_[global_pred_count], "   max :", self.dl.yScaler.classes_[global_pred_max]) 
-
-    #             print("Annomaly ?")
-    #             print("mean :", (global_pred_mean != global_true), "   count :", (global_pred_count != global_true), "   max :", (global_pred_max != global_true))
-    #             print()
-
-
-
-
-    
-
-
-
-
-
-            
-            

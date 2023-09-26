@@ -61,8 +61,8 @@ for i in range(len(csvs)):
         if (df["altitude"].iloc[0] > 1000):
             label = 13
 
-        if ("SAMU" in callsign):
-            label = 12
+        # if ("SAMU" in callsign):
+        #     label = 12
 
         # add a cross marker to the map at lat, lon
         folium.CircleMarker(location=[lat, lon], radius=4, color=COLORS[label], fill=True, fill_color=COLORS[label]).add_to(groups[label])
