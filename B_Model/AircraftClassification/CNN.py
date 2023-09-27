@@ -185,7 +185,7 @@ class Model(AbstactModel):
             if (self.CTX["ADD_TAKE_OFF_CONTEXT"]):
                 takeoff_loss = self.loss(y_[self.TAKEOFF], y)
                 loss += takeoff_loss
-                
+
             if (self.CTX["ADD_MAP_CONTEXT"]):
                 map_loss = self.loss(y_[self.MAP], y)
                 loss += map_loss
@@ -196,7 +196,7 @@ class Model(AbstactModel):
             #     loss = map_loss
 
 
-            gradients = tape.gradient(complete_loss, self.model.trainable_variables)
+            gradients = tape.gradient(loss, self.model.trainable_variables)
             self.opt.apply_gradients(zip(gradients, self.model.trainable_variables))
 
         self.nb_train += 1
@@ -246,10 +246,10 @@ class TakeOffModule(tf.Module):
 
         convNN = []
         for _ in range(self.layers):
-            convNN.append(Conv1DModule(64, 3, padding="same"))
+            convNN.append(Conv1DModule(64, 3, padding=self.CTX["PADDING"]))
         convNN.append(MaxPooling1D())
         for _ in range(self.layers):
-            convNN.append(Conv1DModule(128, 3, padding="same"))
+            convNN.append(Conv1DModule(128, 3, padding=self.CTX["PADDING"]))
         convNN.append(Flatten())
         convNN.append(DenseModule(self.CTX_SIZE, dropout=self.dropout))
 
@@ -275,13 +275,13 @@ class MapModule(tf.Module):
 
         convNN = []
         for _ in range(self.layers):
-            convNN.append(Conv2DModule(16, 3, padding="same"))
+            convNN.append(Conv2DModule(16, 3, padding=self.CTX["PADDING"]))
         convNN.append(MaxPooling2D())
         for _ in range(self.layers):
-            convNN.append(Conv2DModule(32, 3, padding="same"))
+            convNN.append(Conv2DModule(32, 3, padding=self.CTX["PADDING"]))
         convNN.append(MaxPooling2D())
         for _ in range(self.layers):
-            convNN.append(Conv2DModule(32, 3, padding="same"))
+            convNN.append(Conv2DModule(32, 3, padding=self.CTX["PADDING"]))
         convNN.append(Flatten())
         convNN.append(DenseModule(self.CTX_SIZE, dropout=self.dropout))
 
@@ -307,21 +307,22 @@ class ADS_B_Module(tf.Module):
 
         preNN = []
         for _ in range(self.layers):
-            preNN.append(Conv1DModule(128, 3, padding="same"))
+            preNN.append(Conv1DModule(128, 3, padding=self.CTX["PADDING"]))
         preNN.append(MaxPooling1D())
         convNN = []
         for _ in range(self.layers):
-            convNN.append(Conv1DModule(256, 3, padding="same"))
-        convNN.append(Conv1DModule(self.outs, 3, padding="same"))
+            convNN.append(Conv1DModule(256, 3, padding=self.CTX["PADDING"]))
+        convNN.append(Conv1DModule(self.outs, 3, padding=self.CTX["PADDING"]))
         convNN.append(Flatten())
         convNN.append(Dense(self.outs, activation="linear", name="prediction"))
         
+        valid_padding_to_remove = CTX["LAYERS"] * (CTX["PADDING"] == "valid")
 
         self.preNN = preNN
         if (CTX["ADD_TAKE_OFF_CONTEXT"]):
-            self.takeoff = RepeatVector(self.CTX["INPUT_LEN"] // 2)
+            self.takeoff = RepeatVector(self.CTX["INPUT_LEN"] // 2 - valid_padding_to_remove)
         if (CTX["ADD_MAP_CONTEXT"]):
-            self.map = RepeatVector(self.CTX["INPUT_LEN"] // 2)
+            self.map = RepeatVector(self.CTX["INPUT_LEN"] // 2 - valid_padding_to_remove)
         self.cat = Concatenate()
         self.convNN = convNN
         self.probability = Activation("sigmoid", name="probability")

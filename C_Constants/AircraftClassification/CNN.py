@@ -14,9 +14,9 @@ RELATIVE_TRACK = False
 RANDOM_TRACK = False
 TRAINING_NOISE = 0.0
 
+PADDING = "valid"
 
-
-LAYERS = 1
+LAYERS = 2
 DROPOUT = 0.2
 
 
@@ -33,8 +33,8 @@ USED_FEATURES = [
 FEATURES_IN = len(USED_FEATURES)
 FEATURE_MAP = dict([[USED_FEATURES[i], i] for i in range(FEATURES_IN)])
 
-ADD_TAKE_OFF_CONTEXT = False
-ADD_MAP_CONTEXT = True
+ADD_TAKE_OFF_CONTEXT = True
+ADD_MAP_CONTEXT = False
 
 MERGE_LABELS = { # no merge by default
     2: [1, 2, 3, 4, 5], # PLANE
