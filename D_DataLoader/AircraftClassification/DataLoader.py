@@ -185,11 +185,11 @@ class DataLoader(AbstractDataLoader):
 
             array = U.dfToFeatures(df, label, CTX)
             
-            if ("selected" in CTX["FEATURE_MAP"] \
-                and np.sum(1.0-array[:, CTX["FEATURE_MAP"]["selected"]]) <= CTX["HISTORY"]):
+            # if ("selected" in CTX["FEATURE_MAP"] \
+            #     and np.sum(1.0-array[:, CTX["FEATURE_MAP"]["selected"]]) <= CTX["HISTORY"]):
 
-                print("file", file, "is not containing enough relevant pattern")
-                continue
+            #     print("file", file, "is not containing enough relevant pattern")
+            #     continue
             
             # Add the flight to the dataset
             x.append(array)

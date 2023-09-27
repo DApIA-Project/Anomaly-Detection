@@ -4,9 +4,9 @@ import pandas as pd
 for folder in ["Train", "Eval"]:
     print("Processing", folder)
 
-
+    # restore previously filtered files
     if (os.path.exists('./dataset/removed_from_'+folder+'/')):
-        # move back ignored files 
+        
         ignored_files = os.listdir('./dataset/removed_from_'+folder+'/')
         ignored_files = [file for file in ignored_files if file.endswith('.csv')]
 
@@ -21,7 +21,8 @@ for folder in ["Train", "Eval"]:
     files = os.listdir('./dataset/'+folder)
     files = [file for file in files if file.endswith('.csv')]
 
-    # remove outliers from training dataset
+    # apply some filters
+    # remove files without takeoff content
     ignored_files = []
     f = 0
     for f in range(len(files)):

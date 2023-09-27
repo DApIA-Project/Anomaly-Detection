@@ -372,6 +372,8 @@ class Trainer(AbstractTrainer):
                     relative_track[i] = angle_diff(track[i], track[i-1])
                 relative_track[0] = 0
 
+                y_batches_ = Metrics.inv_sigmoid(y_batches_)
+
 
                 fig, ax = plotADSB(CTX, self.dl.yScaler.classes_, 
                                    f"{file}    Y : {self.dl.yScaler.classes_[true]} Ŷ : {self.dl.yScaler.classes_[pred_max]}", 

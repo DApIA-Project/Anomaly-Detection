@@ -68,7 +68,6 @@ class Model(AbstactModel):
         inputs = [x]
         outputs = []
 
-        self.PRED = 0
         self.TAKEOFF = None
         self.MAP = None
         self.PROBA = None
@@ -97,10 +96,9 @@ class Model(AbstactModel):
 
 
         self.ads_b_module = ADS_B_Module(self.CTX)
-        pred, proba = self.ads_b_module(adsb_module_inputs)
-        outputs.insert(0, pred)
-        outputs.append(proba)
-        self.PROBA = len(outputs) - 1
+        proba = self.ads_b_module(adsb_module_inputs)
+        outputs.insert(0, proba)
+        self.PROBA = 0
 
 
 
@@ -120,7 +118,7 @@ class Model(AbstactModel):
         """
         Make prediction for x 
         """
-        return self.model(x)[self.PRED]
+        return self.model(x)[self.PROBA]
 
     def compute_loss(self, x, y):
         """
@@ -130,7 +128,7 @@ class Model(AbstactModel):
         y_ = self.model(x)
         
         loss = self.loss(y_[self.PROBA], y)
-        return loss, y_[self.PRED]
+        return loss, y_[self.PROBA]
 
     def training_step(self, x, y):
         """
@@ -139,27 +137,28 @@ class Model(AbstactModel):
         """
 
         # pick a training method
-        methods_ratio = [
-            0.5,# only adsb
-            0.5,# takeoff gradient skip
-            0.5,# map gradient skip
-            0.5,# takeoff without skip
-            0.5,# map without skip
-            0.5, # all together
-        ]
-        methods_ratio = np.array(methods_ratio)
-        methods_ratio /= np.sum(methods_ratio)
+        # methods_ratio = [
+        #     0.5,# only adsb
+        #     0.5,# takeoff gradient skip
+        #     0.5,# map gradient skip
+        #     0.5,# takeoff without skip
+        #     0.5,# map without skip
+        #     0.5, # all together
+        # ]
+        # methods_ratio = np.array(methods_ratio)
+        # methods_ratio /= np.sum(methods_ratio)
 
-        ONLY_ADSB = 0
-        TAKEOFF_SKIP = 1
-        MAP_SKIP = 2
-        TAKEOFF = 3
-        MAP = 4
-        ALL = 5
-        selected = np.random.choice(len(methods_ratio), p=methods_ratio)
+        # ONLY_ADSB = 0
+        # TAKEOFF_SKIP = 1
+        # MAP_SKIP = 2
+        # TAKEOFF = 3
+        # MAP = 4
+        # ALL = 5
+        # selected = np.random.choice(len(methods_ratio), p=methods_ratio)
 
 
         with tf.GradientTape() as tape:
+            # watch all variables
             tape.watch(self.model.trainable_variables)
 
             # if (selected == ONLY_ADSB):
@@ -181,23 +180,27 @@ class Model(AbstactModel):
 
 
             y_ = self.model(x)
-            official_loss = self.loss(y_[self.PROBA], y)
-            takeoff_loss = self.loss(y_[self.TAKEOFF], y)
-            map_loss = self.loss(y_[self.MAP], y)
+            loss = self.loss(y_[self.PROBA], y)
 
+            if (self.CTX["ADD_TAKE_OFF_CONTEXT"]):
+                takeoff_loss = self.loss(y_[self.TAKEOFF], y)
+                loss += takeoff_loss
+                
+            if (self.CTX["ADD_MAP_CONTEXT"]):
+                map_loss = self.loss(y_[self.MAP], y)
+                loss += map_loss
 
-            loss = official_loss + takeoff_loss+ map_loss
             # if (selected == TAKEOFF_SKIP):
             #     loss = takeoff_loss
             # elif (selected == MAP_SKIP):
             #     loss = map_loss
 
 
-            gradients = tape.gradient(loss, self.model.trainable_variables)
+            gradients = tape.gradient(complete_loss, self.model.trainable_variables)
             self.opt.apply_gradients(zip(gradients, self.model.trainable_variables))
 
         self.nb_train += 1
-        return official_loss, y_[self.PRED]
+        return loss, y_[self.PROBA]
 
 
 
@@ -352,8 +355,8 @@ class ADS_B_Module(tf.Module):
         # get prediction
         for layer in self.convNN:
             x = layer(x)
-        prob = self.probability(x)
-        return x, prob
+        x = self.probability(x)
+        return x
 
 
 # global accuracy mean :  92.0 ( 575 / 625 )

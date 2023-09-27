@@ -57,21 +57,21 @@ def dfToFeatures(df, label, CTX):
     df["timestamp"] = df["timestamp"].astype(np.int64) // 10**9
     df["timestamp"] = df["timestamp"] - df["timestamp"].iloc[0]
 
-    if ("selected" in CTX["FEATURE_MAP"]):
+    # if ("selected" in CTX["FEATURE_MAP"]):
 
-        if (label is None):
-            df["selected"] = 0
-        else:
-            label = CTX["USED_LABELS"].index(label)
-            y_ = df["y_"].values
-            y_ = np.array([y_[i].split(";") for i in range(len(y_))])
-            y_ = y_.astype(np.float32)
-            correct = np.argmax(y_, axis=1) == label
-            confidence = compute_confidence(y_)
-            mean = np.mean(confidence)
-            # print("mean confidence", mean,"min", np.min(confidence), "max", np.max(confidence))
-            selected = np.logical_and(correct, confidence > mean, confidence > 5)
-            df["selected"] = selected
+    #     if (label is None):
+    #         df["selected"] = 0
+    #     else:
+    #         label = CTX["USED_LABELS"].index(label)
+    #         y_ = df["y_"].values
+    #         y_ = np.array([y_[i].split(";") for i in range(len(y_))])
+    #         y_ = y_.astype(np.float32)
+    #         correct = np.argmax(y_, axis=1) == label
+    #         confidence = compute_confidence(y_)
+    #         mean = np.mean(confidence)
+    #         # print("mean confidence", mean,"min", np.min(confidence), "max", np.max(confidence))
+    #         selected = np.logical_and(correct, confidence > mean, confidence > 5)
+    #         df["selected"] = selected
 
 
     # remove too short flights
@@ -370,7 +370,7 @@ def pick_an_interesting_aircraft(CTX, x, y, label, n=1):
     negative = np.random.randint(0, 100) <= 5
     time_step = None
 
-    use_selected = "selected" in CTX["FEATURE_MAP"]
+    # use_selected = "selected" in CTX["FEATURE_MAP"]
 
 
     if (negative):
@@ -378,14 +378,14 @@ def pick_an_interesting_aircraft(CTX, x, y, label, n=1):
 
     else:
         nb = 100
-        while time_step is None \
-            or (use_selected and \
-            x[flight_i][time_step, CTX["FEATURE_MAP"]["selected"]]!=0):
+        # while time_step is None \
+            # or (use_selected and \
+            # x[flight_i][time_step, CTX["FEATURE_MAP"]["selected"]]!=0):
 
-            time_step = np.random.randint(CTX["HISTORY"]-1, len(x[flight_i])-(n-1))
-            nb -= 1
-            if (nb == 0):
-                return pick_an_interesting_aircraft(CTX, x, y, label, n=n)
+        time_step = np.random.randint(CTX["HISTORY"]-1, len(x[flight_i])-(n-1))
+        # nb -= 1
+        # if (nb == 0):
+        #     return pick_an_interesting_aircraft(CTX, x, y, label, n=n)
 
 
     return flight_i, np.arange(time_step, time_step+n)

@@ -38,6 +38,7 @@ for i in range(len(files)):
         lat_lon_nb[lat_lon] = lat_lon_nb[lat_lon] / len(df) * 100.0        
 
     # remove all lat_lon_nb > 3%
+    # (messages that are abnormally too many times at the same place)
     to_remove = []
     for lat_lon in lat_lon_nb:
         if lat_lon_nb[lat_lon] > 3:
@@ -74,6 +75,10 @@ import pandas as pd
 import os
 import math
 
+# check if folder csv_unusable exists
+if (not os.path.exists('./csv_unusable/')):
+    os.mkdir('./csv_unusable/') 
+
 
 def angle_diff(a, b):
     a = a % 360
@@ -95,6 +100,10 @@ for i in range(len(files)):
 
     df = pd.read_csv('./csv/' + file, dtype={'icao24': str})
 
+    if (len(df) < 2):
+        os.rename('./csv/' + file, './csv_unusable/' + file)
+        continue
+
   
     timestep = df['timestamp'].values
     timestep_start = timestep[0]
@@ -108,11 +117,11 @@ for i in range(len(files)):
 
     # check if track is always nan
     if (df['track'].isnull().all()):
-        os.remove('./csv/' + file)
+        os.rename('./csv/' + file, './csv_unusable/' + file)
         continue
 
     if (df["altitude"].isnull().all() and df["geoaltitude"].isnull().all()):
-        os.remove('./csv/' + file)
+        os.rename('./csv/' + file, './csv_unusable/' + file)
         continue
 
     if (df["altitude"].isnull().all()):
@@ -122,7 +131,7 @@ for i in range(len(files)):
         df["geoaltitude"] = df["altitude"]
 
     if duration < MIN_DURATION:
-        os.remove('./csv/' + file)
+        os.rename('./csv/' + file, './csv_unusable/' + file)
         continue
 
 
@@ -133,12 +142,12 @@ for i in range(len(files)):
             max_gap = gap
 
     if (max_gap / duration * 100.0 > 20.0):
-        os.remove('./csv/' + file)
+        os.rename('./csv/' + file, './csv_unusable/' + file)
         continue
 
     missing_percent = 100.0 - len(df) / duration * 100
     if (missing_percent > MAX_MISSING_PERCENT):
-        os.remove('./csv/' + file)
+        os.rename('./csv/' + file, './csv_unusable/' + file)
         continue
 
     lat_lon_angle = []
@@ -159,12 +168,12 @@ for i in range(len(files)):
     vertrate = df["vertical_rate"].values
     vertrate_range = max(vertrate) - min(vertrate)
     if (vertrate_range == 0):
-        os.remove('./csv/' + file)
+        os.rename('./csv/' + file, './csv_unusable/' + file)
         continue
     
     
     if (mean_angle_diff > 50):
-        os.remove('./csv/' + file)
+        os.rename('./csv/' + file, './csv_unusable/' + file)
         continue
         
     
@@ -172,10 +181,6 @@ for i in range(len(files)):
 print()
 print(len(os.listdir('./csv/')))
 
-    # if max_gap > SPLIT_FLIGHT_GAP:
-    #     print("\n",file + " has a gap of " + str(max_gap) + " seconds")
-    #     # os.remove('./csv/' + file)
-    #     break
 
 
 

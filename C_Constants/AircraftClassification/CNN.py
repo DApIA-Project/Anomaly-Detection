@@ -28,13 +28,13 @@ USED_FEATURES = [
     "altitude", "geoaltitude",
     # 
     "relative_track", "timestamp",
-    "selected"
+    # "selected"
 ]
 FEATURES_IN = len(USED_FEATURES)
 FEATURE_MAP = dict([[USED_FEATURES[i], i] for i in range(FEATURES_IN)])
 
-ADD_TAKE_OFF_CONTEXT = True
-ADD_MAP_CONTEXT = False
+ADD_TAKE_OFF_CONTEXT = False
+ADD_MAP_CONTEXT = True
 
 MERGE_LABELS = { # no merge by default
     2: [1, 2, 3, 4, 5], # PLANE
