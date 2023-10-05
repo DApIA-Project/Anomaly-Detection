@@ -57,6 +57,12 @@ for i in range(len(files)):
         if (vertrate[i] > 4224 or vertrate[i] < -4224):
             to_remove_i.add(i)
 
+    # drop timestamp duplicates
+    timestamp = df['timestamp'].values
+    for i in range(1, len(timestamp)):
+        if (timestamp[i] == timestamp[i-1]):
+            to_remove_i.add(i)
+
     to_remove_i = list(to_remove_i)
             
     if (len(to_remove_i) > 0):
