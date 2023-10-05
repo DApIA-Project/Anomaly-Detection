@@ -135,6 +135,12 @@ class Trainer(AbstractTrainer):
             start = time.time()
             x_inputs, y_batches = self.dl.genEpochTrain(CTX["NB_BATCH"], CTX["BATCH_SIZE"])
 
+            # count the number of sample in each class
+            nb_sample_per_class = np.zeros((CTX["FEATURES_OUT"]), dtype=np.int32)
+            for batch in range(len(y_batches)):
+                for t in range(len(y_batches[batch])):
+                    nb_sample_per_class[np.argmax(y_batches[batch][t])] += 1
+
             train_loss = 0
             train_y_ = []
             train_y = []
@@ -148,7 +154,6 @@ class Trainer(AbstractTrainer):
             train_loss /= len(x_inputs)
             train_y_ = np.concatenate(train_y_, axis=0)
             train_y = np.concatenate(train_y, axis=0)
-
 
             train_acc = Metrics.perClassAccuracy(train_y, train_y_)
 
@@ -179,11 +184,15 @@ class Trainer(AbstractTrainer):
             # Verbose area
             print()
             print(f"Epoch {ep}/{CTX['EPOCHS']} - train_loss: {train_loss:.4f} - test_loss: {test_loss:.4f} - time: {time.time() - start:.0f}s" , flush=True)
-            print()
+            print("-----------" + "-"*(len(self.dl.yScaler.classes_)*4-1))
             prntC("classes   :",C.BLUE, (C.RESET+"|"+C.BLUE).join([str(int(round(v, 0))).rjust(3, " ") for v in self.dl.yScaler.classes_]))
+            print("-----------" + "-"*(len(self.dl.yScaler.classes_)*4-1))
             print("train_acc :", "|".join([str(int(round(v, 0))).rjust(3, " ") for v in train_acc]))
+            print("train_nb  :", "|".join([str(int(round(v, 0))).rjust(3, " ") for v in nb_sample_per_class]))
+            print("-----------" + "-"*(len(self.dl.yScaler.classes_)*4-1))
             print("test_acc  :", "|".join([str(int(round(v, 0))).rjust(3, " ") for v in test_acc]))
-            print()
+            print("-----------" + "-"*(len(self.dl.yScaler.classes_)*4-1))
+
             train_acc, test_acc = Metrics.accuracy(train_y, train_y_), Metrics.accuracy(test_y, test_y_)
             print(f"train acc: {train_acc:.1f}")
             print(f"test acc : {test_acc:.1f}")
@@ -340,30 +349,7 @@ class Trainer(AbstractTrainer):
             # save the input df + prediction in A_dataset/output/
             df = pd.read_csv(os.path.join("./A_Dataset/AircraftClassification/Eval", file),dtype={'icao24': str})
 
-            if (CTX["PAD_MISSING_INPUT_LEN"]):
-                # list all missing timestep in df["timestamp"] (sec)
-                print("pad missing timesteps for ", file, " ...")
-                missing_timestep_i = []
-                ind = 0
-                for t in range(1, len(df["timestamp"])):
-                    if df["timestamp"][t - 1] != df["timestamp"][t] - 1:
-                        nb_missing_timestep = df["timestamp"][t] - df["timestamp"][t - 1] - 1
-                        for _ in range(nb_missing_timestep):
-                            missing_timestep_i.append(ind)
-                            ind += 1
-                    ind += 1
 
-                # remove missing timestep from correct_predict
-                correct_predict = np.delete(correct_predict, missing_timestep_i)
-                y_batches_ = np.delete(y_batches_, missing_timestep_i, axis=0)
-
-            correct_predict = ["" if np.isnan(x) else "True" if x else "False" for x in correct_predict]
-            df_y_ = [";".join([str(x) for x in y]) for y in y_batches_]
-            df["prediction"] = correct_predict
-            df["y_"] = df_y_
-            df.to_csv(os.path.join("./A_Dataset/AircraftClassification/Outputs/Eval", file), index=False)
-
-                        # print(global_pred_max, global_true)            
             if (pred_max != true):
                 failed_files.append((file, str(self.dl.yScaler.classes_[true]), str(self.dl.yScaler.classes_[pred_max])))
                 track = df["track"].values
@@ -383,6 +369,33 @@ class Trainer(AbstractTrainer):
                                    y_batches_, self.dl.yScaler.classes_[true], [(relative_track, "relative_track")])
                 pdf.savefig(fig)
                 plt.close(fig)
+
+
+
+            if (CTX["INPUT_PADDING"] != "valid"):
+                # list all missing timestep that are not in the real dataset
+
+                missing_timestamp = []
+                ind = 0
+                for t in range(0, len(df["timestamp"])-1):
+                    if df["timestamp"][t + 1] != df["timestamp"][t] + 1:
+                        nb_missing_timestep = df["timestamp"][t + 1] - df["timestamp"][t] - 1
+                        for j in range(nb_missing_timestep):
+                            missing_timestamp.append(df["timestamp"][t] + 1 + j - df["timestamp"][0])
+                            ind += 1
+                    ind += 1
+
+                # remove those timestep from the prediction
+                correct_predict = np.delete(correct_predict, missing_timestamp)
+                y_batches_ = np.delete(y_batches_, missing_timestamp, axis=0)
+
+            correct_predict = ["" if np.isnan(x) else "True" if x else "False" for x in correct_predict]
+            df_y_ = [";".join([str(x) for x in y]) for y in y_batches_]
+            df["prediction"] = correct_predict
+            df["y_"] = df_y_
+            df.to_csv(os.path.join("./A_Dataset/AircraftClassification/Outputs/Eval", file), index=False)
+          
+            
 
 
         pdf.close()

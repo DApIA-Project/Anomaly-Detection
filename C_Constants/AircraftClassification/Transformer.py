@@ -40,7 +40,7 @@ MERGE_LABELS = { # no merge by default
 }
 FEATURES_OUT = len(MERGE_LABELS)
 
-# PAD_MISSING_INPUT_LEN = True TODO
+# INPUT_PADDING = True TODO
 
 
 

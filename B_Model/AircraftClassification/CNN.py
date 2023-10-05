@@ -58,6 +58,7 @@ class Model(AbstactModel):
         self.CTX = CTX
 
 
+
         # prepare input shapes
         x_input_shape = (self.CTX["INPUT_LEN"], self.CTX["FEATURES_IN"])
         if (CTX["ADD_TAKE_OFF_CONTEXT"]): takeoff_input_shape = (self.CTX["INPUT_LEN"], self.CTX["FEATURES_IN"])
@@ -118,6 +119,9 @@ class Model(AbstactModel):
         """
         Make prediction for x 
         """
+        if (not(self.CTX["ADD_TAKE_OFF_CONTEXT"]) and not(self.CTX["ADD_MAP_CONTEXT"])):
+            return self.model(x)
+
         return self.model(x)[self.PROBA]
 
     def compute_loss(self, x, y):
@@ -126,6 +130,10 @@ class Model(AbstactModel):
         that will be used for training
         """
         y_ = self.model(x)
+
+        if (not(self.CTX["ADD_TAKE_OFF_CONTEXT"]) and not(self.CTX["ADD_MAP_CONTEXT"])):
+            loss = self.loss(y_, y)
+            return loss, y_
         
         loss = self.loss(y_[self.PROBA], y)
         return loss, y_[self.PROBA]
@@ -190,6 +198,9 @@ class Model(AbstactModel):
                 map_loss = self.loss(y_[self.MAP], y)
                 loss += map_loss
 
+            if (not(self.CTX["ADD_TAKE_OFF_CONTEXT"]) and not(self.CTX["ADD_MAP_CONTEXT"])):
+                loss = self.loss(y_, y)
+
             # if (selected == TAKEOFF_SKIP):
             #     loss = takeoff_loss
             # elif (selected == MAP_SKIP):
@@ -200,6 +211,8 @@ class Model(AbstactModel):
             self.opt.apply_gradients(zip(gradients, self.model.trainable_variables))
 
         self.nb_train += 1
+        if (not(self.CTX["ADD_TAKE_OFF_CONTEXT"]) and not(self.CTX["ADD_MAP_CONTEXT"])):
+            return loss, y_
         return loss, y_[self.PROBA]
 
 
@@ -246,15 +259,15 @@ class TakeOffModule(tf.Module):
 
         convNN = []
         for _ in range(self.layers):
-            convNN.append(Conv1DModule(64, 3, padding=self.CTX["PADDING"]))
+            convNN.append(Conv1DModule(128, 3, padding=self.CTX["MODEL_PADDING"]))
         convNN.append(MaxPooling1D())
         for _ in range(self.layers):
-            convNN.append(Conv1DModule(128, 3, padding=self.CTX["PADDING"]))
+            convNN.append(Conv1DModule(128, 3, padding=self.CTX["MODEL_PADDING"]))
         convNN.append(Flatten())
         convNN.append(DenseModule(self.CTX_SIZE, dropout=self.dropout))
 
         self.convNN = convNN
-        self.gradiant_skip = Dense(self.outs, activation="sigmoid", name="skip")
+        self.gradiant_skip = Dense(self.outs, activation=CTX["ACTIVATION"], name="skip")
 
     
     def __call__(self, x):
@@ -275,18 +288,18 @@ class MapModule(tf.Module):
 
         convNN = []
         for _ in range(self.layers):
-            convNN.append(Conv2DModule(16, 3, padding=self.CTX["PADDING"]))
+            convNN.append(Conv2DModule(16, 3, padding=self.CTX["MODEL_PADDING"]))
         convNN.append(MaxPooling2D())
         for _ in range(self.layers):
-            convNN.append(Conv2DModule(32, 3, padding=self.CTX["PADDING"]))
+            convNN.append(Conv2DModule(32, 3, padding=self.CTX["MODEL_PADDING"]))
         convNN.append(MaxPooling2D())
         for _ in range(self.layers):
-            convNN.append(Conv2DModule(32, 3, padding=self.CTX["PADDING"]))
+            convNN.append(Conv2DModule(32, 3, padding=self.CTX["MODEL_PADDING"]))
         convNN.append(Flatten())
         convNN.append(DenseModule(self.CTX_SIZE, dropout=self.dropout))
 
         self.convNN = convNN
-        self.gradiant_skip = Dense(self.outs, activation="sigmoid", name="map_skip")
+        self.gradiant_skip = Dense(self.outs, activation=CTX["ACTIVATION"], name="map_skip")
 
 
     def __call__(self, x):
@@ -307,16 +320,16 @@ class ADS_B_Module(tf.Module):
 
         preNN = []
         for _ in range(self.layers):
-            preNN.append(Conv1DModule(128, 3, padding=self.CTX["PADDING"]))
+            preNN.append(Conv1DModule(256, 3, padding=self.CTX["MODEL_PADDING"]))
         preNN.append(MaxPooling1D())
         convNN = []
         for _ in range(self.layers):
-            convNN.append(Conv1DModule(256, 3, padding=self.CTX["PADDING"]))
-        convNN.append(Conv1DModule(self.outs, 3, padding=self.CTX["PADDING"]))
+            convNN.append(Conv1DModule(256, 3, padding=self.CTX["MODEL_PADDING"]))
+        convNN.append(Conv1DModule(self.outs, 3, padding=self.CTX["MODEL_PADDING"]))
         convNN.append(Flatten())
         convNN.append(Dense(self.outs, activation="linear", name="prediction"))
         
-        valid_padding_to_remove = CTX["LAYERS"] * (CTX["PADDING"] == "valid")
+        valid_padding_to_remove = CTX["LAYERS"] * (CTX["MODEL_PADDING"] == "valid")
 
         self.preNN = preNN
         if (CTX["ADD_TAKE_OFF_CONTEXT"]):
@@ -325,7 +338,7 @@ class ADS_B_Module(tf.Module):
             self.map = RepeatVector(self.CTX["INPUT_LEN"] // 2 - valid_padding_to_remove)
         self.cat = Concatenate()
         self.convNN = convNN
-        self.probability = Activation("sigmoid", name="probability")
+        self.probability = Activation("sigmoid", name=CTX["ACTIVATION"])
 
     def __call__(self, x):
 

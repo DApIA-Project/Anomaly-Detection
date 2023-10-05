@@ -13,27 +13,29 @@ def dfToFeatures(df, label, CTX):
     with the right features and preprocessing
     """
 
-    if (CTX["PAD_MISSING_INPUT_LEN"]):
-        i = 0
-        while (i < len(df)-1):
-            if (df["timestamp"].iloc[i+1] != df["timestamp"].iloc[i]+1):
-                nb_row_to_add = df["timestamp"].iloc[i+1] - df["timestamp"].iloc[i] - 1
+    if (CTX["INPUT_PADDING"] != "valid"):
 
-                sub_df = pd.DataFrame([df.iloc[i]]*nb_row_to_add)
-                sub_df["timestamp"] = np.arange(df["timestamp"].iloc[i] + 1, df["timestamp"].iloc[i+1])
+        total_length = df["timestamp"].iloc[-1] - df["timestamp"].iloc[0] + 1
 
-                df = pd.concat([df.iloc[:i+1], sub_df, df.iloc[i+1:]]).reset_index(drop=True)
+        padded_df = pd.DataFrame(np.nan, index=np.arange(total_length), columns=df.columns)
+        padded_df["timestamp"] = np.arange(total_length) + df["timestamp"].iloc[0]
 
-                i += nb_row_to_add
-            i += 1
+        padded_df.loc[df["timestamp"]-df["timestamp"].iloc[0]] = df.values
+
+        df = padded_df
+        
+        if (CTX["INPUT_PADDING"] == "last"):
+            df = df.fillna(method="ffill")
+        
 
     # if nan in latitude
-    if (df["latitude"].isna().sum() > 0):
-        print("NaN in latitude")
-        return []
-    if (df["longitude"].isna().sum() > 0):
-        print("NaN in longitude")
-        return []
+    if (CTX["INPUT_PADDING"] == "valid"):
+        if (df["latitude"].isna().sum() > 0):
+            print("NaN in latitude")
+            return []
+        if (df["longitude"].isna().sum() > 0):
+            print("NaN in longitude")
+            return []
 
     # add sec (60), min (60), hour (24) and day_of_week (7) features
     df["timestamp"] = pd.to_datetime(df["timestamp"], unit="s")
@@ -123,6 +125,22 @@ def getLabel(CTX, icao, callsign):
     
     return 0
 
+def resetICAOdb():
+    global __icao_db__
+    __icao_db__ = None
+
+
+def getAircraftPosition(CTX, flight):
+    # get the aircraft last non zero latitudes and longitudes
+    lat = flight[:, CTX["FEATURE_MAP"]["latitude"]]
+    lon = flight[:, CTX["FEATURE_MAP"]["longitude"]]
+    i = len(lat)-1
+    while (i >= 0 and (lat[i] == 0 and lon[i] == 0)):
+        i -= 1
+    if (i == -1):
+        return 0, 0
+    return lat[i], lon[i]
+
 
 
 def batchPreProcess(CTX, flight, relative_position=False, relative_track=False, random_track=False):
@@ -155,8 +173,8 @@ def batchPreProcess(CTX, flight, relative_position=False, relative_track=False, 
     track = flight[:, FEATURE_MAP["track"]]
     groundspeed = flight[:, FEATURE_MAP["groundspeed"]]
 
-
-
+    last_lat, last_lon = getAircraftPosition(CTX, flight)
+    non_zeros_lat_lon = np.logical_or(lat != 0, lon != 0)
 
 
     # do not change angle, and rotate the whole bounding box to 0, 0 (not relative just normalizing)
@@ -164,10 +182,12 @@ def batchPreProcess(CTX, flight, relative_position=False, relative_track=False, 
     Y = CTX["BOX_CENTER"][0]
     Z = -CTX["BOX_CENTER"][1]
 
+
+
     if relative_position:
         # R = track[-1]
-        Y = lat[-1]
-        Z = -lon[-1]
+        Y = last_lat
+        Z = -last_lon
 
     
     if relative_track:
@@ -210,16 +230,24 @@ def batchPreProcess(CTX, flight, relative_position=False, relative_track=False, 
 
 
 
+    flight[non_zeros_lat_lon, FEATURE_MAP["latitude"]] = lat[non_zeros_lat_lon]
+    flight[non_zeros_lat_lon, FEATURE_MAP["longitude"]] = lon[non_zeros_lat_lon]
 
-    
-    flight[:, FEATURE_MAP["latitude"]] = lat
-    flight[:, FEATURE_MAP["longitude"]] = lon
+    # fill empty lat lon with the first non zero lat lon
+    first_non_zero_ts = np.argmax(non_zeros_lat_lon)     # (argmax return the first max value)
+    first_lat = lat[first_non_zero_ts]
+    first_lon = lon[first_non_zero_ts]
+    flight[~non_zeros_lat_lon, FEATURE_MAP["latitude"]] = first_lat
+    flight[~non_zeros_lat_lon, FEATURE_MAP["longitude"]] = first_lon
+
     flight[:, FEATURE_MAP["track"]] = track
+
 
     if ("timestamp" in FEATURE_MAP):
         timestamp = flight[:, FEATURE_MAP["timestamp"]]
         timestamp = timestamp - timestamp[-1]
         flight[:, FEATURE_MAP["timestamp"]] = timestamp
+
 
 
     return flight
@@ -302,6 +330,9 @@ MAP =  np.array(img, dtype=np.float32) / 255.0
 def genMap(lat, lon, size):
     """Generate an image of the map with the flight at the center"""
 
+    if (lat == 0 and lon == 0):
+        return np.zeros((size, size, 3), dtype=np.float32)
+
 
     #######################################################
     # Convert lat, lon to px
@@ -362,7 +393,6 @@ def compute_shift(start, end, dilatation):
 
 
 def pick_an_interesting_aircraft(CTX, x, y, label, n=1):
-    
     flight_i = -1
     while flight_i == -1 or y[flight_i, label] != 1:
         flight_i = np.random.randint(0, len(x))

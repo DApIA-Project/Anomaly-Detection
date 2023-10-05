@@ -41,7 +41,7 @@ def plotADSB(CTX, classes_, title, timestamp, lat, lon, groundspeed, track, vert
     
     LABEL_NAMES = CTX["LABEL_NAMES"]
     CLASSES_ = classes_
-    COLORS = ["tab:blue", "tab:orange", "tab:green", "tab:red", "tab:purple", "tab:brown", "tab:pink", "tab:gray", "tab:olive", "tab:cyan"]
+    COLORS = ["tab:blue", "tab:orange", "tab:green", "tab:red", "tab:purple", "tab:brown", "tab:pink", "tab:gray", "tab:olive", "tab:cyan", "black", "gray", "gold"]
 
 
     # Y
@@ -51,13 +51,44 @@ def plotADSB(CTX, classes_, title, timestamp, lat, lon, groundspeed, track, vert
 
     # X
     timestamp = timestamp - timestamp[0]
-    features = [(lat, lon), groundspeed, track, vertical_rate, altitude, geoaltitude, confiance]
-    plot_names = ["Trace", "Groundspeed", "Track", "Vertical_rate", "Altitude", "Geoaltitude", "Confiance"]
+    features = [[lat, lon], groundspeed, track, vertical_rate, altitude, geoaltitude]
+    plot_names = ["Trace", "Groundspeed", "Track", "Vertical_rate", "Altitude", "Geoaltitude"]
 
     for i in range(len(additional)):
         features.append(additional[i][0])
         plot_names.append(additional[i][1])
 
+    if (CTX["INPUT_PADDING"] == "valid"):
+        features.append(confiance) # append confiance before padding because it is not padded
+
+    # add nan row where timestamp[i-1] + 1 != timestamp[i]
+    # this is to avoid plotting lines between two points that are not consecutive
+    i = 0
+    while (i < len(timestamp)-1):
+        if (timestamp[i+1] != timestamp[i] +1):
+            nb_row_to_add = timestamp[i+1] - timestamp[i] - 1
+            for j in range(nb_row_to_add):
+                timestamp = np.insert(timestamp, i+1+j, timestamp[i]+1+j)
+                for f in range(len(features)):
+                    if (f == 0): # trace
+                        features[f][0] = np.insert(features[f][0], i+1+j, np.nan)
+                        features[f][1] = np.insert(features[f][1], i+1+j, np.nan)
+                    else:
+                        features[f] = np.insert(features[f], i+1+j, np.nan)
+            i += nb_row_to_add
+        i += 1     
+
+    
+    if (CTX["INPUT_PADDING"] != "valid"):
+        features.append(confiance) # append confiance after padding because it already padded
+
+    plot_names.append("Confiance")
+
+    # check if there is a missing timestamp
+    for i in range(len(timestamp)-1):
+        if (timestamp[i+1] != timestamp[i] +1):
+            print("Missing timestamp: ", timestamp[i], timestamp[i+1])
+            break
 
 
     # split the time series into zones of same, consectuive label
@@ -106,7 +137,6 @@ def plotADSB(CTX, classes_, title, timestamp, lat, lon, groundspeed, track, vert
                 ax[i].plot(lon, lat, color=COLORS[label], linewidth=3 if (label == true) else 1)
                 
             else:
-
                 feature = features[i][start:end] 
                 ax[i].plot(timestamp[start:end], feature, color=COLORS[label], linewidth=2 if (label == true) else 1)
                 ax[i].grid(True)

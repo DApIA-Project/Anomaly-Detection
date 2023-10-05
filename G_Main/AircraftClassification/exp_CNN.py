@@ -14,6 +14,7 @@ from E_Trainer.AircraftClassification.Trainer import Trainer
 #   * simple_fit: Classical way to fit the model : once
 #   * multi_fit: Fit the model multiple times to check the stability (Not implemented yet)
 from F_Runner.SimpleFit import *
+from F_Runner.MultiFit import *
 
 import os
 
@@ -22,4 +23,5 @@ import os
 def __main__():
     parent_dir = os.path.dirname(os.path.abspath(__file__)).split("/")[-1]
     simple_fit(Model, Trainer, CTX, default_CTX=DefaultCTX, experiment_name=parent_dir)
+    # multi_fit(Model, Trainer, CTX, default_CTX=DefaultCTX, experiment_name=parent_dir)
 

@@ -210,9 +210,13 @@ class DataLoader(AbstractDataLoader):
     def __init__(self, CTX, path) -> None:    
         self.CTX = CTX
 
+        U.resetICAOdb()
+
         
         if (CTX["EPOCHS"]):
-            self.x, self.y = self.__get_dataset__(path)
+            # self.x, self.y = self.__get_dataset__(path)
+            # todo remove that
+            self.x, self.y = self.__load_dataset__(CTX, path)
         else:
             self.x, self.y = [], []
 
@@ -255,6 +259,7 @@ class DataLoader(AbstractDataLoader):
         if (self.CTX["ADD_TAKE_OFF_CONTEXT"]): self.xTakeOffScaler = StandardScaler3D()
         self.yScaler = SparceLabelBinarizer()
         self.yScaler.setVariables(self.CTX["USED_LABELS"])
+        print(self.yScaler.classes_)
 
 
         # Fit the y scaler
@@ -311,6 +316,7 @@ class DataLoader(AbstractDataLoader):
 
         NB=self.CTX["NB_TRAIN_SAMPLES"]
 
+
         for n in range(0, len(x_batches), NB):
 
             # Pick a random label
@@ -354,9 +360,8 @@ class DataLoader(AbstractDataLoader):
                     x_batches_takeoff[n+i, pad_lenght:] = takeoff
 
 
-
                 if CTX["ADD_MAP_CONTEXT"]:
-                    lat, lon = x_batches[n+i, -1, LAT_I], x_batches[n+i, -1, LON_I]
+                    lat, lon = U.getAircraftPosition(CTX, x_batches[n+i])
                     x_batches_map[n+i] = U.genMap(lat, lon, self.CTX["IMG_SIZE"])
 
 
@@ -485,7 +490,7 @@ class DataLoader(AbstractDataLoader):
                 
 
             if CTX["ADD_MAP_CONTEXT"]:
-                lat, lon = x_batches[n, -1, LAT_I], x_batches[n, -1, LON_I]
+                lat, lon = U.getAircraftPosition(CTX, x_batches[n])
                 x_batches_map[n] = U.genMap(lat, lon, self.CTX["IMG_SIZE"])
 
             x_batches[n, pad_lenght:] = U.batchPreProcess(CTX, x_batches[n, pad_lenght:], CTX["RELATIVE_POSITION"], CTX["RELATIVE_TRACK"], CTX["RANDOM_TRACK"])
@@ -547,6 +552,7 @@ class DataLoader(AbstractDataLoader):
         icao = df["icao24"].iloc[0]
         callsign = df["callsign"].iloc[0]
 
+
         # preprocess the trajectory
 
         label = U.getLabel(CTX, icao, callsign)
@@ -595,7 +601,7 @@ class DataLoader(AbstractDataLoader):
                 x_batches_takeoff[t, pad_lenght:] = takeoff
                 
             if CTX["ADD_MAP_CONTEXT"]:
-                lat, lon = x_batches[t, -1, LAT_I], x_batches[t, -1, LON_I]
+                lat, lon = U.getAircraftPosition(CTX, x_batches[t])
                 x_batches_map[t] = U.genMap(lat, lon, self.CTX["IMG_SIZE"])
             
             x_batches[t, pad_lenght:] = U.batchPreProcess(CTX, x_batches[t, pad_lenght:], CTX["RELATIVE_POSITION"], CTX["RELATIVE_TRACK"], CTX["RANDOM_TRACK"])
@@ -613,6 +619,8 @@ class DataLoader(AbstractDataLoader):
             if CTX["ADD_TAKE_OFF_CONTEXT"]: x_input.append(x_batches_takeoff[i])
             if CTX["ADD_MAP_CONTEXT"]: x_input.append(x_batches_map[i])
             x_inputs.append(x_input)
+
+        
 
         return x_inputs, y_batches
 

@@ -1,5 +1,5 @@
 
-LEARNING_RATE = 0.0001
+LEARNING_RATE = 0.00007
 EPOCHS = 80
 BATCH_SIZE = 64
 NB_BATCH = 32
@@ -9,14 +9,22 @@ HISTORY = 128
 DILATION_RATE = 2
 INPUT_LEN = HISTORY // DILATION_RATE
 
-RELATIVE_POSITION = True 
+RELATIVE_POSITION = False 
 RELATIVE_TRACK = False
 RANDOM_TRACK = False
 TRAINING_NOISE = 0.0
 
-PADDING = "valid"
+# "valid" do not pad convolutions
+# "same" pad convolutions
+MODEL_PADDING = "same"
 
-LAYERS = 2
+# "valid" do not pad convolutions
+# "last" duplicate the last row
+# "nan" fill with nan (as the model "know" what is a nan value)
+INPUT_PADDING = "nan" 
+
+
+LAYERS = 1
 DROPOUT = 0.2
 
 
@@ -33,16 +41,13 @@ USED_FEATURES = [
 FEATURES_IN = len(USED_FEATURES)
 FEATURE_MAP = dict([[USED_FEATURES[i], i] for i in range(FEATURES_IN)])
 
-ADD_TAKE_OFF_CONTEXT = True
+ADD_TAKE_OFF_CONTEXT = False
 ADD_MAP_CONTEXT = False
 
 MERGE_LABELS = { # no merge by default
     2: [1, 2, 3, 4, 5], # PLANE
-    # 5: [5], # Normal
     6: [6, 7, 10], # SMALL
     9: [9, 12], # HELICOPTER
-    # 12: [12], # SAMU
-    # 11: [11], # military
 
     0: [8, 11] # not classified
 }
@@ -55,9 +60,10 @@ USED_LABELS = [k for k in MERGE_LABELS.keys() if k != 0]
 # TRAIN_WINDOW = 8
 # STEP = 2
 
+ACTIVATION = "sigmoid"
 
 
 IMG_SIZE = 128
 
-NB_TRAIN_SAMPLES = 10
+NB_TRAIN_SAMPLES = 1
 

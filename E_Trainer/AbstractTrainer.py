@@ -57,7 +57,7 @@ class Trainer:
         else:
             self.load()
 
-        # return {} # leave early
+        # return {} # leave early TODO
         return self.eval()
 
 
