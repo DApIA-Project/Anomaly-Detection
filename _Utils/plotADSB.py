@@ -60,6 +60,7 @@ def plotADSB(CTX, classes_, title, timestamp, lat, lon, groundspeed, track, vert
 
     if (CTX["INPUT_PADDING"] == "valid"):
         features.append(confiance) # append confiance before padding because it is not padded
+    plot_names.append("Confiance")
 
     # add nan row where timestamp[i-1] + 1 != timestamp[i]
     # this is to avoid plotting lines between two points that are not consecutive
@@ -70,9 +71,11 @@ def plotADSB(CTX, classes_, title, timestamp, lat, lon, groundspeed, track, vert
             for j in range(nb_row_to_add):
                 timestamp = np.insert(timestamp, i+1+j, timestamp[i]+1+j)
                 for f in range(len(features)):
-                    if (f == 0): # trace
+                    if (plot_names[f] == "Trace"):
                         features[f][0] = np.insert(features[f][0], i+1+j, np.nan)
                         features[f][1] = np.insert(features[f][1], i+1+j, np.nan)
+                    elif (plot_names[f] == "Confiance"):
+                        features[f] = np.insert(features[f], i+1+j, 0)
                     else:
                         features[f] = np.insert(features[f], i+1+j, np.nan)
             i += nb_row_to_add
@@ -82,7 +85,6 @@ def plotADSB(CTX, classes_, title, timestamp, lat, lon, groundspeed, track, vert
     if (CTX["INPUT_PADDING"] != "valid"):
         features.append(confiance) # append confiance after padding because it already padded
 
-    plot_names.append("Confiance")
 
     # check if there is a missing timestamp
     for i in range(len(timestamp)-1):
@@ -134,11 +136,13 @@ def plotADSB(CTX, classes_, title, timestamp, lat, lon, groundspeed, track, vert
             if (i == 0):
                 lat = features[i][0][start:end] 
                 lon = features[i][1][start:end]
-                ax[i].plot(lon, lat, color=COLORS[label], linewidth=3 if (label == true) else 1)
+                # ax[i].plot(lon, lat, color=COLORS[label], linewidth=3 if (label == true) else 1)
+                ax[i].scatter(lon, lat, color=COLORS[label], s=1.5, alpha=0.5)
                 
             else:
                 feature = features[i][start:end] 
-                ax[i].plot(timestamp[start:end], feature, color=COLORS[label], linewidth=2 if (label == true) else 1)
+                # ax[i].plot(timestamp[start:end], feature, color=COLORS[label], linewidth=2 if (label == true) else 1)
+                ax[i].scatter(timestamp[start:end], feature, color=COLORS[label], s=1.5, alpha=0.5)
                 ax[i].grid(True)
                 # ax[i].set_title(plot_names[i]+":")
                 ax[i].set_ylabel(plot_names[i])

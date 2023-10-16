@@ -323,7 +323,13 @@ class Trainer(AbstractTrainer):
 
             pred_mean = np.argmax(np.mean(y_batches_, axis=0))
             pred_count = np.argmax(np.bincount(np.argmax(y_batches_, axis=1), minlength=nb_classes))
-            pred_max = np.argmax(y_batches_[np.argmax(np.max(y_batches_, axis=1))])
+            # pred_max = np.argmax(y_batches_[np.argmax(np.max(y_batches_, axis=1))])
+            # sort prediction by confidence
+            confidence = np.max(y_batches_, axis=1)
+            sort = np.argsort(confidence)
+            max_nb = 10
+            pred_max = np.argmax(np.bincount(np.argmax(y_batches_[sort[-max_nb:]], axis=1), minlength=nb_classes))
+            
             true = np.argmax(np.mean(y_batches, axis=0))
             
 
