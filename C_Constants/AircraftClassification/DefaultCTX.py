@@ -1,4 +1,5 @@
-
+NB_TRAIN = 10
+CHANGED = False
 TEST_RATIO = 0.08
 
 

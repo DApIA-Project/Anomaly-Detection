@@ -28,3 +28,4 @@ def prntC(*values, sep=' ', end=RESET+'\n', start=RESET):
         if i + 1 < len(values) and not(is_color(values[i])): # and not(is_color(values[i + 1])):
             string += sep
     print(string, end=end)
+

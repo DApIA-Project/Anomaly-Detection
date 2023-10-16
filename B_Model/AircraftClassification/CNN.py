@@ -144,67 +144,27 @@ class Model(AbstactModel):
         for the given batch
         """
 
-        # pick a training method
-        # methods_ratio = [
-        #     0.5,# only adsb
-        #     0.5,# takeoff gradient skip
-        #     0.5,# map gradient skip
-        #     0.5,# takeoff without skip
-        #     0.5,# map without skip
-        #     0.5, # all together
-        # ]
-        # methods_ratio = np.array(methods_ratio)
-        # methods_ratio /= np.sum(methods_ratio)
-
-        # ONLY_ADSB = 0
-        # TAKEOFF_SKIP = 1
-        # MAP_SKIP = 2
-        # TAKEOFF = 3
-        # MAP = 4
-        # ALL = 5
-        # selected = np.random.choice(len(methods_ratio), p=methods_ratio)
+        skip_w = self.CTX["SKIP_CONNECTION"]
 
 
-        with tf.GradientTape() as tape:
-            # watch all variables
-            tape.watch(self.model.trainable_variables)
-
-            # if (selected == ONLY_ADSB):
-            #     tape.watch(self.takeoff_module.trainable_variables)
-            # elif (selected == TAKEOFF_SKIP):
-            #     tape.watch(self.takeoff_module.trainable_variables)
-            # elif (selected == MAP_SKIP):
-            #     tape.watch(self.map_module.trainable_variables)
-            # elif (selected == TAKEOFF):
-            #     tape.watch(self.takeoff_module.trainable_variables)
-            #     tape.watch(self.ads_b_module.trainable_variables)
-            # elif (selected == MAP):
-            #     tape.watch(self.map_module.trainable_variables)
-            #     tape.watch(self.ads_b_module.trainable_variables)
-            # elif (selected == ALL):
-            #     tape.watch(self.takeoff_module.trainable_variables)
-            #     tape.watch(self.map_module.trainable_variables)
-            #     tape.watch(self.ads_b_module.trainable_variables)
+        with tf.GradientTape(watch_accessed_variables=True) as tape:
 
 
             y_ = self.model(x)
             loss = self.loss(y_[self.PROBA], y)
+            
 
             if (self.CTX["ADD_TAKE_OFF_CONTEXT"]):
                 takeoff_loss = self.loss(y_[self.TAKEOFF], y)
-                loss += takeoff_loss
+                loss += takeoff_loss * skip_w
 
             if (self.CTX["ADD_MAP_CONTEXT"]):
                 map_loss = self.loss(y_[self.MAP], y)
-                loss += map_loss
+                loss += map_loss * skip_w
 
             if (not(self.CTX["ADD_TAKE_OFF_CONTEXT"]) and not(self.CTX["ADD_MAP_CONTEXT"])):
                 loss = self.loss(y_, y)
 
-            # if (selected == TAKEOFF_SKIP):
-            #     loss = takeoff_loss
-            # elif (selected == MAP_SKIP):
-            #     loss = map_loss
 
 
             gradients = tape.gradient(loss, self.model.trainable_variables)
@@ -326,8 +286,8 @@ class ADS_B_Module(tf.Module):
         for _ in range(self.layers):
             convNN.append(Conv1DModule(256, 3, padding=self.CTX["MODEL_PADDING"]))
         convNN.append(Conv1DModule(self.outs, 3, padding=self.CTX["MODEL_PADDING"]))
-        convNN.append(Flatten())
-        convNN.append(Dense(self.outs, activation="linear", name="prediction"))
+        convNN.append(GlobalMaxPooling1D())
+        # convNN.append(Dense(self.outs, activation="linear", name="prediction"))
         
         valid_padding_to_remove = CTX["LAYERS"] * (CTX["MODEL_PADDING"] == "valid")
 

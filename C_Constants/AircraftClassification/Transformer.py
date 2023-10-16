@@ -40,9 +40,6 @@ MERGE_LABELS = { # no merge by default
 }
 FEATURES_OUT = len(MERGE_LABELS)
 
-# INPUT_PADDING = True TODO
-
-
 
 # for training a batch concerning a single aircraft flight
 # the step is the jump between two consecutive batches

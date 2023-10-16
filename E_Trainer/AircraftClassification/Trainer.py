@@ -134,6 +134,7 @@ class Trainer(AbstractTrainer):
             ##############################
             start = time.time()
             x_inputs, y_batches = self.dl.genEpochTrain(CTX["NB_BATCH"], CTX["BATCH_SIZE"])
+            
 
             # count the number of sample in each class
             nb_sample_per_class = np.zeros((CTX["FEATURES_OUT"]), dtype=np.int32)
@@ -310,7 +311,7 @@ class Trainer(AbstractTrainer):
             start = time.time()
             y_batches_ = np.zeros((len(x_inputs), nb_classes), dtype=np.float32)
 
-            jumps = CTX["BATCH_SIZE"] * CTX["NB_BATCH"]
+            jumps = 256
             for b in range(0, len(x_inputs),jumps):
                 x_batch = x_inputs[b:b+jumps]
                 pred =  self.model.predict(reshape(x_batch)).numpy()

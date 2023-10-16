@@ -125,6 +125,12 @@ class DataLoader:
 
         return DataLoader.__train_dataset__x , DataLoader.__train_dataset__y
 
+    def uncacheDataset(self):
+        """
+        Uncache the dataset to free memory
+        """
+        DataLoader.__train_dataset__x = None
+        DataLoader.__train_dataset__y = None
 
 
     def __init__(self, CTX, path) -> None:    

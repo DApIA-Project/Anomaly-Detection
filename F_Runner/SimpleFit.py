@@ -1,12 +1,13 @@
 
 
 
-
+# import MLviz
 # Mlflow logging
 import _Utils.mlflow as mlflow
 
 # Convert CTX to dict for logging hyperparameters
 from _Utils.module import module_to_dict 
+import numpy as np
 
 # For auto-completion, we use Abstract class as virtual type
 from B_Model.AbstractModel import Model as _Model_
@@ -39,6 +40,10 @@ def simple_fit(Model:"type[_Model_]", Trainer:"type[_Trainer_]", CTX, default_CT
     run_number = mlflow.init_ml_flow(experiment_name)
     run_name = str(run_number) + " - " + Model.name
     print("Run name : ", run_name)
+    
+    # MLviz.setExperiment(experiment_name)
+    # MLviz.startRun(run_name)
+    
 
     # Convert CTX to dict and log it
     CTX = module_to_dict(CTX)
@@ -48,6 +53,7 @@ def simple_fit(Model:"type[_Model_]", Trainer:"type[_Trainer_]", CTX, default_CT
             if (param not in CTX):
                 CTX[param] = default_CTX[param]
 
+    metrics_stats:dict[str,list] = {}
 
     with mlflow.start_run(run_name=run_name) as run:
         for param in CTX:
@@ -64,5 +70,8 @@ def simple_fit(Model:"type[_Model_]", Trainer:"type[_Trainer_]", CTX, default_CT
         # Log the result metrics to mlflow
         for metric_label in metrics:
             value = metrics[metric_label]
+            if (metric_label not in metrics_stats):
+                metrics_stats[metric_label] = [value]
+            else:
+                metrics_stats[metric_label].append(value)
             mlflow.log_metric(metric_label, value)
-
