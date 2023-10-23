@@ -1,8 +1,7 @@
 import os
 import subprocess
 
-used_model = "CNN_img"
-type = "Map" if ("img" in used_model) else "Raw"
+used_model = "CNN2"
 
 ALL_PY = []
 for root, dirs, files in os.walk(f"../"):
@@ -128,12 +127,12 @@ os.system(f"cp ../C_Constants/AircraftClassification/DefaultCTX.py ./AircraftCla
 
 # copy dataloader
 copy_past_py(
-    f"../D_DataLoader/AircraftClassification/{type}DataLoader.py",
-    f"./AircraftClassifier/dataloader.py")
+    f"../D_DataLoader/AircraftClassification/DataLoader.py",
+    f"./AircraftClassifier/DataLoader.py")
 
 # copy trainer
 copy_past_py(
-    f"../E_Trainer/AircraftClassification/{type}Trainer.py",
+    f"../E_Trainer/AircraftClassification/Trainer.py",
     f"./AircraftClassifier/trainer.py")
 
 
@@ -157,10 +156,6 @@ file_content_remplace("./AircraftClassifier/dataloader.py",
                       "\"A_Dataset/AircraftClassification/map.png\"", 
                       "HERE+\"/map.png\"")
 
-# finally trainer.py remplace dataloader import
-file_content_remplace("./AircraftClassifier/trainer.py", 
-                      f"from .{type}DataLoader import DataLoader", 
-                      "from .dataloader import DataLoader")
 
 
 

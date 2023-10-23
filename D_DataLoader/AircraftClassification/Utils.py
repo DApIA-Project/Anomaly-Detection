@@ -276,8 +276,8 @@ def add_noise(flight, label, noise, noised_label_min=0.5):
     flight = flight + flight_noise
 
 
-    effective_strength = noise_strength / noise
-    label = label * (1 - effective_strength * (1-noised_label_min))
+    # effective_strength = noise_strength / noise
+    # label = label * (1 - effective_strength * (1-noised_label_min))
 
     return flight, label
 
@@ -405,17 +405,8 @@ def pick_an_interesting_aircraft(CTX, x, y, label, n=1):
 
     if (negative):
         time_step = np.random.randint(0, CTX["HISTORY"]-1)
-
     else:
-        nb = 100
-        # while time_step is None \
-            # or (use_selected and \
-            # x[flight_i][time_step, CTX["FEATURE_MAP"]["selected"]]!=0):
-
         time_step = np.random.randint(CTX["HISTORY"]-1, len(x[flight_i])-(n-1))
-        # nb -= 1
-        # if (nb == 0):
-        #     return pick_an_interesting_aircraft(CTX, x, y, label, n=n)
 
 
     return flight_i, np.arange(time_step, time_step+n)

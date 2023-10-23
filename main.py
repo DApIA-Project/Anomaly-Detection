@@ -21,13 +21,17 @@ if gpus:
 #############################
 # Choose your model here    #
 #############################
-model = "CNN"
+model = "CNN2"
 #############################
 
 
 if model== "CNN":
     import G_Main.AircraftClassification.exp_CNN as CNN
     CNN.__main__()
+
+if model== "CNN2":
+    import G_Main.AircraftClassification.exp_CNN2 as CNN2
+    CNN2.__main__()
 
 elif model== "LSTM":
     import G_Main.AircraftClassification.exp_LSTM as LSTM

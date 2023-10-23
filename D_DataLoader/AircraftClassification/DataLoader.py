@@ -16,6 +16,8 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 
+import _Utils.mlviz as MLviz
+
 
 
 
@@ -199,6 +201,14 @@ class DataLoader(AbstractDataLoader):
         x = x
         y = y
 
+        x_log = x[0]
+        x_lat = x_log[:, CTX["FEATURE_MAP"]["latitude"]]
+        x_lon = x_log[:, CTX["FEATURE_MAP"]["longitude"]]
+        MLviz.log("trajectory", {"lat":x_lat, "lon":x_lon})
+        # reshape (timesteps, features) to (features, timesteps) to 
+        x_log = x_log.transpose(1,0)
+        MLviz.log("data", x_log)
+
         return x, y
     
 
@@ -274,6 +284,8 @@ class DataLoader(AbstractDataLoader):
         self.x_test = self.x[split_index:]
         self.y_test = self.y[split_index:]
 
+
+
         # self.x_test = self.x_train.copy()
         # self.y_test =  self.y_train.copy()
 
@@ -312,6 +324,7 @@ class DataLoader(AbstractDataLoader):
 
         NB=self.CTX["NB_TRAIN_SAMPLES"]
 
+        log_n = -1
 
         for n in range(0, len(x_batches), NB):
 
@@ -319,6 +332,7 @@ class DataLoader(AbstractDataLoader):
             label_i = np.random.randint(0, self.yScaler.classes_.shape[0])
             nb = min(NB, len(x_batches) - n)
             flight_i, ts = U.pick_an_interesting_aircraft(CTX, self.x_train, self.y_train, label_i, n=nb)
+
 
             for i in range(len(ts)):
                 t = ts[i]       
@@ -346,10 +360,11 @@ class DataLoader(AbstractDataLoader):
                     shift = U.compute_shift(start, end, CTX["DILATION_RATE"])
 
                     # build the batch
-                    if (self.x_train[flight_i][0,ALT_I] > 2000 or self.x_train[flight_i][0,GEO_I] > 2000):
+                    if(self.x_train[flight_i][0,ALT_I] > 2000 or self.x_train[flight_i][0,GEO_I] > 2000):
                         takeoff = np.full((len(x_batch), CTX["FEATURES_IN"]), self.FEATURES_PAD_VALUES)
                     else:
                         takeoff = self.x_train[flight_i][start+shift:end:CTX["DILATION_RATE"]]
+                        if (log_n == -1): log_n = n+i
                     
                     # add padding and add to the batch
                     x_batches_takeoff[n+i, :pad_lenght] = self.FEATURES_PAD_VALUES
@@ -368,23 +383,31 @@ class DataLoader(AbstractDataLoader):
                 # if (n == 0 and i == 0):
                     # for feature in CTX["USED_FEATURES"]:
                     #     MLviz.log(feature, x_batches[n+i, :, CTX["FEATURE_MAP"][feature]])
-
-
+                if (n+i == log_n):
+                    lat = x_batches[n+i, :, LAT_I]
+                    lon = x_batches[n+i, :, LON_I]
+                    MLviz.log("0-x_btch_trajectory", {"lat":lat, "lon":lon})
+                    MLviz.log("1-x_btch", x_batches[n+i].transpose(1,0))
                 x_batches[n+i, pad_lenght:] = U.batchPreProcess(CTX, x_batches[n+i, pad_lenght:], CTX["RELATIVE_POSITION"], CTX["RELATIVE_TRACK"], CTX["RANDOM_TRACK"])
+                lat = x_batches[n+i, :, LAT_I]
+                lon = x_batches[n+i, :, LON_I]
+                if (n+i == log_n):
+                    MLviz.log("2-x_btch_trajectory_preprocessed", {"lat":lat, "lon":lon})
                 if CTX["ADD_TAKE_OFF_CONTEXT"]:
+                    if (n+i == log_n):
+                        MLviz.log("3-x_btch_takeoff", x_batches_takeoff[n+i].transpose(1,0))
                     x_batches_takeoff[n+i, pad_lenght:] = U.batchPreProcess(CTX, x_batches_takeoff[n+i, pad_lenght:])
-
                 # get label
 
         
 
-        # reorder the batches
-        combinations = np.arange(len(x_batches))
-        np.random.shuffle(combinations)
-        x_batches = x_batches[combinations]
-        y_batches = y_batches[combinations]
-        if (CTX["ADD_TAKE_OFF_CONTEXT"]): x_batches_takeoff = x_batches_takeoff[combinations]
-        if (CTX["ADD_MAP_CONTEXT"]): x_batches_map = x_batches_map[combinations]
+        # reorder the batches TODO check insterest of that
+        # combinations = np.arange(len(x_batches))
+        # np.random.shuffle(combinations)
+        # x_batches = x_batches[combinations]
+        # y_batches = y_batches[combinations]
+        # if (CTX["ADD_TAKE_OFF_CONTEXT"]): x_batches_takeoff = x_batches_takeoff[combinations]
+        # if (CTX["ADD_MAP_CONTEXT"]): x_batches_map = x_batches_map[combinations]
 
 
         # fit the scaler on the first epoch
@@ -396,6 +419,8 @@ class DataLoader(AbstractDataLoader):
             prntC("feature:","|".join(self.CTX["USED_FEATURES"]), start=C.BRIGHT_BLUE)
             print("mean   :","|".join([str(round(v, 1)).ljust(len(self.CTX["USED_FEATURES"][i])) for i, v in enumerate(self.xScaler.means)]))
             print("std dev:","|".join([str(round(v, 1)).ljust(len(self.CTX["USED_FEATURES"][i])) for i, v in enumerate(self.xScaler.stds)]))
+            # print("mean TO:","|".join([str(round(v, 1)).ljust(len(self.CTX["USED_FEATURES"][i])) for i, v in enumerate(self.xTakeOffScaler.means)]))
+            # print("std  TO:","|".join([str(round(v, 1)).ljust(len(self.CTX["USED_FEATURES"][i])) for i, v in enumerate(self.xTakeOffScaler.stds)]))
             print("nan pad:","|".join([str(round(v, 1)).ljust(len(self.CTX["USED_FEATURES"][i])) for i, v in enumerate(self.FEATURES_PAD_VALUES)]))
             print("min    :","|".join([str(round(v, 1)).ljust(len(self.CTX["USED_FEATURES"][i])) for i, v in enumerate(self.FEATURES_MIN_VALUES)]))
             print("max    :","|".join([str(round(v, 1)).ljust(len(self.CTX["USED_FEATURES"][i])) for i, v in enumerate(self.FEATURES_MAX_VALUES)]))
@@ -406,6 +431,10 @@ class DataLoader(AbstractDataLoader):
 
         x_batches = self.xScaler.transform(x_batches)
         if (CTX["ADD_TAKE_OFF_CONTEXT"]): x_batches_takeoff = self.xTakeOffScaler.transform(x_batches_takeoff)
+
+        MLviz.log("4-x_btch_scaled", x_batches[log_n].transpose(1,0))
+        # MLviz.log("5-x_btch_takeoff_scaled", x_batches_takeoff[log_n].transpose(1,0))
+
 
         # noise the data and the output for a more continuous probability output (avoid only 1 and 0 output (binary))
         for i in range(len(x_batches)):
@@ -485,7 +514,7 @@ class DataLoader(AbstractDataLoader):
                 shift = U.compute_shift(start, end, CTX["DILATION_RATE"])
 
                 # build the batch
-                if (self.x_test[flight_i][0,ALT_I] > 2000 or self.x_test[flight_i][0,GEO_I] > 2000):
+                if(self.x_test[flight_i][0,ALT_I] > 2000 or self.x_test[flight_i][0,GEO_I] > 2000):
                     takeoff = np.full((len(x_batch), CTX["FEATURES_IN"]), self.FEATURES_PAD_VALUES)
                 else:
                     takeoff = self.x_test[flight_i][start+shift:end:CTX["DILATION_RATE"]]
@@ -597,7 +626,7 @@ class DataLoader(AbstractDataLoader):
                 shift = U.compute_shift(start, end, CTX["DILATION_RATE"])
 
                 # build the batch
-                if (array[0,ALT_I] > 2000 or array[0,GEO_I] > 2000):
+                if(array[0,ALT_I] > 2000 or array[0,GEO_I] > 2000):
                     takeoff = np.full((len(x_batch), CTX["FEATURES_IN"]), self.FEATURES_PAD_VALUES)
                 else:
                     takeoff = array[start+shift:end:CTX["DILATION_RATE"]]

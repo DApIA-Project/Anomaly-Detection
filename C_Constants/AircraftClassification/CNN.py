@@ -1,18 +1,18 @@
 
-LEARNING_RATE = 0.00006
-EPOCHS = 0
+LEARNING_RATE = 0.0002
+EPOCHS = 160
 BATCH_SIZE = 64
 NB_BATCH = 32
 
 
-HISTORY = 64*2
-DILATION_RATE = 2
+HISTORY = 64*3
+DILATION_RATE = 3
 INPUT_LEN = HISTORY // DILATION_RATE
 
-RELATIVE_POSITION = False 
+RELATIVE_POSITION = True
 RELATIVE_TRACK = False
 RANDOM_TRACK = False
-TRAINING_NOISE = 0.0
+TRAINING_NOISE = 0.1
 
 # "valid" do not pad convolutions
 # "same" pad convolutions
@@ -21,13 +21,13 @@ MODEL_PADDING = "same"
 # "valid" do not pad convolutions
 # "last" duplicate the last row
 # "nan" fill with nan (as the model "know" what is a nan value)
-INPUT_PADDING = "valid" 
+INPUT_PADDING = "nan" 
 # TODO study padding, maybe, it is preprocessed in batchPreProcess()
 
 
 LAYERS = 1
 DROPOUT = 0.1
-SKIP_CONNECTION = 0.2
+SKIP_CONNECTION = 0.1
 
 
 USED_FEATURES = [
@@ -42,7 +42,7 @@ USED_FEATURES = [
 ]
 
 ADD_TAKE_OFF_CONTEXT = True
-ADD_MAP_CONTEXT = False
+ADD_MAP_CONTEXT = True
 
 
 FEATURES_IN = len(USED_FEATURES)
@@ -70,5 +70,5 @@ ACTIVATION = "sigmoid"
 
 IMG_SIZE = 128
 
-NB_TRAIN_SAMPLES = 10
+NB_TRAIN_SAMPLES = 2
 

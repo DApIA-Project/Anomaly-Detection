@@ -41,3 +41,5 @@ for icao in database:
 file.close()
 
     
+# install
+os.system("cp ./labels/labels.csv ../A_Dataset/AircraftClassification/labels.csv")

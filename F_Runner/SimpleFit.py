@@ -4,6 +4,7 @@
 # import MLviz
 # Mlflow logging
 import _Utils.mlflow as mlflow
+import _Utils.mlviz as mlviz
 
 # Convert CTX to dict for logging hyperparameters
 from _Utils.module import module_to_dict 
@@ -38,11 +39,10 @@ def simple_fit(Model:"type[_Model_]", Trainer:"type[_Trainer_]", CTX, default_CT
     
     # Init mlflow
     run_number = mlflow.init_ml_flow(experiment_name)
+    mlviz.setExperiment(experiment_name)
     run_name = str(run_number) + " - " + Model.name
     print("Run name : ", run_name)
     
-    # MLviz.setExperiment(experiment_name)
-    # MLviz.startRun(run_name)
     
 
     # Convert CTX to dict and log it
@@ -55,6 +55,7 @@ def simple_fit(Model:"type[_Model_]", Trainer:"type[_Trainer_]", CTX, default_CT
 
     metrics_stats:dict[str,list] = {}
 
+    mlviz.startRun(Model.name)
     with mlflow.start_run(run_name=run_name) as run:
         for param in CTX:
             if (type(CTX[param]) == bool): # Convert bool to int the make boolean hyperparameters visualisable in mlflow
