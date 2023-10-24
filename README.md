@@ -17,6 +17,7 @@ Install the dependencies:
 - matplotlib
 - pydot
 - scikit-learn
+- pickle-mixin
 
 ## Dataset
 
