@@ -1,9 +1,16 @@
-# How to run the code ?
+# Instructions
 
-## Requirements
+## Installation
 
+Clone the repository :
 
-Clone the repository and install the dependencies:
+```
+git clone https://github.com/DApIA-Project/Anomaly-Detection/
+cd ./Anomaly-Detection
+git checkout OpenSky
+```
+
+Install the dependencies:
 
 - Python 3.8
 - tensorflow
@@ -19,11 +26,12 @@ The dataset is available in the following link:
 https://mega.nz/folder/R1MHER6a#uRYHrlwbAb14JCqoHDlfwg
 
 
-## Run the code
+## Execute de code
 
-To run the code, you can use the following command:
-
+To run the code, you can simply the main.py file:
 ```python main.py```
+
+## Get the results :
 
 It will run the code presented in the paper. The predictions results over evaluation dataset will be saved in the folder "output".
 You can visualize the results dragging the files into our specific visualizer: https://adsb-visualizer.web.app/
