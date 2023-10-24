@@ -12,8 +12,7 @@ __pycache__/
 
 
 
-A_Dataset/**/*.csv
-A_Dataset/**/map.png
+A_Dataset/AircraftClassification/
 
 scp_back
 
