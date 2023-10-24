@@ -24,6 +24,8 @@ Install the dependencies:
 The dataset is available in the following link: 
 https://mega.nz/folder/R1MHER6a#uRYHrlwbAb14JCqoHDlfwg
 
+Drop the folder "AircraftClassification/" directly into the "A_Dataset/" folder
+
 
 ## Execute the code
 
