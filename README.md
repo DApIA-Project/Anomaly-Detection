@@ -36,5 +36,8 @@ For faster execution, we recommend the usage of GPU.
 
 ## Get the results
 
-It will run the code presented in the paper. The prediction results over the evaluation dataset will be saved in the folder "output".
-You can visualize the results by dragging the files into our specific visualizer: https://adsb-visualizer.web.app/
+After the execution, several analytics files will be generated.
+In ```_Artefact/``` you will find loss and accuracy curves, evaluation and per-timestep confusion matrix, and finally models mistakes in ```_Artefact/eval.pdf```
+
+The model's predictions are detailed in ```A_Dataset/AircraftClassification/Outputs/Eval/```.
+You can visualize those dragging the .csv files into our dedicated ADS-B visualizer: https://adsb-visualizer.web.app/
