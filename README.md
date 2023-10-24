@@ -12,7 +12,6 @@ git checkout OpenSky
 
 Install the dependencies:
 
-- Python 3.8
 - tensorflow
 - keras
 - pandas
@@ -26,12 +25,14 @@ The dataset is available in the following link:
 https://mega.nz/folder/R1MHER6a#uRYHrlwbAb14JCqoHDlfwg
 
 
-## Execute de code
+## Execute the code
 
-To run the code, you can simply the main.py file:
+To run the code, you can simply use the main.py file:
 ```python main.py```
 
-## Get the results :
+For faster execution, we recommend the usage of GPU.
 
-It will run the code presented in the paper. The predictions results over evaluation dataset will be saved in the folder "output".
-You can visualize the results dragging the files into our specific visualizer: https://adsb-visualizer.web.app/
+## Get the results
+
+It will run the code presented in the paper. The prediction results over the evaluation dataset will be saved in the folder "output".
+You can visualize the results by dragging the files into our specific visualizer: https://adsb-visualizer.web.app/
