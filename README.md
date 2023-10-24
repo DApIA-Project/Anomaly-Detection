@@ -27,7 +27,7 @@ https://mega.nz/folder/R1MHER6a#uRYHrlwbAb14JCqoHDlfwg
 Drop the folder ```AircraftClassification/``` directly into the ```A_Dataset/``` folder
 
 
-## Execute the code
+## Train the model
 
 To run the code, you can simply use the main.py file:
 ```python main.py```
@@ -40,5 +40,10 @@ After the execution, several analytics files will be generated.
 In ```_Artefact/``` you will find loss and accuracy curves, evaluation and per-timestep confusion matrix, and finally models mistakes in ```_Artefact/eval.pdf```
 
 The model's predictions are detailed in ```A_Dataset/AircraftClassification/Outputs/Eval/```.
-You can visualize those dragging the .csv files into our dedicated ADS-B visualizer: https://adsb-visualizer.web.app/
+You can visualize those dragging the .csv files into our dedicated ADS-B visualizer: https://adsb-visualizer.web.app/.
 Safe trajectories are displayed in Green whereas suspicious trajectories are displayed in Red.  
+
+## Make predictions with your own files
+
+In ```constant``` area you can set the number of epochs at zero in order the run only the evaluation process.
+You can run the code on your own files by placing them into the ```A_Dataset/AircraftClassification/Eval``` folder.
