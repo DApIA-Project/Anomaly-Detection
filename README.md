@@ -13,7 +13,6 @@ git checkout OpenSky
 Install the dependencies:
 
 - tensorflow
-- keras
 - pandas
 - matplotlib
 - pydot
