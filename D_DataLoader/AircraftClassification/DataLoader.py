@@ -213,13 +213,13 @@ class DataLoader(AbstractDataLoader):
     
 
 
-    def __init__(self, CTX, path) -> None:    
+    def __init__(self, CTX, path=None) -> None:    
         self.CTX = CTX
 
         U.resetICAOdb()
 
         
-        if (CTX["EPOCHS"]):
+        if (CTX["EPOCHS"] and path is not None):
             if self.CTX["CHANGED"]:
                 self.uncacheDataset()
             self.x, self.y = self.__get_dataset__(path)
@@ -610,7 +610,6 @@ class DataLoader(AbstractDataLoader):
             end = t+1
             length = end - start
             pad_lenght = (CTX["HISTORY"] - length)//CTX["DILATION_RATE"]
-
             shift = U.compute_shift(start, end, CTX["DILATION_RATE"])
 
             x_batch = array[start+shift:end:CTX["DILATION_RATE"]]

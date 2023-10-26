@@ -1,2 +1,2 @@
-from .AircraftClassification import predictAircraftType, probabilityToLabel, labelToName, CONTEXT
+from .AircraftClassification import predictAircraftType, probabilityToLabel, labelToName, getTruthLabelFromIcao
 

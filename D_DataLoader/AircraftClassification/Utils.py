@@ -7,7 +7,7 @@ from _Utils import Color
 
 
 
-def dfToFeatures(df, label, CTX):
+def dfToFeatures(df, label, CTX, __LIB__=False):
     """
     Convert a complete ADS-B trajectory dataframe into a numpy array
     with the right features and preprocessing
@@ -77,7 +77,7 @@ def dfToFeatures(df, label, CTX):
 
 
     # remove too short flights
-    if (len(df) < CTX["HISTORY"]):
+    if (not(__LIB__) and len(df) < CTX["HISTORY"]):
         print(df["callsign"][0], df["icao24"][0], "is too short")
         return []
 
