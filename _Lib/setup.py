@@ -74,7 +74,7 @@ def copy_past_py(file, dest, level = 0):
             if not(do_not_copy[-1]):
                 n = 1
                 # check if file name already exist
-                while os.path.exists(f"./AircraftClassifier/{file}.py"):
+                while os.path.exists(f"./AdsbAnomalyDetector/{file}.py"):
                     file = import_.split(".")[-1] + f"_{n}"
                     n += 1
             import_final_name.append(f"{file}")
@@ -110,7 +110,7 @@ def copy_past_py(file, dest, level = 0):
     print("\t"*(level) + f"copying files : ")
     for import_, file, n_copy in zip(imports, import_final_name, do_not_copy):
         if import_ in ALL_PY and not(n_copy):
-            copy_past_py(f"../{import_.replace('.', '/')}.py", f"./AircraftClassifier/{file}.py", level = level + 1)
+            copy_past_py(f"../{import_.replace('.', '/')}.py", f"./AdsbAnomalyDetector/{file}.py", level = level + 1)
         
 def file_content_remplace(_file, find, remplace):
     file = open(_file, "r")
@@ -124,11 +124,11 @@ def file_content_remplace(_file, find, remplace):
     file.close()
 
 # file = f"../B_Model/AircraftClassification/{used_model}.py"
-# dest = f"./AircraftClassifier/model.py"
+# dest = f"./AdsbAnomalyDetector/model.py"
 to_reomve = []
-for root, dirs, files in os.walk(f"./AircraftClassifier/"):
+for root, dirs, files in os.walk(f"./AdsbAnomalyDetector/"):
     for file in files:
-        if file != "AircraftClassification.py" and file != "__init__.py":
+        if file != "AdsbAnomalyDetector.py" and file != "__init__.py":
             to_reomve.append(os.path.join(root, file))
 
 for file in to_reomve:
@@ -162,36 +162,45 @@ imports.append("_Utils.module")
 # copy all imports
 for import_ in imports:
     f =  f"../{import_.replace('.', '/')}.py"
-    to = f"./AircraftClassifier/{import_.split('.')[-1]}.py"
+    to = f"./AdsbAnomalyDetector/{import_.split('.')[-1]}.py"
 
     if ("B_Model" in f):
-        to = f"./AircraftClassifier/model.py"
+        to = f"./AdsbAnomalyDetector/model.py"
     if ("C_Constant" in f and not("Default" in f)):
-        to = f"./AircraftClassifier/CTX.py"
+        to = f"./AdsbAnomalyDetector/CTX.py"
 
     copy_past_py(f, to)
 
 
 
 # copy weights
-os.system(f"cp ../_Artefact/{used_model}.w ./AircraftClassifier/w")
-os.system(f"cp ../_Artefact/{used_model}.xs ./AircraftClassifier/xs")
-os.system(f"cp ../_Artefact/{used_model}.xts ./AircraftClassifier/xts")
+os.system(f"cp ../_Artefact/{used_model}.w ./AdsbAnomalyDetector/w")
+os.system(f"cp ../_Artefact/{used_model}.xs ./AdsbAnomalyDetector/xs")
+os.system(f"cp ../_Artefact/{used_model}.xts ./AdsbAnomalyDetector/xts")
 # copy geo map
-os.system(f"cp ../A_Dataset/AircraftClassification/map.png ./AircraftClassifier/map.png")
-os.system(f"cp ../A_Dataset/AircraftClassification/labels.csv ./AircraftClassifier/labels.csv")
+os.system(f"cp ../A_Dataset/AircraftClassification/map.png ./AdsbAnomalyDetector/map.png")
+os.system(f"cp ../A_Dataset/AircraftClassification/labels.csv ./AdsbAnomalyDetector/labels.csv")
 
 
-# os.system(f"cp ../_Utils/module.py ./AircraftClassifier/module.py")
+# os.system(f"cp ../_Utils/module.py ./AdsbAnomalyDetector/module.py")
 
 
-file_content_remplace("./AircraftClassifier/Utils.py", 
+file_content_remplace("./AdsbAnomalyDetector/Utils.py", 
                       "import os", 
                       "import os\nHERE = os.path.abspath(os.path.dirname(__file__))")
 
-file_content_remplace("./AircraftClassifier/Utils.py", 
+file_content_remplace("./AdsbAnomalyDetector/Utils.py", 
                       "\"A_Dataset/AircraftClassification/map.png\"", 
                       "HERE+\"/map.png\"")
+
+
+file_content_remplace("./AdsbAnomalyDetector/mlflow.py",
+                      "USE_MLFLOW = True", 
+                      "USE_MLFLOW = False")
+
+file_content_remplace("./AdsbAnomalyDetector/mlviz.py",
+                      "USE_MLVIZ=True", 
+                      "USE_MLVIZ=False")
 
 
 
@@ -200,14 +209,18 @@ file_content_remplace("./AircraftClassifier/Utils.py",
 
 from setuptools import setup, find_packages
 
-VERSION = '0.0.1' 
-DESCRIPTION = 'Classification of aircraft type from ADSB data'
-LONG_DESCRIPTION = ''
+VERSION = '0.1.0' 
+DESCRIPTION = 'Low altitude aircraft anomaly detector'
+LONG_DESCRIPTION = """
+    This package contains a trained model to detect anomaly in low altitude aircraft.
+    The model focus on spoofing attack, by recognizing the aircraft the type based on its ADS-B signal.
+    Hence, if the aircraft pretend to be a small aircraft, but the model recognize it as a plane, it is an anomaly. 
+"""
 
 # Setting up
 setup(
        # the name must match the folder name 'verysimplemodule'
-        name="AircraftClassifier", 
+        name="AdsbAnomalyDetector", 
         version=VERSION,
         author="Pirolley Melvyn",
         author_email="",
@@ -216,7 +229,7 @@ setup(
         packages=find_packages(),
         install_requires=["tensorflow", "numpy", "pandas", "scikit-learn", "matplotlib", "pickle-mixin"], # add any additional packages that 
         # needs to be installed along with your package. Eg: 'caer'
-        package_data={'': ['*.py', "w", "xs", "ys", "map.png"]},
+        package_data={'': ['*.py', "w", "xs", "xts", "map.png", "labels.csv"]},
         keywords=['python', 'deep learning', 'tensorflow', 'aircraft', 'classification', 'ADS-B'],
         classifiers= [
             "Development Status :: 3 - Alpha",
