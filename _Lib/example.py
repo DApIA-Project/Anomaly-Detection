@@ -1,4 +1,4 @@
-from .AdsbAnomalyDetector import predictAircraftType, probabilityToLabel, labelToName, getTruthLabelFromIcao
+from AdsbAnomalyDetector import predictAircraftType, probabilityToLabel, labelToName, getTruthLabelFromIcao
 import pandas as pd
 import numpy as np
 
@@ -13,7 +13,7 @@ predictions[flight_1["icao24"][0]] = []
 predictions[flight_2["icao24"][0]] = []
 
 # simulation du flux de données
-max_lenght = 100
+max_lenght = 400
 for t in range(0, max_lenght):
     if (t % 100 == 0):
         print(t, "/", max_lenght)
@@ -32,7 +32,7 @@ for t in range(0, max_lenght):
     # stockage des prédictions
     for icao, proba in a.items():
         predictions[icao].append(proba)
-
+print("done")
 
 # traitement des prédictions, transformation des probabilités en labels
 # verification de la cohérence des labels avec la vérité terrain

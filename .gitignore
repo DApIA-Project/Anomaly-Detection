@@ -22,6 +22,7 @@ scp_back
 
 
 _Lib/*
+!_Lib/build.py
 !_Lib/setup.py
 !_Lib/example.py
 !_Lib/readme.md

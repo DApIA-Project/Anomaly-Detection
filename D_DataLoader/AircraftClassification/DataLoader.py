@@ -265,7 +265,6 @@ class DataLoader(AbstractDataLoader):
         if (self.CTX["ADD_TAKE_OFF_CONTEXT"]): self.xTakeOffScaler = StandardScaler3D()
         self.yScaler = SparceLabelBinarizer()
         self.yScaler.setVariables(self.CTX["USED_LABELS"])
-        print(self.yScaler.classes_)
 
 
         # Fit the y scaler
@@ -289,11 +288,9 @@ class DataLoader(AbstractDataLoader):
         # self.x_test = self.x_train.copy()
         # self.y_test =  self.y_train.copy()
 
-        prntC("Train dataset size :", C.BLUE, len(self.x_train))
-        prntC("Test dataset size :", C.BLUE, len(self.x_test))
-
-
-        print("="*100)
+        # prntC("Train dataset size :", C.BLUE, len(self.x_train))
+        # prntC("Test dataset size :", C.BLUE, len(self.x_test))
+        # print("="*100)
 
 
 

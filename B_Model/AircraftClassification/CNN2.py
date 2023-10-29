@@ -229,7 +229,6 @@ class MapModule(tf.Module):
 
 
     def __call__(self, x):
-        print(x.shape)
         for layer in self.convNN:
             x = layer(x)
         return x

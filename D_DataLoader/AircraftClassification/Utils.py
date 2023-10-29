@@ -3,6 +3,7 @@ import math
 import pandas as pd
 import os
 from PIL import Image
+Image.MAX_IMAGE_PIXELS = 100000000   
 from _Utils import Color    
 
 
