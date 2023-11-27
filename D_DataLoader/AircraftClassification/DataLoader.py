@@ -18,12 +18,7 @@ import matplotlib.pyplot as plt
 
 import _Utils.mlviz as MLviz
 
-
-
-
-
-# import MLviz
-
+from _Utils.DataFrame import DataFrame
 
 
 __icao_db__ = None
@@ -167,6 +162,7 @@ class DataLoader(AbstractDataLoader):
         data_files = data_files[:]
 
         x = []
+        zoi = []
         y = []
 
         print("Loading dataset :")
@@ -180,12 +176,24 @@ class DataLoader(AbstractDataLoader):
             # Get the aircraft right label for his imatriculation
             icao24 = df["icao24"].iloc[0]
             callsign = df["callsign"].iloc[0]
+            df.drop(["icao24", "callsign"], axis=1, inplace=True)
+
+            if ("prediction" in df.columns):
+                zoi.append(df["prediction"].values)
+                df.drop(["prediction"], axis=1, inplace=True)
+                if ("y_" in df.columns):
+                    df.drop(["y_"], axis=1, inplace=True)
+            else:
+                zoi.append(np.full((len(df),), True))
             
 
             label = U.getLabel(CTX, icao24, callsign)
             if (label == 0):
                 continue
-
+            
+            print(df)
+            df = DataFrame(df)
+            # print(df)
             array = U.dfToFeatures(df, label, CTX)
             
             
@@ -198,8 +206,6 @@ class DataLoader(AbstractDataLoader):
                 print("\r|"+done_20*"="+(20-done_20)*" "+f"| {(f+1)}/{len(data_files)}", end=" "*20)
         print("\n", flush=True)
 
-        x = x
-        y = y
 
         x_log = x[0]
         x_lat = x_log[:, CTX["FEATURE_MAP"]["latitude"]]
@@ -209,7 +215,7 @@ class DataLoader(AbstractDataLoader):
         x_log = x_log.transpose(1,0)
         MLviz.log("data", x_log)
 
-        return x, y
+        return x, zoi, y
     
 
 

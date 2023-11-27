@@ -3,11 +3,13 @@ import math
 import pandas as pd
 import os
 from PIL import Image
-from _Utils import Color    
+from _Utils import Color  
+from _Utils.DataFrame import DataFrame  
+np.set_printoptions(suppress=True, formatter={'float_kind':'{:f}'.format})
 
 
 
-def dfToFeatures(df, label, CTX):
+def dfToFeatures(df:DataFrame, label, CTX):
     """
     Convert a complete ADS-B trajectory dataframe into a numpy array
     with the right features and preprocessing
@@ -15,17 +17,31 @@ def dfToFeatures(df, label, CTX):
 
     if (CTX["INPUT_PADDING"] != "valid"):
 
-        total_length = df["timestamp"].iloc[-1] - df["timestamp"].iloc[0] + 1
-
-        padded_df = pd.DataFrame(np.nan, index=np.arange(total_length), columns=df.columns)
-        padded_df["timestamp"] = np.arange(total_length) + df["timestamp"].iloc[0]
-
-        padded_df.loc[df["timestamp"]-df["timestamp"].iloc[0]] = df.values
-
-        df = padded_df
+        for i in range(len(df)):
+            print(df[i, :])
+        print()
         
+
+        start = df["timestamp"][0]
+        total_length = df["timestamp"][-1] - df["timestamp"][0] + 1
+        print(len(df["timestamp"]), total_length)
+
+        pad_df = np.full((int(total_length), len(df.columns)), np.nan, dtype=np.float32)
+        for i in range(len(df)):
+            t = df["timestamp"][i]
+            pad_df[int(t - start)] = df[i]
+        pad_df[:, 0] = np.arange(start, df["timestamp"][-1]+1)
+        print(len(pad_df))
+
         if (CTX["INPUT_PADDING"] == "last"):
-            df = df.fillna(method="ffill")
+            # replace nan with last value
+            for l in range(1, len(pad_df)):
+                for c in range(len(pad_df[l])):
+                    if (np.isnan(pad_df[l][c])):
+                        pad_df[l][c] = pad_df[l-1][c]
+
+        df.from_numpy(pad_df)
+        print(df)
         
 
     # if nan in latitude
@@ -59,21 +75,6 @@ def dfToFeatures(df, label, CTX):
     df["timestamp"] = df["timestamp"].astype(np.int64) // 10**9
     df["timestamp"] = df["timestamp"] - df["timestamp"].iloc[0]
 
-    # if ("selected" in CTX["FEATURE_MAP"]):
-
-    #     if (label is None):
-    #         df["selected"] = 0
-    #     else:
-    #         label = CTX["USED_LABELS"].index(label)
-    #         y_ = df["y_"].values
-    #         y_ = np.array([y_[i].split(";") for i in range(len(y_))])
-    #         y_ = y_.astype(np.float32)
-    #         correct = np.argmax(y_, axis=1) == label
-    #         confidence = compute_confidence(y_)
-    #         mean = np.mean(confidence)
-    #         # print("mean confidence", mean,"min", np.min(confidence), "max", np.max(confidence))
-    #         selected = np.logical_and(correct, confidence > mean, confidence > 5)
-    #         df["selected"] = selected
 
 
     # remove too short flights

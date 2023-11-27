@@ -3,6 +3,7 @@ scpScript.py
 scpDataset.py
 scpBack.py
 test.py
+exp_*
 
 mlruns/
 _Artefact/*
