@@ -99,19 +99,19 @@ def plotConusionMatrix(png, confusion_matrix, SCALER_LABELS):
 
 
 
-def plotLoss(history, history_avg):
+def plotLoss(train, test, train_avg, test_avg, filename="loss.png"):
     # Plot the loss curves
     import matplotlib.pyplot as plt
     fig, ax = plt.subplots(1, 1, figsize=(10, 6))
     ax.grid()
-    ax.plot(np.array(history[0]) * 100.0, c="tab:blue", linewidth=0.5)
-    ax.plot(np.array(history[1]) * 100.0, c="tab:orange", linewidth=0.5)
-    ax.plot(np.array(history_avg[0]) * 100.0, c="tab:blue", ls="--", label="train loss")
-    ax.plot(np.array(history_avg[1]) * 100.0, c="tab:orange", ls="--", label="test loss")
+    ax.plot(np.array(train), c="tab:blue", linewidth=0.5)
+    ax.plot(np.array(test), c="tab:orange", linewidth=0.5)
+    ax.plot(np.array(train_avg), c="tab:blue", ls="--", label="train loss")
+    ax.plot(np.array(test_avg), c="tab:orange", ls="--", label="test loss")
     ax.set_xlabel("epoch")
     ax.set_ylabel("loss")
     ax.legend()
-    fig.savefig("./_Artefact/loss.png")
+    fig.savefig("./_Artefact/"+filename)
 
 
 def plotAccuracy(history, history_avg):

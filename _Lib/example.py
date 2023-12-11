@@ -3,8 +3,8 @@ import pandas as pd
 import numpy as np
 
 # utilisation du modèle sur deux vols simultanés
-flight_1 = pd.read_csv("./2022-01-15_14-25-40_FHJAT_39a413.csv")
-flight_2 = pd.read_csv("./2022-01-12_13-19-13_SAMU31_39ac45.csv")
+flight_1 = pd.read_csv("./2022-01-15_14-25-40_FHJAT_39a413.csv", dtype=str)
+flight_2 = pd.read_csv("./2022-01-12_13-19-13_SAMU31_39ac45.csv", dtype=str)
 
 # enregistrement des prédictions dans un dictionnaire qui associe 
 # l'icao à la liste des prédictions de l'avion
@@ -31,7 +31,7 @@ for t in range(0, max_lenght):
 
     # stockage des prédictions
     for icao, proba in a.items():
-        predictions[icao].append(proba)
+        predictions[icao].append(list(proba.values())[0])
 print("done")
 
 # traitement des prédictions, transformation des probabilités en labels

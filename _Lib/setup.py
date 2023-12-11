@@ -2,7 +2,7 @@
 
 from setuptools import setup, find_packages
 
-VERSION = '0.1.3' 
+VERSION = '0.2.2' 
 DESCRIPTION = 'Low altitude aircraft anomaly detector'
 LONG_DESCRIPTION = """
     This package contains a trained model to detect anomalies in low altitude traffic.

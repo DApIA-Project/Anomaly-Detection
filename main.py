@@ -1,7 +1,8 @@
 import tensorflow as tf
-
 import warnings
 warnings.filterwarnings("ignore")
+
+import _Utils.numpy_print
 
 gpus = tf.config.experimental.list_physical_devices('GPU')
 if gpus:
@@ -21,29 +22,37 @@ if gpus:
 #############################
 # Choose your model here    #
 #############################
-model = "CNN2"
+# algo = "AircraftClassification"
+algo = "FloodingSolver"
+model = "CNN"
 #############################
 
+if (algo == "AircraftClassification"):
 
-if model== "CNN":
-    import G_Main.AircraftClassification.exp_CNN as CNN
-    CNN.__main__()
+    if model== "CNN":
+        import G_Main.AircraftClassification.exp_CNN as CNN
+        CNN.__main__()
 
-if model== "CNN2":
-    import G_Main.AircraftClassification.exp_CNN2 as CNN2
-    CNN2.__main__()
+    if model== "CNN2":
+        import G_Main.AircraftClassification.exp_CNN2 as CNN2
+        CNN2.__main__()
 
-elif model== "LSTM":
-    import G_Main.AircraftClassification.exp_LSTM as LSTM
-    LSTM.__main__()
+    elif model== "LSTM":
+        import G_Main.AircraftClassification.exp_LSTM as LSTM
+        LSTM.__main__()
 
-elif model== "Transformer":
-    import G_Main.AircraftClassification.exp_Transformer as Transformer
-    Transformer.__main__()
+    elif model== "Transformer":
+        import G_Main.AircraftClassification.exp_Transformer as Transformer
+        Transformer.__main__()
 
-elif model== "Reservoir":
-    import G_Main.AircraftClassification.exp_Reservoir as Reservoir
-    Reservoir.__main__()
+    elif model== "Reservoir":
+        import G_Main.AircraftClassification.exp_Reservoir as Reservoir
+        Reservoir.__main__()
+
+if (algo == "FloodingSolver"):
+    if (model == "CNN"):
+        import G_Main.FloodingSolver.exp_CNN as CNN
+        CNN.__main__()
 
 
 # restore rocm warnings

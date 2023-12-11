@@ -3,97 +3,11 @@ import math
 import pandas as pd
 import os
 from PIL import Image
-Image.MAX_IMAGE_PIXELS = 100000000   
-from _Utils import Color    
+from _Utils import Color  
+np.set_printoptions(suppress=True, formatter={'float_kind':'{:f}'.format})
 
 
 
-def dfToFeatures(df, label, CTX, __LIB__=False):
-    """
-    Convert a complete ADS-B trajectory dataframe into a numpy array
-    with the right features and preprocessing
-    """
-
-    if (CTX["INPUT_PADDING"] != "valid"):
-
-        total_length = df["timestamp"].iloc[-1] - df["timestamp"].iloc[0] + 1
-
-        padded_df = pd.DataFrame(np.nan, index=np.arange(total_length), columns=df.columns)
-        padded_df["timestamp"] = np.arange(total_length) + df["timestamp"].iloc[0]
-
-        padded_df.loc[df["timestamp"]-df["timestamp"].iloc[0]] = df.values
-
-        df = padded_df
-        
-        if (CTX["INPUT_PADDING"] == "last"):
-            df = df.fillna(method="ffill")
-        
-
-    # if nan in latitude
-    if (CTX["INPUT_PADDING"] == "valid"):
-        if (df["latitude"].isna().sum() > 0):
-            print("NaN in latitude")
-            return []
-        if (df["longitude"].isna().sum() > 0):
-            print("NaN in longitude")
-            return []
-
-    # add sec (60), min (60), hour (24) and day_of_week (7) features
-    df["timestamp"] = pd.to_datetime(df["timestamp"], unit="s")
-    df["sec"] = df["timestamp"].dt.second
-    df["min"] = df["timestamp"].dt.minute
-    df["hour"] = df["timestamp"].dt.hour
-    df["day"] = df["timestamp"].dt.dayofweek
-
-    # cap altitude to min = 0
-    df["altitude"] = df["altitude"].clip(lower=0)
-    df["geoaltitude"] = df["geoaltitude"].clip(lower=0)
-
-    # add relative track
-    track = df["track"].values
-    relative_track = track.copy()
-    for i in range(1, len(relative_track)):
-        relative_track[i] = angle_diff(track[i-1], track[i])
-        # print(track[i-1], track[i], relative_track[i])
-    relative_track[0] = 0
-    df["relative_track"] = relative_track
-    df["timestamp"] = df["timestamp"].astype(np.int64) // 10**9
-    df["timestamp"] = df["timestamp"] - df["timestamp"].iloc[0]
-
-    # if ("selected" in CTX["FEATURE_MAP"]):
-
-    #     if (label is None):
-    #         df["selected"] = 0
-    #     else:
-    #         label = CTX["USED_LABELS"].index(label)
-    #         y_ = df["y_"].values
-    #         y_ = np.array([y_[i].split(";") for i in range(len(y_))])
-    #         y_ = y_.astype(np.float32)
-    #         correct = np.argmax(y_, axis=1) == label
-    #         confidence = compute_confidence(y_)
-    #         mean = np.mean(confidence)
-    #         # print("mean confidence", mean,"min", np.min(confidence), "max", np.max(confidence))
-    #         selected = np.logical_and(correct, confidence > mean, confidence > 5)
-    #         df["selected"] = selected
-
-
-    # remove too short flights
-    if (not(__LIB__) and len(df) < CTX["HISTORY"]):
-        print(df["callsign"][0], df["icao24"][0], "is too short")
-        return []
-
-    # Cast booleans into numeric
-    for col in df.columns:
-        if (df[col].dtype == bool):
-            df[col] = df[col].astype(int)
-
-    
-    # Remove useless columns
-    df = df[CTX["USED_FEATURES"]]
-
-        
-    np_array = df.to_numpy().astype(np.float32)
-    return np_array
 
 
 __icao_db__ = None
@@ -309,18 +223,6 @@ def num2deg(xtile, ytile, zoom):
     lat_deg = math.degrees(lat_rad)
     return (lat_deg, lon_deg)
 
-def angle_diff(a, b):
-    a = a % 360
-    b = b % 360
-
-    # compute relative angle
-    diff = b - a
-
-    if (diff > 180):
-        diff -= 360
-    elif (diff < -180):
-        diff += 360
-    return diff
 
 
 
@@ -380,16 +282,6 @@ def genMap(lat, lon, size):
 
 
 
-
-
-def compute_shift(start, end, dilatation):
-    """
-    compute needed shift to have the last timesteps at the end of the array
-    """
-
-    d = end - start
-    shift = (d - (d // dilatation) * dilatation - 1) % dilatation
-    return shift
 
 
 

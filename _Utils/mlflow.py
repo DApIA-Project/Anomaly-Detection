@@ -4,7 +4,7 @@ import os
 # To deactivate mlflow logging, set USE_MLFLOW to False
 #   (this is usefull when you want to run the code on a computer without mlflow installed)
 
-USE_MLFLOW = True
+USE_MLFLOW = False
 
 
 

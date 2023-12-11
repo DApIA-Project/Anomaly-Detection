@@ -5,13 +5,17 @@ import os
 from datetime import datetime
 import time
 import random
+import numpy as np
 
 # read parquet file
 
-SPLIT_FLIGHT_GAP = 5*60 # 5  minutes
 MIN_DURATION = 15*60 # 15 minutes
-MAX_MISSING_PERCENT = 40 # 40%
-MIN_LAT_LON_DIFF = 0.5 # 0.5m
+SPLIT_FLIGHT_GAP = 5*60 # 5 minutes
+
+minLat = 43.11581
+maxLat = 44.07449
+minLon = 0.72561
+maxLon = 2.16344
 
 def lat_lon_dist_m(lat1, lon1, lat2, lon2):
     R = 6373.0
@@ -34,41 +38,21 @@ def lat_lon_dist_m(lat1, lon1, lat2, lon2):
 
 
 def flight_is_valid(flight_df):
-    # remove onground rows at the beginning and end
-    # remove rows where lat, lon diff is less than 0.5m
-    #
-    # then check if flight is valid
-    # - at least 15 minutes of data
-    # - less than 40% of data is missing
-
-    # remove onground rows at the beginning and end
-    # todrop = set()
-
+    if (len(flight_df) < MIN_DURATION):
+        return False
     
-    # lat = flight_df['latitude'].values
-    # lon = flight_df['longitude'].values
-
-    # for i in range(1, len(flight_df)):
-    #     if (lat_lon_dist_m(lat[i], lon[i], lat[i-1], lon[i-1]) < MIN_LAT_LON_DIFF):
-    #         todrop.add(i)
-
-    # if (len(todrop) == len(flight_df)):
-    #     return False
-
-    # todrop = list(todrop)
-
-    # flight_df.drop(todrop, inplace=True)
-    # flight_df.reset_index(drop=True, inplace=True)
-
     flight_lenght = flight_df['timestamp'].iloc[-1] - flight_df['timestamp'].iloc[0]
-    if flight_lenght < MIN_DURATION:
+    if flight_lenght.total_seconds() < MIN_DURATION:
         return False
-    
-    missing_percent = 100.0 - len(flight_df) / flight_lenght * 100
-    if missing_percent > MAX_MISSING_PERCENT:
-        return False
-    
-    return True
+
+    # check that at least one timestamp is in the box
+    in_box = False
+    for i in range(len(flight_df)):
+        if (minLat <= flight_df['latitude'].iloc[i] <= maxLat) and (minLon <= flight_df['longitude'].iloc[i] <= maxLon):
+            in_box = True
+            break
+
+    return in_box
 
 
 os.system("rm ./csv/*.csv")
@@ -77,55 +61,63 @@ files = [file for file in files if file.endswith('.parquet')]
 
 
 file = files[0]
+i = 0
 for i in range(len(files)):
+
     file = files[i]
     print(i,"-",file)
 
     df = pd.read_parquet('./parquets/' + file)
+
+    
+
     df.reset_index(drop=True, inplace=True)
-    df = df.drop(columns=["last_position","serials", "hour"])
+    df = df.drop(columns=["last_position", "hour"])
+    # drop each row with a latitute or longitude null
+    df = df.dropna(subset=['latitude', 'longitude'])
+
+    if ("serials" in df.columns):
+        df = df.drop(columns=["serials"])
+
     # remplace timestamp (datetime) by timestamp (int)
-    df['timestamp'] = df['timestamp'].astype('int64') // 10**9
+    # df['timestamp'] = df['timestamp'].astype('int64') // 10**9
     # remplace each None callsign by "None"
     df['callsign'] = df['callsign'].fillna("None")
 
     # get all (callsign, icao24) unique pairs
-    pairs = df[['callsign', 'icao24']].drop_duplicates().values
+    icaos = df['icao24'].drop_duplicates().values
 
-    lines = {}
-    for p in pairs:
-        lines[p[0] + p[1]] = []
 
-    last_call_ica = None
-    last_call_ica_list = None
-    nb = 0
-    tot = 0
+    # # sort df by icao24 
+    df = df.sort_values(by=['icao24', 'timestamp'])
+    df = df.reset_index(drop=True)
+
+    # for each (callsign, icao24) pair count the number of lines
+    # and get the index of the first line
+
+
+    # get all lines for each icao24 
     ti = time.time()
-    for line in df.iterrows():
-        # line = line[1]
-        c = line[1]
-        call_ica = c[7] + c[1]
+    print("\nget messages for each icao24")
+    start = 0
+    end = 0
+    lines = {}
+    for end in range(len(df)):
+        if (df["icao24"][start] != df["icao24"][end]):
+            if (df['icao24'][start] in lines): print("ALERT ! " + df['icao24'][start] + " already in lines : ", lines[df['icao24'][start]], " new : ", (start, end))
+            lines[df["icao24"][start]] = (start, end)
+            start = end
+    lines[df["icao24"][start]] = (start, end)
 
-        if (call_ica != last_call_ica):
-            print("\rchange icao to ", call_ica.ljust(15, " "), str(nb).ljust(5, " "), tot,"/",len(df), "time: ", time.time()-ti, end="")
-            last_call_ica = call_ica
-            last_call_ica_list = lines[call_ica]
-            nb = 0
-
-        nb += 1
-        tot += 1
-        last_call_ica_list.append(line[0])
-
-    sub_df = []
+    df_per_icao = []
     for key in lines:
-        sub = df.iloc[lines[key]]
-        sub = sub.sort_values(by=['timestamp'])
+        print(f"\r{key} - {lines[key][1]-lines[key][0]}", end="")
+        sub = df.iloc[lines[key][0]:lines[key][1]]
         sub = sub.reset_index(drop=True)
-        sub_df.append(sub)
+        df_per_icao.append(sub)
     print()
     print("time: ", time.time()-ti)
     del lines
-
 
 
 
@@ -134,17 +126,17 @@ for i in range(len(files)):
     ti = time.time()
     print("\nsplit in sub flight")
     # split df if there is a gap of 30 minutes
-    for i in range(len(sub_df)):
-        print(f"\r{i}/{len(sub_df)}, nb : {len(flight_df)}", "time : ", time.time()-ti, end="")
+    for i in range(len(df_per_icao)):
+        print(f"\r{i}/{len(df_per_icao)}, nb : {len(flight_df)}", "time : ", time.time()-ti, end="")
 
         split_indexs = [0]
-        for t in range(1, len(sub_df[i])):
-            if sub_df[i]['timestamp'][t] - sub_df[i]['timestamp'][t-1] > SPLIT_FLIGHT_GAP:
+        for t in range(1, len(df_per_icao[i])):
+            if df_per_icao[i]['timestamp'][t] - df_per_icao[i]['timestamp'][t-1] > pd.Timedelta(seconds=SPLIT_FLIGHT_GAP):
                 split_indexs.append(t)
-        split_indexs.append(len(sub_df[i]))
+        split_indexs.append(len(df_per_icao[i]))
 
         for j in range(len(split_indexs)-1):
-            flight = sub_df[i][split_indexs[j]:split_indexs[j+1]].reset_index(drop=True)
+            flight = df_per_icao[i][split_indexs[j]:split_indexs[j+1]].reset_index(drop=True)
             
             if flight_is_valid(flight):
                 flight_df.append(flight)
@@ -157,11 +149,14 @@ for i in range(len(files)):
     # groundspeed is
     ti = time.time()
     for i in range(len(flight_df)):
+        # convert datetime to timestamp
+        
+
         print(f"\r{i}/{len(flight_df)}, time : ", time.time()-ti, end="")
 
-        # YYYYMMDD_HHMMSS_callsign_icao24.csv
         ts = flight_df[i]['timestamp'].iloc[0]
-        date_str = datetime.utcfromtimestamp(ts).strftime('%Y-%m-%d_%H-%M-%S')
+        # .strftime('%Y-%m-%d_%H-%M-%S')
+        date_str = str(ts.year) + str(ts.month).zfill(2) + str(ts.day).zfill(2) + '_' + str(ts.hour).zfill(2) + str(ts.minute).zfill(2) + str(ts.second).zfill(2)
         name = date_str + '_' + str(flight_df[i]['callsign'].iloc[0]) + '_' + str(flight_df[i]['icao24'].iloc[0])
         # save dataframe to csv
         flight_df[i].to_csv('./csv/' + name + '.csv', index=False)

@@ -76,7 +76,9 @@ print("\nDone")
 
 
 
-
+############################################################################################################
+############################################################################################################
+# UNUSABLE FILES !
 import pandas as pd
 import os
 import math
@@ -104,7 +106,7 @@ for i in range(len(files)):
 
     file = files[i]
 
-    df = pd.read_csv('./csv/' + file, dtype={'icao24': str})
+    df = pd.read_csv('./csv/' + file, dtype={'icao24': str, 'callsign': str})
 
     if (len(df) < 2):
         os.rename('./csv/' + file, './csv_unusable/' + file)

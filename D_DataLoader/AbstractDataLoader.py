@@ -89,8 +89,7 @@ class DataLoader:
 
 
     # saves of the dataset for caching (see __get_dataset__ method)
-    __train_dataset__x:np.array = None
-    __train_dataset__y:np.array = None
+    __dataset__ = None
 
     @staticmethod
     def __load_dataset__(CTX, path):
@@ -119,18 +118,13 @@ class DataLoader:
         Do the same as __load_dataset__ but with caching.
         See __load_dataset__ for more details
         """
+        if (self.CTX["CHANGED"]): DataLoader.__dataset__ = None
 
-        if (DataLoader.__train_dataset__x is None or DataLoader.__train_dataset__y is None):
-            DataLoader.__train_dataset__x , DataLoader.__train_dataset__y = self.__load_dataset__(self.CTX, path)
+        if (DataLoader.__dataset__ is None):
+            DataLoader.__dataset__ = self.__load_dataset__(self.CTX, path)
 
-        return DataLoader.__train_dataset__x , DataLoader.__train_dataset__y
+        return DataLoader.__dataset__
 
-    def uncacheDataset(self):
-        """
-        Uncache the dataset to free memory
-        """
-        DataLoader.__train_dataset__x = None
-        DataLoader.__train_dataset__y = None
 
 
     def __init__(self, CTX, path) -> None:    
