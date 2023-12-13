@@ -5,7 +5,8 @@ import _Utils.Color as C
 from _Utils.Color import prntC
 
 from D_DataLoader.AbstractDataLoader import DataLoader as AbstractDataLoader
-import D_DataLoader.Utils as U, D_DataLoader.FloodingSolver.Utils as SU
+import D_DataLoader.Utils as U
+import D_DataLoader.FloodingSolver.Utils as SU
 
 import os
 import math

@@ -31,7 +31,7 @@ _Lib/*
 !_Lib/AdsbAnomalyDetector/
 _Lib/AdsbAnomalyDetector/*
 !_Lib/AdsbAnomalyDetector/__init__.py
-!_Lib/AdsbAnomalyDetector/AircraftClassification.py
+!_Lib/AdsbAnomalyDetector/AdsbAnomalyDetector.py
 _dist
 
 

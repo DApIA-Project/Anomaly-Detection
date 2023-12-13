@@ -4,27 +4,14 @@ warnings.filterwarnings("ignore")
 
 import _Utils.numpy_print
 
-gpus = tf.config.experimental.list_physical_devices('GPU')
-if gpus:
-    try:
-        tf.config.set_logical_device_configuration(
-            gpus[0],
-            [tf.config.experimental.VirtualDeviceConfiguration(memory_limit=1024*10)])
-    except RuntimeError as e:
-        print(e)
-
-    # hide rocm warnings
-    import os
-    os.environ['TF_CPP_MIN_LOG_LEVEL'] = '-1'
-
 
 
 #############################
 # Choose your model here    #
 #############################
 # algo = "AircraftClassification"
-algo = "FloodingSolver"
-model = "CNN"
+algo = "AircraftClassification"
+model = "CNN2"
 #############################
 
 if (algo == "AircraftClassification"):
@@ -55,9 +42,9 @@ if (algo == "FloodingSolver"):
         CNN.__main__()
 
 
-# restore rocm warnings
-if gpus:
-    os.environ['TF_CPP_MIN_LOG_LEVEL'] = '0'
+# # restore rocm warnings
+# if gpus:
+#     os.environ['TF_CPP_MIN_LOG_LEVEL'] = '0'
 
 
 

@@ -99,34 +99,30 @@ def plotConusionMatrix(png, confusion_matrix, SCALER_LABELS):
 
 
 
-def plotLoss(train, test, train_avg, test_avg, filename="loss.png"):
+def plotLoss(train, test, train_avg, test_avg, TYPE="loss", filename="loss.png"):
     # Plot the loss curves
     import matplotlib.pyplot as plt
     fig, ax = plt.subplots(1, 1, figsize=(10, 6))
     ax.grid()
-    ax.plot(np.array(train), c="tab:blue", linewidth=0.5)
-    ax.plot(np.array(test), c="tab:orange", linewidth=0.5)
-    ax.plot(np.array(train_avg), c="tab:blue", ls="--", label="train loss")
-    ax.plot(np.array(test_avg), c="tab:orange", ls="--", label="test loss")
+    if (TYPE == "loss"):
+        ax.plot(np.array(train), c="tab:blue", linewidth=0.5)
+        ax.plot(np.array(test), c="tab:orange", linewidth=0.5)
+        ax.plot(np.array(train_avg), c="tab:blue", ls="--", label="train loss")
+        ax.plot(np.array(test_avg), c="tab:orange", ls="--", label="test loss")
+        ax.set_ylabel("loss")
+
+    elif (TYPE == "accuracy"):
+        ax.plot(np.array(train)*100, c="tab:blue", linewidth=0.5)
+        ax.plot(np.array(test)*100, c="tab:orange", linewidth=0.5)
+        ax.plot(np.array(train_avg)*100, c="tab:blue", ls="--", label="train accuracy")
+        ax.plot(np.array(test_avg)*100, c="tab:orange", ls="--", label="test accuracy")
+        ax.set_ylabel("accuracy")
+
     ax.set_xlabel("epoch")
-    ax.set_ylabel("loss")
+    
     ax.legend()
     fig.savefig("./_Artefact/"+filename)
 
-
-def plotAccuracy(history, history_avg):
-        # Plot the loss curves
-    import matplotlib.pyplot as plt
-    fig, ax = plt.subplots(1, 1, figsize=(10, 6))
-    ax.grid()
-    ax.plot(np.array(history[2]), c="tab:blue", linewidth=0.5)
-    ax.plot(np.array(history[3]), c="tab:orange", linewidth=0.5)
-    ax.plot(np.array(history_avg[2]), c="tab:blue", ls="--", label="train loss")
-    ax.plot(np.array(history_avg[3]), c="tab:orange", ls="--", label="test loss")
-    ax.set_xlabel("epoch")
-    ax.set_ylabel("accuracy (%)")
-    ax.legend()
-    fig.savefig("./_Artefact/accuracy.png")
 
 
 def sigmoid(x):

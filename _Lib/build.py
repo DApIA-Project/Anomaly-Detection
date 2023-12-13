@@ -16,6 +16,7 @@ for root, dirs, files in os.walk(f"../"):
 
 
 already_copied = []
+scaned = []
 
 
 def list_imports(py_lines):
@@ -40,7 +41,7 @@ def list_imports(py_lines):
 
 
 def copy_past_py(file, dest, level = 0):
-    global already_copied
+    global already_copied, scaned
 
     # get file register
     already_copied.append(file)
@@ -70,13 +71,16 @@ def copy_past_py(file, dest, level = 0):
             file = import_.split(".")[-1]
             # is this file is already copied 
             do_not_copy.append((f"../{import_.replace('.', '/')}.py" in already_copied))
-            
+            print("!", file, f"../{import_.replace('.', '/')}.py")
             if not(do_not_copy[-1]):
                 n = 1
                 # check if file name already exist
-                while os.path.exists(f"./AdsbAnomalyDetector/{file}.py"):
+                print("!", file in scaned)
+                while file in scaned:
                     file = import_.split(".")[-1] + f"_{n}"
                     n += 1
+                print("!", file)
+            scaned.append(file)
             import_final_name.append(f"{file}")
         else:
             import_final_name.append("None")
@@ -185,13 +189,13 @@ os.system(f"cp ../A_Dataset/AircraftClassification/labels.csv ./AdsbAnomalyDetec
 # os.system(f"cp ../_Utils/module.py ./AdsbAnomalyDetector/module.py")
 
 
-file_content_remplace("./AdsbAnomalyDetector/Utils.py", 
-                      "import os", 
-                      "import os\nHERE = os.path.abspath(os.path.dirname(__file__))")
+# file_content_remplace("./AdsbAnomalyDetector/Utils.py", 
+#                       "import os", 
+#                       "import os\nHERE = os.path.abspath(os.path.dirname(__file__))")
 
-file_content_remplace("./AdsbAnomalyDetector/Utils.py", 
-                      "\"A_Dataset/AircraftClassification/map.png\"", 
-                      "HERE+\"/map.png\"")
+# file_content_remplace("./AdsbAnomalyDetector/Utils.py", 
+#                       "\"A_Dataset/AircraftClassification/map.png\"", 
+#                       "HERE+\"/map.png\"")
 
 
 file_content_remplace("./AdsbAnomalyDetector/mlflow.py",

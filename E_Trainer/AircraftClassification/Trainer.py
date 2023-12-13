@@ -11,7 +11,7 @@ from _Utils.plotADSB import plotADSB
 
 from B_Model.AbstractModel import Model as _Model_
 from D_DataLoader.AircraftClassification.DataLoader import DataLoader
-from D_DataLoader.AircraftClassification.Utils import angle_diff
+from D_DataLoader.Utils import angle_diff
 from E_Trainer.AbstractTrainer import Trainer as AbstractTrainer
 
 
@@ -94,8 +94,9 @@ class Trainer(AbstractTrainer):
         
         try:
             self.model.visualize()
-        except:
+        except Exception as e:
             print("WARNING : visualization of the model failed")
+            print(e)
 
         self.dl = DataLoader(CTX, "./A_Dataset/AircraftClassification/Train")
         
@@ -228,8 +229,8 @@ class Trainer(AbstractTrainer):
             history_avg[3].append(np.mean(history[3][min_:max_]))
 
 
-        Metrics.plotLoss(history, history_avg)
-        Metrics.plotAccuracy(history, history_avg)
+        Metrics.plotLoss(history[0], history[1], history_avg[0], history_avg[1])
+        Metrics.plotLoss(history[2], history[3], history_avg[2], history_avg[3], "accuracy", filename="accuracy.png")
 
         # #  load back best model
         if (len(history[1]) > 0):

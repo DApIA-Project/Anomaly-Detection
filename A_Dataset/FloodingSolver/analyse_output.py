@@ -93,7 +93,7 @@ def latlon_distance(lat1, lon1, lat2, lon2):
 
 
 
-FOLDER = "2"
+FOLDER = "takeoff"
 
 ref_files = os.listdir("./Eval/"+FOLDER)
 pred_files = os.listdir("./Outputs/"+FOLDER)
@@ -118,7 +118,8 @@ print(len(pred0), "/", len(ref0))
 
 
 
-from_to = [30, 80]
+# from_to = [30, 80]
+from_to = [2, 50]
 # from_to = [320, 350]
 s = 4
 horizon = 4
@@ -250,13 +251,13 @@ plt.show()
 
 # plot distances[:, 61] in bar and sorted
 
-ts = [85, 150]
+ts = [8, 30]
 dist = np.array([np.mean(distances[i][ts[0]:ts[1]]) for i in range(len(distances))])
 order = np.argsort(dist)
 # bar plot
 for i in range(len(order)):
     plt.bar(i, dist[order[i]], label=ref_files[order[i]])
 plt.legend(bbox_to_anchor=(1.04, 1), loc="center left")
-plt.title("Distance between predicted and true position at t=60")
+plt.title("Distance between predicted and true position on saturation")
 plt.show()
 
