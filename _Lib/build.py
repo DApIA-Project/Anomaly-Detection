@@ -15,9 +15,8 @@ for root, dirs, files in os.walk(f"../"):
 
 
 
-already_copied = []
-scaned = []
-
+already_copied = {}
+will_be_copied = {}
 
 def list_imports(py_lines):
 
@@ -41,10 +40,14 @@ def list_imports(py_lines):
 
 
 def copy_past_py(file, dest, level = 0):
-    global already_copied, scaned
+    global already_copied, will_be_copied
 
     # get file register
-    already_copied.append(file)
+    if (file in already_copied):
+        print("\t"*level + f"{file} already copied")
+        return
+    already_copied[file] = dest
+    will_be_copied[file] = dest
     os.system(f"cp {file} {dest}")
     print("\t"*level + f"copy {file} to {dest} : ")
 
@@ -70,18 +73,26 @@ def copy_past_py(file, dest, level = 0):
 
             file = import_.split(".")[-1]
             # is this file is already copied 
-            do_not_copy.append((f"../{import_.replace('.', '/')}.py" in already_copied))
-            print("!", file, f"../{import_.replace('.', '/')}.py")
+            do_not_copy.append((f"../{import_.replace('.', '/')}.py" in will_be_copied))
+            # do_not_copy.append(False)
             if not(do_not_copy[-1]):
                 n = 1
                 # check if file name already exist
-                print("!", file in scaned)
-                while file in scaned:
+                print()
+                print("!", f"./AdsbAnomalyDetector/{file}.py")
+                print("!", will_be_copied.values())
+                print("!", f"./AdsbAnomalyDetector/{file}.py" in will_be_copied.values())
+                while f"./AdsbAnomalyDetector/{file}.py" in will_be_copied.values():
                     file = import_.split(".")[-1] + f"_{n}"
                     n += 1
                 print("!", file)
-            scaned.append(file)
+                print()
+            else:
+                print("!", f"../{import_.replace('.', '/')}.py", "already copied")
+                file = will_be_copied[f"../{import_.replace('.', '/')}.py"].split("/")[-1].replace(".py", "")
+
             import_final_name.append(f"{file}")
+            will_be_copied[f"../{import_.replace('.', '/')}.py"] = f"./AdsbAnomalyDetector/{file}.py"
         else:
             import_final_name.append("None")
             do_not_copy.append(True)
@@ -103,6 +114,7 @@ def copy_past_py(file, dest, level = 0):
                 else:
                     lines[loc] = "from . import " + file
             else:
+                print("\t"*(level+1) + f"{import_} renamed to {file}")
                 lines[loc] = lines[loc].replace(import_, f"{file}")
                 lines[loc] = "from . " + lines[loc]
 
@@ -178,9 +190,9 @@ for import_ in imports:
 
 
 # copy weights
-os.system(f"cp ../_Artefact/{used_model}.w ./AdsbAnomalyDetector/w")
-os.system(f"cp ../_Artefact/{used_model}.xs ./AdsbAnomalyDetector/xs")
-os.system(f"cp ../_Artefact/{used_model}.xts ./AdsbAnomalyDetector/xts")
+os.system(f"cp ../_Artifacts/{used_model}.w ./AdsbAnomalyDetector/w")
+os.system(f"cp ../_Artifacts/{used_model}.xs ./AdsbAnomalyDetector/xs")
+os.system(f"cp ../_Artifacts/{used_model}.xts ./AdsbAnomalyDetector/xts")
 # copy geo map
 os.system(f"cp ../A_Dataset/AircraftClassification/map.png ./AdsbAnomalyDetector/map.png")
 os.system(f"cp ../A_Dataset/AircraftClassification/labels.csv ./AdsbAnomalyDetector/labels.csv")
@@ -188,14 +200,14 @@ os.system(f"cp ../A_Dataset/AircraftClassification/labels.csv ./AdsbAnomalyDetec
 
 # os.system(f"cp ../_Utils/module.py ./AdsbAnomalyDetector/module.py")
 
+file = will_be_copied['../D_DataLoader/AircraftClassification/Utils.py']
+file_content_remplace(file, 
+                      "import os", 
+                      "import os\nHERE = os.path.abspath(os.path.dirname(__file__))")
 
-# file_content_remplace("./AdsbAnomalyDetector/Utils.py", 
-#                       "import os", 
-#                       "import os\nHERE = os.path.abspath(os.path.dirname(__file__))")
-
-# file_content_remplace("./AdsbAnomalyDetector/Utils.py", 
-#                       "\"A_Dataset/AircraftClassification/map.png\"", 
-#                       "HERE+\"/map.png\"")
+file_content_remplace(file, 
+                      "\"A_Dataset/AircraftClassification/map.png\"", 
+                      "HERE+\"/map.png\"")
 
 
 file_content_remplace("./AdsbAnomalyDetector/mlflow.py",

@@ -141,6 +141,7 @@ def batchPreProcess(CTX, flight, relative_position=False, relative_track=False, 
 
 
     """
+
     # Get the index of each feature by name for readability
     FEATURE_MAP = CTX["FEATURE_MAP"]
     lat = flight[:, FEATURE_MAP["latitude"]]
@@ -168,6 +169,7 @@ def batchPreProcess(CTX, flight, relative_position=False, relative_track=False, 
 
     if random_track:
         R = np.random.randint(0, 360)
+
 
     # Normalize lat lon to 0, 0
     # Convert lat lon to cartesian coordinates

@@ -13,6 +13,7 @@ import os
 os.system('ssh ml "cd WORK/DAPIA/ && find . -type f -name \'*.py[co]\' -delete -o -type d -name __pycache__ -delete && find . -type f -iname \*.py -delete && find . -type d -empty -delete"')
 
 
+
 f = []
 n = 0
 for path, subdirs, files in os.walk('./'):

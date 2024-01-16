@@ -1,46 +1,42 @@
-
-
-
-
-# Mlflow logging
+# Mlflow log-in
 import _Utils.mlflow as mlflow
 
 # Convert CTX to dict for logging hyperparameters
 from _Utils.module import module_to_dict 
+import numpy as np
 
 # For auto-completion, we use Abstract class as virtual type
 from B_Model.AbstractModel import Model as _Model_
 from E_Trainer.AbstractTrainer import Trainer as _Trainer_
 
 
-
-def multi_fit(Model:"type[_Model_]", Trainer:"type[_Trainer_]", CTX, default_CTX=None, experiment_name:str = None):
+def multiFit(Model:"type[_Model_]", Trainer:"type[_Trainer_]", CTX, default_CTX=None, repeats=2, experiment_name:str = None):
     """
-    Fit the model one time with the given CTX of hyperparameters
+    Fit the model several times with a given set of hyperparameters
+    to check the stability of the training.
 
     Parameters:
     -----------
     model: type[Model]:
-        Model class type of the model to train
+        Model used for training
 
     trainer: type[Trainer]
-        Trainer class type of the trainer algorithm to use
+        Trainer class, managing the training loop, testing and evaluation, for a specific task 
+        (eg. spoofing detection)
 
     CTX: Module 
-        Python module containing the hyperparameters and constants
+        Python module containing the set of hyperparameters
 
-    experiment_name: str 
-        Name of the experiment to log to mlflow
+    repeats: int
+        Number of times the model is trained with the same hyperparameters
     """
 
-
-    
-    # Init mlflow
+    # Init mlflow (can be ignored if mlflow is not used)
     run_number = mlflow.init_ml_flow(experiment_name)
     run_name = str(run_number) + " - " + Model.name
     print("Run name : ", run_name)
 
-    # Convert CTX to dict and log it
+    # Convert CTX to dict and merge it with default_CTX
     CTX = module_to_dict(CTX)
     if (default_CTX != None):
         default_CTX = module_to_dict(default_CTX)
@@ -48,72 +44,46 @@ def multi_fit(Model:"type[_Model_]", Trainer:"type[_Trainer_]", CTX, default_CTX
             if (param not in CTX):
                 CTX[param] = default_CTX[param]
 
-    # # test several CTX
-    # take_off = [False, True]
-    # map_context = [False, True]
-    # relative_position = [True, False]
-    # merge_labels = [
-    #     { # merge 
-    #         2: [1, 2, 3, 4, 5], # PLANE
-    #         6: [6, 7, 10], # SMALL
-    #         9: [9, 12], # HELICOPTER
-
-    #         0: [8, 11] # not classified
-    #     },
-    #     {
-    #         2: [1, 2, 4], # PLANE
-    #         3: [3, 5],
-    #         6: [6],
-    #         7: [7],
-    #         9: [9], # HELICOPTER
-    #         10: [10],
-    #         11: [11], # Military
-    #         12: [12], # SAMU
-
-    #         0: [8] # not classified
-    #     }
-    # ]
-
-
-              
-    # # for ml in merge_labels:
-    # for rp in relative_position:
-    #         for mc in map_context:
-    #             for to in take_off:     
-    # 
-    for skip_c in [0.0, 1.0]:     
-            
-
-        # if (mc and not to):
-        #     continue
-
-        # SUB_CTX = CTX.copy()
-        # SUB_CTX["ADD_TAKE_OFF_CONTEXT"] = to
-        # SUB_CTX["ADD_MAP_CONTEXT"] = mc
-        # # SUB_CTX["MERGE_LABELS"] = ml
-        # # SUB_CTX["FEATURES_OUT"] = len(SUB_CTX["MERGE_LABELS"])-1
-        # # SUB_CTX["USED_LABELS"] = [k for k in SUB_CTX["MERGE_LABELS"].keys() if k != 0]
-        # SUB_CTX["RELATIVE_POSITION"] = rp
-        # SUB_CTX["CHANGED"] = True
-
-        SUB_CTX = CTX.copy()
-        SUB_CTX["SKIP_CONNECTION"] = skip_c
-
+    metrics_stats:dict[str,list] = {}
+    for i in range(repeats):
 
         with mlflow.start_run(run_name=run_name) as run:
-            for param in SUB_CTX:
-                if (type(SUB_CTX[param]) == bool): # Convert bool to int the make boolean hyperparameters visualisable in mlflow
-                    mlflow.log_param(param, int(SUB_CTX[param]))
+            for param in CTX:
+                if (type(CTX[param]) == bool): # Convert bool to int to log bool in mlflow
+                    mlflow.log_param(param, int(CTX[param]))
                 else:
-                    mlflow.log_param(param, SUB_CTX[param])
+                    mlflow.log_param(param, CTX[param])
 
-            
-            # Instanciate the trainer and go !
-            trainer = Trainer(SUB_CTX, Model)
+            # Create a new training environment and run it
+            trainer = Trainer(CTX, Model)
             metrics = trainer.run()
 
-            # Log the result metrics to mlflow
+            # save the results
             for metric_label in metrics:
                 value = metrics[metric_label]
+                if (metric_label not in metrics_stats):
+                    metrics_stats[metric_label] = [value]
+                else:
+                    metrics_stats[metric_label].append(value)
                 mlflow.log_metric(metric_label, value)
+
+        # Analyze the results if it is the last run
+        if (i == repeats -1):
+            print("Metric".rjust(15), "|", "min".rjust(10), "|", "mean".rjust(10), "|", "std".rjust(10), "|", "median".rjust(10), "|", "max".rjust(10), sep="")
+            for metric in metrics:
+                # min, mean, std, median, max
+                _min = np.min(metrics_stats[metric])
+                _mean = np.mean(metrics_stats[metric])
+                _std = np.std(metrics_stats[metric])
+                _median = np.median(metrics_stats[metric])
+                _max = np.max(metrics_stats[metric])
+
+                mlflow.log_metric(metric + "_min", _min)
+                mlflow.log_metric(metric + "_mean", _mean)
+                mlflow.log_metric(metric + "_std", _std)
+                mlflow.log_metric(metric + "_median", _median)
+                mlflow.log_metric(metric + "_max", _max)
+
+                print(metric.rjust(15), "|", str(round(_min, 3)).rjust(10), "|", str(round(_mean, 3)).rjust(10), "|", str(round(_std, 3)).rjust(10), "|", str(round(_median, 3)).rjust(10), "|", str(round(_max, 3)).rjust(10), sep="")
+
 

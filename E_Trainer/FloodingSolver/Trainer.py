@@ -3,7 +3,7 @@
 
 import _Utils.mlflow as mlflow
 import _Utils.Metrics as Metrics
-from _Utils.save import write, load, formatJson
+from _Utils.save import write, load
 import _Utils.Color as C
 from _Utils.Color import prntC
 from _Utils.plotADSB import plotADSB
@@ -100,9 +100,9 @@ class Trainer(AbstractTrainer):
 
         self.dl = DataLoader(CTX, "./A_Dataset/AircraftClassification/Train")
         
-        # If "_Artefacts/" folder doesn't exist, create it.
-        if not os.path.exists("./_Artefact"):
-            os.makedirs("./_Artefact")
+        # If "_Artifactss/" folder doesn't exist, create it.
+        if not os.path.exists("./_Artifacts"):
+            os.makedirs("./_Artifacts")
 
 
 
@@ -119,12 +119,12 @@ class Trainer(AbstractTrainer):
 
         best_variables = None
 
-        # if _Artefact/modelsW folder exists and is not empty, clear it
-        if os.path.exists("./_Artefact/modelsW"):
-            if (len(os.listdir("./_Artefact/modelsW")) > 0):
-                os.system("rm ./_Artefact/modelsW/*")
+        # if _Artifacts/modelsW folder exists and is not empty, clear it
+        if os.path.exists("./_Artifacts/modelsW"):
+            if (len(os.listdir("./_Artifacts/modelsW")) > 0):
+                os.system("rm ./_Artifacts/modelsW/*")
         else:
-            os.makedirs("./_Artefact/modelsW")
+            os.makedirs("./_Artifacts/modelsW")
 
         for ep in range(1, CTX["EPOCHS"] + 1):
             ##############################
@@ -192,7 +192,7 @@ class Trainer(AbstractTrainer):
             mlflow.log_metric("epoch", ep, step=ep)
 
             # Save the model weights
-            write("./_Artefact/modelsW/"+self.model.name+"_"+str(ep)+".w", self.model.getVariables())
+            write("./_Artifacts/modelsW/"+self.model.name+"_"+str(ep)+".w", self.model.getVariables())
 
 
         # Compute the moving average of the loss for a better visualization
@@ -216,25 +216,25 @@ class Trainer(AbstractTrainer):
 
             print("load best model, epoch : ", best_i+1, " with distance : ", history[3][best_i], flush=True)
             
-            best_variables = load("./_Artefact/modelsW/"+self.model.name+"_"+str(best_i+1)+".w")
+            best_variables = load("./_Artifacts/modelsW/"+self.model.name+"_"+str(best_i+1)+".w")
             self.model.setVariables(best_variables)
         else:
             print("WARNING : no history of training has been saved")
 
 
-        write("./_Artefact/"+self.model.name+".w", self.model.getVariables())
-        write("./_Artefact/"+self.model.name+".xs", self.dl.xScaler.getVariables())
-        write("./_Artefact/"+self.model.name+".ys", self.dl.yScaler.getVariables())
-        write("./_Artefact/"+self.model.name+".min", self.dl.FEATURES_MIN_VALUES)
+        write("./_Artifacts/"+self.model.name+".w", self.model.getVariables())
+        write("./_Artifacts/"+self.model.name+".xs", self.dl.xScaler.getVariables())
+        write("./_Artifacts/"+self.model.name+".ys", self.dl.yScaler.getVariables())
+        write("./_Artifacts/"+self.model.name+".min", self.dl.FEATURES_MIN_VALUES)
 
     def load(self):
         """
-        Load the model's weights from the _Artefact folder
+        Load the model's weights from the _Artifacts folder
         """
-        self.model.setVariables(load("./_Artefact/"+self.model.name+".w"))
-        self.dl.xScaler.setVariables(load("./_Artefact/"+self.model.name+".xs"))
-        self.dl.yScaler.setVariables(load("./_Artefact/"+self.model.name+".ys"))
-        self.dl.FEATURES_MIN_VALUES = load("./_Artefact/"+self.model.name+".min")
+        self.model.setVariables(load("./_Artifacts/"+self.model.name+".w"))
+        self.dl.xScaler.setVariables(load("./_Artifacts/"+self.model.name+".xs"))
+        self.dl.yScaler.setVariables(load("./_Artifacts/"+self.model.name+".ys"))
+        self.dl.FEATURES_MIN_VALUES = load("./_Artifacts/"+self.model.name+".min")
 
 
     def eval(self):

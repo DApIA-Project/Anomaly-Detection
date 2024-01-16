@@ -14,6 +14,7 @@ from .model import Model
 from .DataLoader import DataLoader
 from .Scaler3D import StandardScaler3D, fillNaN3D
 from .SparceLabelBinarizer import SparceLabelBinarizer
+from . import Utils_1 as SU
 from . import Utils as U
 from .Trainer import reshape
 
@@ -195,7 +196,7 @@ class TrajectoryBuffer:
             if (df == None):
                 raise Exception(f"ANOMALY : aircraft {icao24} has no data for timestamp {end_timestamp}")
             
-            array = U.dfToFeatures(df, None, CTX, __LIB__=True)
+            array = U.dfToFeatures(df, CTX, __LIB__=True)
             array = fillNaN3D([array], dataloader.FEATURES_PAD_VALUES)[0]
 
             # preprocess
@@ -228,12 +229,12 @@ class TrajectoryBuffer:
                 x_batches_takeoff[i, pad_lenght:] = takeoff
                 
             if CTX["ADD_MAP_CONTEXT"]:
-                lat, lon = U.getAircraftPosition(CTX, x_batches[i])
-                x_batches_map[i] = U.genMap(lat, lon, CTX["IMG_SIZE"])
+                lat, lon = SU.getAircraftPosition(CTX, x_batches[i])
+                x_batches_map[i] = SU.genMap(lat, lon, CTX["IMG_SIZE"])
             
-            x_batches[i, pad_lenght:] = U.batchPreProcess(CTX, x_batches[i, pad_lenght:], CTX["RELATIVE_POSITION"], CTX["RELATIVE_TRACK"], CTX["RANDOM_TRACK"])
+            x_batches[i, pad_lenght:] = SU.batchPreProcess(CTX, x_batches[i, pad_lenght:], CTX["RELATIVE_POSITION"], CTX["RELATIVE_TRACK"], CTX["RANDOM_TRACK"])
             if CTX["ADD_TAKE_OFF_CONTEXT"]:
-                x_batches_takeoff[i, pad_lenght:] = U.batchPreProcess(CTX, x_batches_takeoff[i, pad_lenght:])
+                x_batches_takeoff[i, pad_lenght:] = SU.batchPreProcess(CTX, x_batches_takeoff[i, pad_lenght:])
 
         x_batches = xScaler.transform(x_batches)
         if (CTX["ADD_TAKE_OFF_CONTEXT"]): x_batches_takeoff = xScalerTakeoff.transform(x_batches_takeoff)

@@ -3,8 +3,11 @@ import os
 import math
 import numpy as np
 
+FOLDER = "ToulouseV2"
+
 
 DISTANCE = "DISTANCE"
+"MIN DISTANCE SHOULD BE =20km"
 GROUND_SPEED_MAX = "GROUND_SPEED_MAX"
 GROUND_SPEED = "GROUND_SPEED"
 TRACK = "TRACK"
@@ -12,7 +15,7 @@ VERTRATE = "VERTRATE"
 ALTITUDE = "ALTITUDE"
 
 
-METRIC = DISTANCE
+METRIC = VERTRATE
 
 
 if METRIC == DISTANCE:
@@ -47,7 +50,7 @@ if METRIC == GROUND_SPEED:
 
 
 
-files = os.listdir('./csv/')
+files = os.listdir('./B_csv/'+FOLDER)
 files = [file for file in files if file.endswith('.csv')]
 
 # compute distance based on lat, lon
@@ -61,7 +64,8 @@ def lat_lon_dist_m(lat1, lon1, lat2, lon2):
     return distance
 
 
-
+def angle_diff(a1, a2):
+    return 180 - abs(abs(a1 - a2) - 180)
 
 
 
@@ -126,7 +130,7 @@ for i in range(len(files)):
 
     print("\r", i, "/", len(files), end="")
 
-    df = pd.read_csv('./csv/' + file, dtype={'icao24': str})
+    df = pd.read_csv('./B_csv/'+FOLDER+"/" + file, dtype={'icao24': str})
 
     icao = df['icao24'].values[0]
     if icao not in labels:
@@ -157,6 +161,8 @@ for i in range(len(files)):
     if METRIC == VERTRATE:
         if not((df['vertical_rate'].values == np.nan).all()):
             # vertrate = np.nanmax(df['vertical_rate'].values) - np.nanmin(df['vertical_rate'].values)
+            # replace nan by 0
+            df['vertical_rate'] = df['vertical_rate'].fillna(0)
             vertrate = max(np.nanmax(df['vertical_rate'].values), -np.nanmin(df['vertical_rate'].values))
             # vertrate = 
 
@@ -189,11 +195,13 @@ for i in range(len(files)):
 
     if METRIC == GROUND_SPEED_MAX:
         if not((df['groundspeed'].values == np.nan).all()):
+            df['groundspeed'] = df['groundspeed'].fillna(0)
             altitude = round(np.nanmax(df['groundspeed'].values))
             metric = altitude
 
     if METRIC == GROUND_SPEED:
         if not((df['groundspeed'].values == np.nan).all()):
+            df['groundspeed'] = df['groundspeed'].fillna(0)
             altitude = round(np.nanmean(df['groundspeed'].values))
             metric = altitude
 
@@ -254,7 +262,7 @@ NB_X_TICKS = 10
 plt.xticks(range(0, len(keys), len(keys)//NB_X_TICKS), keys[::len(keys)//NB_X_TICKS], rotation=45)
 
 # savefig
-plt.savefig("./_Artefact/"+METRIC+".png", dpi=300)
+plt.savefig("./_Artifacts/"+METRIC+".png", dpi=300)
 plt.show()
 
 
@@ -262,9 +270,9 @@ plt.show()
 
 
 # write all files
-save = open("./_Artefact/"+METRIC+".txt", "w")
+save = open("./_Artifacts/"+METRIC+".txt", "w")
 for distance in metric_files:
-    save.write(str(distance) + "km\n")
+    save.write(str(distance)+"\n")
     for file in metric_files[distance]:
         save.write("\t" + file + "\n")
 save.close()

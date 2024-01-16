@@ -1,26 +1,31 @@
 .vscode/
+*.zip
+*.parquet
+
+# personal ssh script to train on remote machine
 scpScript.py
 scpDataset.py
 scpBack.py
+
+# you can create a test file at root to make fast tests
 test.py
 
+# hide execution artefacts
 mlruns/
-_Artefact/*
-!_Artefact/readme.md
+_Artifacts/*
+!_Artifacts/readme.md
+
+# hide IP, API tokens and other secrets
+_Utils/secrets.py
+
 
 __pycache__/
 
-
-
+# Do not put any csv or dataset in git !
 A_Dataset/**/*.csv
 A_Dataset/**/map.png
 
-scp_back
-
-./fix_icao.py
-
-
-
+# Do not put any built lib or lib building artefact in git ! 
 _Lib/*
 !_Lib/build.py
 !_Lib/setup.py
@@ -34,9 +39,8 @@ _Lib/AdsbAnomalyDetector/*
 !_Lib/AdsbAnomalyDetector/AdsbAnomalyDetector.py
 _dist
 
-
-_AircraftClassificationDatasetGenerator/_Artefact/*
-!_AircraftClassificationDatasetGenerator/_Artefact/readme.md
-
+# remove artefacts from the dataset cleaning script
+_AircraftClassificationDatasetGenerator/_Artifacts/*
+!_AircraftClassificationDatasetGenerator/_Artifacts/readme.md
 _AircraftClassificationDatasetGenerator/**/*.csv
 _AircraftClassificationDatasetGenerator/**/*.parquet

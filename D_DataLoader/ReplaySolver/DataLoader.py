@@ -6,7 +6,7 @@ from _Utils.Color import prntC
 
 from D_DataLoader.AbstractDataLoader import DataLoader as AbstractDataLoader
 import D_DataLoader.Utils as U
-import D_DataLoader.FloodingSolver.Utils as SU
+import D_DataLoader.ReplaySolver.Utils as SU
 
 import os
 import math
@@ -185,17 +185,14 @@ class DataLoader(AbstractDataLoader):
         print("\n", flush=True)
 
 
-        return x
+        return x, data_files
     
 
 
     def __init__(self, CTX, path="") -> None:    
         self.CTX = CTX
 
-        if (CTX["EPOCHS"] and path != ""):
-            self.x = self.__get_dataset__(path)
-        else:
-            self.x = []
+        self.x, self.files = self.__get_dataset__(path)
 
 
         self.FEATURES_MIN_VALUES = np.full((CTX["FEATURES_IN"],), np.nan)
@@ -248,6 +245,15 @@ class DataLoader(AbstractDataLoader):
         Called between each epoch by the trainer
         """
         CTX = self.CTX
+
+        if (nb_batches == 1 and batch_size == None):
+            x_batches = []
+            y_batches = []
+            for i in range(len(self.x_train)):
+                x_batches.append(self.x_train[i])
+                y_batches.append(self.files[i])
+            return [x_batches],  [y_batches]
+
 
         # Allocate memory for the batches
         x_batches = np.zeros((nb_batches * batch_size, CTX["INPUT_LEN"], CTX["FEATURES_IN"]))
@@ -328,18 +334,6 @@ class DataLoader(AbstractDataLoader):
             self.xScaler.fit(x_batches)
             self.yScaler.fit(y_batches)
 
-            # # rescale scaler to have the same range for lat and lon
-            # range = self.yScaler.maxs - self.yScaler.mins
-            # range_lat = range[CTX["PRED_FEATURE_MAP"]["latitude"]]
-            # center_lon = (max_lon + min_lon) / 2
-            # min_lon = center_lon - range_lat / 2
-            # max_lon = center_lon + range_lat / 2
-            # self.yScaler.mins[CTX["PRED_FEATURE_MAP"]["longitude"]] = min_lon
-            # self.yScaler.maxs[CTX["PRED_FEATURE_MAP"]["longitude"]] = max_lon
-
-            # if (CTX["RELATIVE_TRACK"]):
-            #     self.yScaler.stds[CTX["PRED_FEATURE_MAP"]["longitude"]] = self.yScaler.stds[CTX["PRED_FEATURE_MAP"]["latitude"]]
-
             print("DEBUG SCALLERS : ")
             prntC("feature:","|".join(self.CTX["USED_FEATURES"]), start=C.BRIGHT_BLUE)
             print("mean   :","|".join([str(round(v, 1)).ljust(len(self.CTX["USED_FEATURES"][i])) for i, v in enumerate(self.xScaler.means)]))
@@ -350,10 +344,6 @@ class DataLoader(AbstractDataLoader):
             print("min    :","|".join([str(round(v, 1)).ljust(len(self.CTX["USED_FEATURES"][i])) for i, v in enumerate(self.FEATURES_MIN_VALUES)]))
             print("max    :","|".join([str(round(v, 1)).ljust(len(self.CTX["USED_FEATURES"][i])) for i, v in enumerate(self.FEATURES_MAX_VALUES)]))
         
-        # print(np.min(y_batches, axis=0))
-        # print(np.max(y_batches, axis=0))
-
-        # print(y_batches)
 
         x_batches = self.xScaler.transform(x_batches)
         y_batches = self.yScaler.transform(y_batches)
@@ -382,6 +372,27 @@ class DataLoader(AbstractDataLoader):
         x_batches, y_batches: np.array
         """
         CTX = self.CTX
+        if (CTX["NB_BATCH"] == 1 and CTX["BATCH_SIZE"] == None):
+            x_batches = []
+            y_batches = []
+
+            for i in range(60):
+                if (i%2 == 0):
+                    
+                    f = np.random.randint(len(self.x_train))
+                    
+                    x_batches.insert(0, self.x_train[f])
+                    y_batches.insert(0, self.files[f])
+
+                    
+                else:
+                    f = np.random.randint(len(self.x_test))
+                    x_batches.append(self.x_test[f])
+                    y_batches.append("unknown")
+
+            return x_batches, y_batches
+        
+        
         NB_BATCHES = int(CTX["BATCH_SIZE"] * CTX["NB_BATCH"] * CTX["TEST_RATIO"])
 
 
@@ -423,9 +434,69 @@ class DataLoader(AbstractDataLoader):
         return x_batches, y_batches
 
 
-        
+    def rotate(self, x, y, angle):
+        return np.cos(angle) * x - np.sin(angle) * y, np.sin(angle) * x + np.cos(angle) * y
 
-    def genEval(self, path):
+    def alter(self, x, CTX):
+            # Get the index of each feature by name for readability
+        FEATURE_MAP = CTX["FEATURE_MAP"]
+        lat = x[:, FEATURE_MAP["latitude"]]
+        lon = x[:, FEATURE_MAP["longitude"]]
+        track = x[:, FEATURE_MAP["track"]]
+
+        i = np.random.choice(["rotate", "translate", "flip", "scale", "trim", "noise"])
+
+        if (i == "rotate"):
+            angle = np.random.uniform(-np.pi, np.pi)
+            lat, lon = self.rotate(lat, lon, angle)
+            x[:, FEATURE_MAP["latitude"]] = lat
+            x[:, FEATURE_MAP["longitude"]] = lon
+            return x, "rotate"
+        
+        elif (i == "translate"):
+            lat += np.random.uniform(-0.1, 0.1)
+            lon += np.random.uniform(-0.1, 0.1)
+            x[:, FEATURE_MAP["latitude"]] = lat
+            x[:, FEATURE_MAP["longitude"]] = lon
+            return x, "translate"
+        
+        elif (i == "scale"):
+            slat, slon = np.random.uniform(0.9, 1.1), np.random.uniform(0.9, 1.1)
+            clat, clon = np.mean(lat), np.mean(lon)
+            lat = (lat - clat) * slat + clat
+            lon = (lon - clon) * slon + clon
+            x[:, FEATURE_MAP["latitude"]] = lat
+            x[:, FEATURE_MAP["longitude"]] = lon
+            return x, "scale"
+        
+        elif (i == "flip"):
+            slat, slon = np.random.choice(["ab", "ba"])
+            slat, slon = (1, -1) if slat == "ab" else (-1, 1)
+            lat = (lat) * slat 
+            lon = (lon) * slon
+            x[:, FEATURE_MAP["latitude"]] = lat
+            x[:, FEATURE_MAP["longitude"]] = lon
+            return x, "flip"
+
+        
+        elif (i == "noise"):
+            lat += np.random.uniform(-0.000005, 0.000005, size=(len(lat),))
+            lon += np.random.uniform(-0.000005, 0.000005, size=(len(lon),))
+            x[:, FEATURE_MAP["latitude"]] = lat
+            x[:, FEATURE_MAP["longitude"]] = lon
+            return x, "noise"
+        
+        elif (i == "trim"):
+            length = np.random.randint(CTX["HISTORY"] * 5, CTX["HISTORY"] * 10)
+            if (length > len(lat)):
+                length = len(lat)
+            start = np.random.randint(0, len(lat) - length)
+            return x[start:start+length], "trim"
+
+
+
+
+    def genEval(self):
         """
         Load a flight for the evaluation process.
         CSV are managed there one by one for memory issue.
@@ -452,61 +523,26 @@ class DataLoader(AbstractDataLoader):
         """
 
         CTX = self.CTX
+        if (CTX["NB_BATCH"] == 1 and CTX["BATCH_SIZE"] == None):
+            x_batches = []
+            x_alters = []
+            y_batches = []
 
-        df = pd.read_csv(path, sep=",",dtype={"callsign":str, "icao24":str})
-        df.drop(["icao24", "callsign"], axis=1, inplace=True)
-        if ("y_" in df.columns):
-            df.drop(["y_"], axis=1, inplace=True)
-
-        
-        df = DataFrame(df)
-        array = U.dfToFeatures(df, CTX, __EVAL__=True)
-        
-        array = fillNaN3D([array], self.FEATURES_PAD_VALUES)[0]
-
-        x_batches = np.zeros((len(array)-CTX["HORIZON"], CTX["INPUT_LEN"], CTX["FEATURES_IN"]))
-        y_batches = np.zeros((len(array)-CTX["HORIZON"], CTX["FEATURES_OUT"]))
-
-        FEATURES_OUT = CTX["PRED_FEATURES"]
-        FEATURES_OUT = [CTX["FEATURE_MAP"][f] for f in FEATURES_OUT]
-
-        i = 0
-        ts = []
-        for n in range(len(x_batches)):
-            
-            if not(SU.checkTrajectory(CTX, [array], 0, n)):
-                continue
-
-            # compute the bounds of the fragment
-            start = max(0, n+1-CTX["HISTORY"])
-            end = n+1
-            length = end - start
-            pad_lenght = (CTX["HISTORY"] - length)//CTX["DILATION_RATE"]
+            for i in range(200):
+                if (i%2 == 0):
+                    
+                    f = np.random.randint(len(self.x_train))
                 
-            # shift to always have the last timestep as part of the fragment !!
-            shift = U.compute_shift(start, end, CTX["DILATION_RATE"])
-            # build the batch
-                
-            batch = np.concatenate([
-                array[start+shift:end:CTX["DILATION_RATE"]],
-                array[[end+CTX["HORIZON"]-1]]
-            ], axis=0)
+                    alter = self.alter(self.x_train[f], CTX)
+                    x_batches.insert(0, alter[0])
+                    x_alters.insert(0, alter[1])
+                    y_batches.insert(0, self.files[f])
 
-            batch = SU.batchPreProcess(CTX, batch, CTX["RELATIVE_POSITION"], CTX["RELATIVE_TRACK"], False)
-            
+                    
+                else:
+                    f = np.random.randint(len(self.x_test))
+                    x_batches.append(self.x_test[f])
+                    x_alters.append("None")
+                    y_batches.append("unknown")
 
-            x_batches[i, :pad_lenght] = self.FEATURES_PAD_VALUES
-            x_batches[i, pad_lenght:] = batch[:-1]
-            ts.append(array[end+CTX["HORIZON"]-1, CTX["FEATURE_MAP"]["timestamp"]])
-    
-            y_batches[i] = batch[-1, FEATURES_OUT]
-            i += 1
-
-        x_batches = x_batches[:i]
-        y_batches = y_batches[:i]
-
-        x_batches = self.xScaler.transform(x_batches)
-        y_batches = self.yScaler.transform(y_batches)
-
-
-        return x_batches, y_batches, ts
+            return x_batches, y_batches, x_alters

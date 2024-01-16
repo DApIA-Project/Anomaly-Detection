@@ -1,4 +1,3 @@
-
 pip install tensorflow
 pip install keras
 pip install pytorch
@@ -6,6 +5,3 @@ pip install pandas
 pip install matplotlib
 pip install pydot
 pip install scikit-learn
-
-
-pip install mlflow

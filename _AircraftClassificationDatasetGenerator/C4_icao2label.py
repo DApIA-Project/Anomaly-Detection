@@ -1,13 +1,13 @@
 import os
 import pandas as pd
 
-icao2aircraft = open("./labels/icao2aircraft.csv", "r")
+icao2aircraft = open("./labels/B_icao2aircraft.csv", "r")
 icao2aircraft = icao2aircraft.readlines()
 icao2aircraft = [line.strip().split(",") for line in icao2aircraft]
 icao2aircraft = {line[0]: line[1] for line in icao2aircraft}
 
 
-type2Label = open("./labels/aircraft2label.csv", "r")
+type2Label = open("./labels/C_aircraft2label.csv", "r")
 type2Label = type2Label.readlines()
 type2Label = [line.strip().split(",") for line in type2Label]
 type2Label = {line[0]: line[1] for line in type2Label}
@@ -25,13 +25,24 @@ for icao in icao2aircraft:
     database[icao] = type2Label[aircraftType]
 
 # add samu label wich depands on callsign
-files = os.listdir("./csv")
-files = [file for file in files if file.endswith(".csv")]
-files = [file for file in files if "SAMU" in file]
+folders = os.listdir("./B_csv")
+# only keep folders
+folders = [folder for folder in folders if os.path.isdir("./B_csv/" + folder)]
+files = []
+for folder in folders:
+    f = os.listdir("./B_csv/" + folder)
+    f = [folder + "/" + file for file in f]
+    files += f
+
 for file in files:
-    df = pd.read_csv("./csv/" + file, dtype={"icao24": str})
-    icao = df["icao24"].values[0]
-    database[icao] = 12
+    df = pd.read_csv("./B_csv/" + file, dtype={"icao24": str, "callsign": str})
+    # check if any row has a samu in it's callsign
+    if (df["callsign"].str.contains("SAMU").any()):
+        icao = df["icao24"].values[0]
+
+        if (icao not in database or database[icao] != 12):
+            database[icao] = 12
+            print("SAMU " + icao)
 
 
 # save database.csv
@@ -41,5 +52,3 @@ for icao in database:
 file.close()
 
     
-# install
-os.system("cp ./labels/labels.csv ../A_Dataset/AircraftClassification/labels.csv")

@@ -1,19 +1,17 @@
 import os
 
 
-# To deactivate mlflow logging, set USE_MLFLOW to False
-#   (this is usefull when you want to run the code on a computer without mlflow installed)
-
 USE_MLFLOW = False
+if (USE_MLFLOW):
+    try:
+        from mlflow import *
+        from _Utils.secrets import IP
+    except:
+        USE_MLFLOW = False
 
 
 
 if (USE_MLFLOW):
-
-    # Import all mlflow functions (to make them available in the whole project)
-    from mlflow import *
-
-
     def init_ml_flow(experiments_name):
         """
         Init the mlflow logging
@@ -32,7 +30,7 @@ if (USE_MLFLOW):
         """
 
         if (USE_MLFLOW):
-            os.environ["MLFLOW_TRACKING_URI"] = "http://51.77.221.41:8000"
+            os.environ["MLFLOW_TRACKING_URI"] = IP
 
 
             # If experiment does not exist, create it

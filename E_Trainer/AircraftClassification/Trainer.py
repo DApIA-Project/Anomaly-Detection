@@ -1,6 +1,4 @@
 
-# MDSM : Mean Dense Simple Model
-
 import _Utils.mlflow as mlflow
 import _Utils.Metrics as Metrics
 from _Utils.save import write, load, formatJson
@@ -100,9 +98,9 @@ class Trainer(AbstractTrainer):
 
         self.dl = DataLoader(CTX, "./A_Dataset/AircraftClassification/Train")
         
-        # If "_Artefacts/" folder doesn't exist, create it.
-        if not os.path.exists("./_Artefact"):
-            os.makedirs("./_Artefact")
+        # If "_Artifactss/" folder doesn't exist, create it.
+        if not os.path.exists("./_Artifacts"):
+            os.makedirs("./_Artifacts")
 
 
 
@@ -122,12 +120,12 @@ class Trainer(AbstractTrainer):
 
         test_save_x, test_save_y = None, None
 
-        # if _Artefact/modelsW folder exists and is not empty, clear it
-        if os.path.exists("./_Artefact/modelsW"):
-            if (len(os.listdir("./_Artefact/modelsW")) > 0):
-                os.system("rm ./_Artefact/modelsW/*")
+        # if _Artifacts/modelsW folder exists and is not empty, clear it
+        if os.path.exists("./_Artifacts/modelsW"):
+            if (len(os.listdir("./_Artifacts/modelsW")) > 0):
+                os.system("rm ./_Artifacts/modelsW/*")
         else:
-            os.makedirs("./_Artefact/modelsW")
+            os.makedirs("./_Artifacts/modelsW")
 
         for ep in range(1, CTX["EPOCHS"] + 1):
             ##############################
@@ -212,7 +210,7 @@ class Trainer(AbstractTrainer):
             mlflow.log_metric("epoch", ep, step=ep)
 
             # Save the model weights
-            write("./_Artefact/modelsW/"+self.model.name+"_"+str(ep)+".w", self.model.getVariables())
+            write("./_Artifacts/modelsW/"+self.model.name+"_"+str(ep)+".w", self.model.getVariables())
 
         # load best model
 
@@ -239,29 +237,29 @@ class Trainer(AbstractTrainer):
 
             print("load best model, epoch : ", best_i, " with Acc : ", history[3][best_i-1], flush=True)
             
-            best_variables = load("./_Artefact/modelsW/"+self.model.name+"_"+str(best_i)+".w")
+            best_variables = load("./_Artifacts/modelsW/"+self.model.name+"_"+str(best_i)+".w")
             self.model.setVariables(best_variables)
         else:
             print("WARNING : no history of training has been saved")
 
 
-        write("./_Artefact/"+self.model.name+".w", self.model.getVariables())
+        write("./_Artifacts/"+self.model.name+".w", self.model.getVariables())
         if (CTX["ADD_TAKE_OFF_CONTEXT"]):
-            write("./_Artefact/"+self.model.name+".xts", self.dl.xTakeOffScaler.getVariables())
-        write("./_Artefact/"+self.model.name+".xs", self.dl.xScaler.getVariables())
-        write("./_Artefact/"+self.model.name+".min", self.dl.FEATURES_MIN_VALUES)
+            write("./_Artifacts/"+self.model.name+".xts", self.dl.xTakeOffScaler.getVariables())
+        write("./_Artifacts/"+self.model.name+".xs", self.dl.xScaler.getVariables())
+        write("./_Artifacts/"+self.model.name+".min", self.dl.FEATURES_MIN_VALUES)
 
     def load(self):
         """
-        Load the model's weights from the _Artefact folder
+        Load the model's weights from the _Artifacts folder
         """
-        self.model.setVariables(load("./_Artefact/"+self.model.name+".w"))
-        # self.model.setVariables(load("./_Artefact/modelsW/CNN_80.w"))
-        self.dl.xScaler.setVariables(load("./_Artefact/"+self.model.name+".xs"))
+        self.model.setVariables(load("./_Artifacts/"+self.model.name+".w"))
+        # self.model.setVariables(load("./_Artifacts/modelsW/CNN_80.w"))
+        self.dl.xScaler.setVariables(load("./_Artifacts/"+self.model.name+".xs"))
         if (self.CTX["ADD_TAKE_OFF_CONTEXT"]):
-            self.dl.xTakeOffScaler.setVariables(load("./_Artefact/"+self.model.name+".xts"))
+            self.dl.xTakeOffScaler.setVariables(load("./_Artifacts/"+self.model.name+".xts"))
         self.dl.yScaler.setVariables(self.CTX["USED_LABELS"])
-        self.dl.FEATURES_MIN_VALUES = load("./_Artefact/"+self.model.name+".min")
+        self.dl.FEATURES_MIN_VALUES = load("./_Artifacts/"+self.model.name+".min")
 
 
     def eval(self):
@@ -291,7 +289,7 @@ class Trainer(AbstractTrainer):
         global_confusion_matrix = np.zeros((nb_classes, nb_classes), dtype=int)
 
         # create a plotting pdf
-        pdf = PdfPages("./_Artefact/tmp")
+        pdf = PdfPages("./_Artifacts/tmp")
 
         failed_files = []
 
@@ -356,7 +354,8 @@ class Trainer(AbstractTrainer):
 
             # save the input df + prediction in A_dataset/output/
             df = pd.read_csv(os.path.join("./A_Dataset/AircraftClassification/Eval", file),dtype={'icao24': str})
-
+            # change "timestamp" '2022-12-04 11:48:21' to timestamp 1641244101
+            # df["timestamp"] = pd.to_datetime(df["timestamp"]).astype(np.int64) // 10**9
 
             if (pred_max != true):
                 failed_files.append((file, str(self.dl.yScaler.classes_[true]), str(self.dl.yScaler.classes_[pred_max])))
@@ -369,14 +368,14 @@ class Trainer(AbstractTrainer):
                 y_batches_ = Metrics.inv_sigmoid(y_batches_)
 
 
-                fig, ax = plotADSB(CTX, self.dl.yScaler.classes_, 
-                                   f"{file}    Y : {self.dl.yScaler.classes_[true]} Ŷ : {self.dl.yScaler.classes_[pred_max]}", 
-                                   df["timestamp"].values, df['latitude'].values, df['longitude'].values, 
-                                   df['groundspeed'].values, df['track'].values, df['vertical_rate'].values, 
-                                   df['altitude'].values, df['geoaltitude'].values, 
-                                   y_batches_, self.dl.yScaler.classes_[true], [(relative_track, "relative_track")])
-                pdf.savefig(fig)
-                plt.close(fig)
+                # fig, ax = plotADSB(CTX, self.dl.yScaler.classes_, 
+                #                    f"{file}    Y : {self.dl.yScaler.classes_[true]} Ŷ : {self.dl.yScaler.classes_[pred_max]}", 
+                #                    df["timestamp"].values, df['latitude'].values, df['longitude'].values, 
+                #                    df['groundspeed'].values, df['track'].values, df['vertical_rate'].values, 
+                #                    df['altitude'].values, df['geoaltitude'].values, 
+                #                    y_batches_, self.dl.yScaler.classes_[true], [(relative_track, "relative_track")])
+                # pdf.savefig(fig)
+                # plt.close(fig)
 
 
 
@@ -407,12 +406,12 @@ class Trainer(AbstractTrainer):
 
 
         pdf.close()
-        os.rename("./_Artefact/tmp", "./_Artefact/eval.pdf")
+        os.rename("./_Artifacts/tmp", "./_Artifacts/eval.pdf")
 
 
         self.CTX["LABEL_NAMES"] = np.array(self.CTX["LABEL_NAMES"])
-        Metrics.plotConusionMatrix("./_Artefact/confusion_matrix.png", global_confusion_matrix, self.CTX["LABEL_NAMES"][self.dl.yScaler.classes_])
-        Metrics.plotConusionMatrix("./_Artefact/ts_confusion_matrix.png", global_ts_confusion_matrix, self.CTX["LABEL_NAMES"][self.dl.yScaler.classes_])
+        Metrics.plotConusionMatrix("./_Artifacts/confusion_matrix.png", global_confusion_matrix, self.CTX["LABEL_NAMES"][self.dl.yScaler.classes_])
+        Metrics.plotConusionMatrix("./_Artifacts/ts_confusion_matrix.png", global_ts_confusion_matrix, self.CTX["LABEL_NAMES"][self.dl.yScaler.classes_])
 
 
         accuracy_per_class = np.diag(global_confusion_matrix) / np.sum(global_confusion_matrix, axis=1)
@@ -435,8 +434,8 @@ class Trainer(AbstractTrainer):
             print("\t-",failed_files[i][0], "\tY : ", failed_files[i][1], " Ŷ : ", failed_files[i][2], sep="", flush=True)
 
         # fail counter
-        if os.path.exists("./_Artefact/"+self.model.name+".fails.json"):
-            file = open("./_Artefact/"+self.model.name+".fails.json", "r")
+        if os.path.exists("./_Artifacts/"+self.model.name+".fails.json"):
+            file = open("./_Artifacts/"+self.model.name+".fails.json", "r")
             json_ = file.read()
             file.close()
             fails = json.loads(json_)
@@ -462,7 +461,7 @@ class Trainer(AbstractTrainer):
         json_ = json.dumps(fails)
         
 
-        file = open("./_Artefact/"+self.model.name+".fails.json", "w")
+        file = open("./_Artifacts/"+self.model.name+".fails.json", "w")
         file.write(formatJson(json_))
 
 

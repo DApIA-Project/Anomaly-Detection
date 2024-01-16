@@ -142,7 +142,7 @@ class Model(AbstactModel):
 
 
 
-    def visualize(self, save_path="./_Artefact/"):
+    def visualize(self, save_path="./_Artifacts/"):
         """
         Generate a visualization of the model's architecture
         """

@@ -1,4 +1,4 @@
-
+NB_TRAIN = 10
 TEST_RATIO = 0.08
 
 

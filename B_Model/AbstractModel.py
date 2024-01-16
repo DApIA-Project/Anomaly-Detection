@@ -78,7 +78,7 @@ class Model():
         return loss, out
 
 
-    def visualize(self, save_path="./_Artefact/"):
+    def visualize(self, save_path="./_Artifacts/"):
         """
         Generate a visualization of the model's architecture
         """

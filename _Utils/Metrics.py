@@ -121,7 +121,7 @@ def plotLoss(train, test, train_avg, test_avg, TYPE="loss", filename="loss.png")
     ax.set_xlabel("epoch")
     
     ax.legend()
-    fig.savefig("./_Artefact/"+filename)
+    fig.savefig("./_Artifacts/"+filename)
 
 
 

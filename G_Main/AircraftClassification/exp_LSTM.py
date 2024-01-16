@@ -11,9 +11,7 @@ import C_Constants.AircraftClassification.DefaultCTX as DefaultCTX
 from E_Trainer.AircraftClassification.Trainer import Trainer
 
 # Choose the training method
-#   * simple_fit: Classical way to fit the model : once
-#   * multi_fit: Fit the model multiple times to check the stability (Not implemented yet)
-from F_Runner.SimpleFit import *
+from F_Runner.FitOnce import *
 
 import os
 
@@ -21,4 +19,4 @@ import os
 
 def __main__():
     parent_dir = os.path.dirname(os.path.abspath(__file__)).split("/")[-1]
-    simple_fit(Model, Trainer, CTX, default_CTX=DefaultCTX, experiment_name=parent_dir)
+    fitOnce(Model, Trainer, CTX, default_CTX=DefaultCTX, experiment_name=parent_dir)

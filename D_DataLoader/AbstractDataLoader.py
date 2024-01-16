@@ -118,8 +118,6 @@ class DataLoader:
         Do the same as __load_dataset__ but with caching.
         See __load_dataset__ for more details
         """
-        if (self.CTX["CHANGED"]): DataLoader.__dataset__ = None
-
         if (DataLoader.__dataset__ is None):
             DataLoader.__dataset__ = self.__load_dataset__(self.CTX, path)
 

@@ -1,10 +1,5 @@
-
-
-
-# import MLviz
-# Mlflow logging
+# Mlflow log-in
 import _Utils.mlflow as mlflow
-import _Utils.mlviz as mlviz
 
 # Convert CTX to dict for logging hyperparameters
 from _Utils.module import module_to_dict 
@@ -15,37 +10,29 @@ from B_Model.AbstractModel import Model as _Model_
 from E_Trainer.AbstractTrainer import Trainer as _Trainer_
 
 
-
-def simple_fit(Model:"type[_Model_]", Trainer:"type[_Trainer_]", CTX, default_CTX=None, experiment_name:str = None):
+def fitOnce(Model:"type[_Model_]", Trainer:"type[_Trainer_]", CTX, default_CTX=None, experiment_name:str = None):
     """
-    Fit the model one time with the given CTX of hyperparameters
+    Fit the model once with a given set of hyperparameters.
 
     Parameters:
     -----------
     model: type[Model]:
-        Model class type of the model to train
+        Model used for training
 
     trainer: type[Trainer]
-        Trainer class type of the trainer algorithm to use
+        Trainer class, managing the training loop, testing and evaluation, for a specific task 
+        (eg. spoofing detection)
 
     CTX: Module 
-        Python module containing the hyperparameters and constants
-
-    experiment_name: str 
-        Name of the experiment to log to mlflow
+        Python module containing the set of hyperparameters
     """
 
-
-    
-    # Init mlflow
+    # Init mlflow (can be ignored if mlflow is not used)
     run_number = mlflow.init_ml_flow(experiment_name)
-    mlviz.setExperiment(experiment_name)
     run_name = str(run_number) + " - " + Model.name
     print("Run name : ", run_name)
     
-    
-
-    # Convert CTX to dict and log it
+    # Convert CTX to dict and merge it with default_CTX
     CTX = module_to_dict(CTX)
     if (default_CTX != None):
         default_CTX = module_to_dict(default_CTX)
@@ -53,9 +40,6 @@ def simple_fit(Model:"type[_Model_]", Trainer:"type[_Trainer_]", CTX, default_CT
             if (param not in CTX):
                 CTX[param] = default_CTX[param]
 
-    metrics_stats:dict[str,list] = {}
-
-    mlviz.startRun(Model.name)
     with mlflow.start_run(run_name=run_name) as run:
         for param in CTX:
             if (type(CTX[param]) == bool): # Convert bool to int the make boolean hyperparameters visualisable in mlflow
@@ -63,16 +47,11 @@ def simple_fit(Model:"type[_Model_]", Trainer:"type[_Trainer_]", CTX, default_CT
             else:
                 mlflow.log_param(param, CTX[param])
 
-        
-        # Instanciate the trainer and go !
+        # Create a new training environment and run it
         trainer = Trainer(CTX, Model)
         metrics = trainer.run()
 
         # Log the result metrics to mlflow
         for metric_label in metrics:
             value = metrics[metric_label]
-            if (metric_label not in metrics_stats):
-                metrics_stats[metric_label] = [value]
-            else:
-                metrics_stats[metric_label].append(value)
             mlflow.log_metric(metric_label, value)

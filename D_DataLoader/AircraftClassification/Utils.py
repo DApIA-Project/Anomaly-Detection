@@ -258,48 +258,72 @@ def genMap(lat, lon, size):
     y_min = int(y_center - (size / 2.0))
     y_max = int(y_center + (size / 2.0))
 
-    if (x_min < 0):
+    d_x_min = x_min
+    d_x_max = x_max
+    d_y_min = y_min
+    d_y_max = y_max
+
+    if (x_min <= 0):
         x_max = size
         x_min = 0
-    elif (x_max > MAP.shape[1]):
-        x_max = MAP.shape[1]
-        x_min = MAP.shape[1] - size
 
-    elif (y_min < 0):
+    elif (x_max >= MAP.shape[1]):
+        x_max = MAP.shape[1] -1
+        x_min = MAP.shape[1] - size -1
+
+    if (y_min <= 0):
         y_max = size
         y_min = 0
-    elif (y_max > MAP.shape[0]):
-        y_max = MAP.shape[0]
-        y_min = MAP.shape[0] - size
+
+    elif (y_max >= MAP.shape[0]):
+        y_max = MAP.shape[0] -1
+        y_min = MAP.shape[0] - size -1
     
     
     img = MAP[
         y_min:y_max,
         x_min:x_max, :]
     
+    if (img.shape[0] != size or img.shape[1] != size):
+        print("ERROR: map size is not correct")
+        print(MAP.shape)
+        print(size)
+        print(d_x_min, d_x_max, d_y_min, d_y_max)
+        print(x_min, x_max, y_min, y_max)
+        print(img.shape)
+    
     return img
 
 
 
 
-
+def inBB(lat, lon, CTX):
+    return  lat >= CTX["BOUNDING_BOX"][0][0] \
+        and lat <= CTX["BOUNDING_BOX"][1][0] \
+        and lon >= CTX["BOUNDING_BOX"][0][1] \
+        and lon <= CTX["BOUNDING_BOX"][1][1] \
 
 
 def pick_an_interesting_aircraft(CTX, x, y, label, n=1):
+
+
     flight_i = -1
     while flight_i == -1 or y[flight_i, label] != 1:
         flight_i = np.random.randint(0, len(x))
-    # pick a timestep in the flight (if negative, the fragment is not yet full of timesteps -> padding)
-    negative = np.random.randint(0, 100) <= 5
-    time_step = None
 
-    # use_selected = "selected" in CTX["FEATURE_MAP"]
+    time_step = 0
+    lat = None
+    lon = None
+    while (lat is None or not(inBB(lat, lon, CTX))):
 
-
-    if (negative):
-        time_step = np.random.randint(0, CTX["HISTORY"]-1)
-    else:
-        time_step = np.random.randint(CTX["HISTORY"]-1, len(x[flight_i])-(n-1))
+        negative = np.random.randint(0, 100) <= 5
+        if (negative):
+            time_step = np.random.randint(0, CTX["HISTORY"]-1)
+        else:
+            time_step = np.random.randint(CTX["HISTORY"]-1, len(x[flight_i])-(n-1))
+        
+        lat = x[flight_i][time_step, CTX["FEATURE_MAP"]["latitude"]]
+        lon = x[flight_i][time_step, CTX["FEATURE_MAP"]["longitude"]]
 
 
     return flight_i, np.arange(time_step, time_step+n)

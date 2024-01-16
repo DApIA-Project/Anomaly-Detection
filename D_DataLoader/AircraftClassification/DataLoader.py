@@ -174,7 +174,8 @@ class DataLoader(AbstractDataLoader):
             file = data_files[f]
             # set time as index
             df = pd.read_csv(os.path.join(path, file), sep=",",dtype={"callsign":str, "icao24":str})
-            
+            # change "timestamp" '2022-12-04 11:48:21' to timestamp 1641244101
+            # df["timestamp"] = pd.to_datetime(df["timestamp"]).astype(np.int64) // 10**9
             # Get the aircraft right label for his imatriculation
             icao24 = df["icao24"].iloc[0]
             callsign = df["callsign"].iloc[0]
@@ -409,9 +410,10 @@ class DataLoader(AbstractDataLoader):
 
         # fit the scaler on the first epoch
         if not(self.xScaler.isFitted()):
+            
             self.xScaler.fit(x_batches)
-
             if (CTX["ADD_TAKE_OFF_CONTEXT"]): self.xTakeOffScaler.fit(x_batches_takeoff)
+
             print("DEBUG SCALLERS : ")
             prntC("feature:","|".join(self.CTX["USED_FEATURES"]), start=C.BRIGHT_BLUE)
             print("mean   :","|".join([str(round(v, 1)).ljust(len(self.CTX["USED_FEATURES"][i])) for i, v in enumerate(self.xScaler.means)]))
@@ -581,6 +583,8 @@ class DataLoader(AbstractDataLoader):
 
 
         df = pd.read_csv(path, sep=",",dtype={"callsign":str, "icao24":str})
+        # change "timestamp" '2022-12-04 11:48:21' to timestamp 1641244101
+        # df["timestamp"] = pd.to_datetime(df["timestamp"]).astype(np.int64) // 10**9
         icao = df["icao24"].iloc[0]
         callsign = df["callsign"].iloc[0]
         df.drop(["icao24", "callsign"], axis=1, inplace=True)
