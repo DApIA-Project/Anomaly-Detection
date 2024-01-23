@@ -10,7 +10,7 @@ files = [f for f in files if f.endswith('.csv')]
 
 
 for f in files:
-    df = pd.read_csv("./A_parquets/"+FOLDER + f, dtype={'icao24': str, 'callsign': str})
+    df = pd.read_csv("./A_parquets/"+FOLDER +"/" + f, dtype={'icao24': str, 'callsign': str})
     # set "onground":bool, "alert":bool, "spi":bool
     df['onground'] = df['onground'].astype(bool)
     df['alert'] = df['alert'].astype(bool)

@@ -184,15 +184,15 @@ class TakeOffModule(tf.Module):
 
         convNN = []
         for _ in range(self.layers):
-            convNN.append(Conv1DModule(128, 3, padding=self.CTX["MODEL_PADDING"]))
+            convNN.append(Conv1DModule(32, 3, padding=self.CTX["MODEL_PADDING"]))
         convNN.append(MaxPooling1D())
         for _ in range(self.layers):
-            convNN.append(Conv1DModule(128, 3, padding=self.CTX["MODEL_PADDING"]))
+            convNN.append(Conv1DModule(64, 3, padding=self.CTX["MODEL_PADDING"]))
         convNN.append(MaxPooling1D())
         for _ in range(self.layers):
-            convNN.append(Conv1DModule(128, 3, padding=self.CTX["MODEL_PADDING"]))
+            convNN.append(Conv1DModule(256, 3, padding=self.CTX["MODEL_PADDING"]))
         convNN.append(Flatten())
-        convNN.append(DenseModule(self.CTX_SIZE, dropout=self.dropout))
+        convNN.append(DenseModule(256, dropout=self.dropout))
 
         self.convNN = convNN
 
@@ -221,9 +221,13 @@ class MapModule(tf.Module):
         convNN.append(MaxPooling2D())
         for _ in range(self.layers):
             convNN.append(Conv2DModule(64, 3, padding=self.CTX["MODEL_PADDING"]))
-        convNN.append(GlobalMaxPooling2D())
-        # convNN.append(Flatten())
-        convNN.append(DenseModule(128, dropout=self.dropout))
+
+        # convNN.append(GlobalMaxPooling2D())
+            
+        convNN.append(Conv2D(32, (2, 2), (2, 2)))
+        convNN.append(BatchNormalization())
+        convNN.append(Flatten())
+        convNN.append(DenseModule(256, dropout=self.dropout))
 
         self.convNN = convNN
 
@@ -252,7 +256,7 @@ class ADS_B_Module(tf.Module):
         for _ in range(self.layers):
             postMap.append(Conv1DModule(256, 3, padding=self.CTX["MODEL_PADDING"]))
         postMap.append(Flatten())
-        postMap.append(DenseModule(128, dropout=self.dropout))
+        postMap.append(DenseModule(256, dropout=self.dropout))
 
 
         self.cat = Concatenate()
@@ -265,7 +269,7 @@ class ADS_B_Module(tf.Module):
         self.preNN = preNN
         self.postMap = postMap
         self.convNN = convNN
-        self.probability = Activation("sigmoid", name=CTX["ACTIVATION"])
+        self.probability = Activation(CTX["ACTIVATION"], name=CTX["ACTIVATION"])
 
     def __call__(self, x):
 
@@ -282,18 +286,18 @@ class ADS_B_Module(tf.Module):
         x = adsb
         for layer in self.preNN:
             x = layer(x)
-
-        if (self.CTX["ADD_MAP_CONTEXT"]):
-            valid_padding_to_remove = self.CTX["LAYERS"] * (self.CTX["MODEL_PADDING"] == "valid")
-            map = RepeatVector(self.CTX["INPUT_LEN"] // 2 - valid_padding_to_remove)(map)
-            x = self.catmap([x, map])
-
+        # ...
         for layer in self.postMap:
             x = layer(x)
 
-        # concat takeoff and ctx
+        # concat takeoff and map
+        cat = [x]
         if (self.CTX["ADD_MAP_CONTEXT"]):
-            x = self.cat([x, takeoff])
+            cat.append(map)
+        if (self.CTX["ADD_TAKE_OFF_CONTEXT"]):
+            cat.append(takeoff)
+
+        x = self.cat([x, map, takeoff])
 
         # get prediction
         for layer in self.convNN:

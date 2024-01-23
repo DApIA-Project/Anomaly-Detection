@@ -277,6 +277,7 @@ class Trainer(AbstractTrainer):
         FOLDER = "./A_Dataset/AircraftClassification/Eval"
         files = os.listdir(FOLDER)
         files = [file for file in files if file.endswith(".csv")]
+        files = files[:]
 
 
         nb_classes = self.dl.yScaler.classes_.shape[0]
@@ -299,38 +300,47 @@ class Trainer(AbstractTrainer):
         for i in range(len(files)):
             LEN = 20
             nb = int((i+1)/len(files)*LEN)
-            print("EVAL : |", "-"*(nb)+" "*(LEN-nb)+"| "+str(i + 1).rjust(len(str(len(files))), " ") + "/" + str(len(files)), end="\r", flush=True)
 
 
             file = files[i]
-            x_inputs, y_batches = self.dl.genEval(os.path.join(FOLDER, file))
+            x_inputs, y_batches, x_isInteresting = self.dl.genEval(os.path.join(FOLDER, file))
             if (len(x_inputs) == 0): # skip empty file (no label)
                 continue
 
             start = time.time()
+            x_input_to_predi_loc = np.arange(0, len(x_inputs))[x_isInteresting]
+
+            if (len(x_input_to_predi_loc) == 0):
+                print()
+                print("WARNING : no prediction for file : ", file)
+                print()
+                continue
+
+            x_inputs_to_predicts = [x_inputs[i] for i in x_input_to_predi_loc]
             y_batches_ = np.zeros((len(x_inputs), nb_classes), dtype=np.float32)
+            jumps = 1024
+            for b in range(0, len(x_inputs_to_predicts),jumps):
+                x_batch = x_inputs_to_predicts[b:b+jumps]
+                pred = self.model.predict(reshape(x_batch)).numpy()
+                y_batches_[x_input_to_predi_loc[b:b+jumps]] = pred
 
-            jumps = 256
-            for b in range(0, len(x_inputs),jumps):
-                x_batch = x_inputs[b:b+jumps]
-                pred =  self.model.predict(reshape(x_batch)).numpy()
-                y_batches_[b:b+jumps] = pred
+            #### stats
 
+            global_ts_confusion_matrix += Metrics.confusionMatrix(y_batches, y_batches_)
 
+            y_eval_out = y_batches_[x_isInteresting]
 
-            global_ts_confusion_matrix = global_ts_confusion_matrix + Metrics.confusionMatrix(y_batches, y_batches_)
-
-            pred_mean = np.argmax(np.mean(y_batches_, axis=0))
-            pred_count = np.argmax(np.bincount(np.argmax(y_batches_, axis=1), minlength=nb_classes))
-            # pred_max = np.argmax(y_batches_[np.argmax(np.max(y_batches_, axis=1))])
+            pred_mean = np.argmax(np.mean(y_eval_out, axis=0))
+            pred_count = np.argmax(np.bincount(np.argmax(y_eval_out, axis=1), minlength=nb_classes))
+            # pred_max = np.argmax(y_eval_out[np.argmax(np.max(y_eval_out, axis=1))])
             # sort prediction by confidence
-            confidence = np.max(y_batches_, axis=1)
+            confidence = np.max(y_eval_out, axis=1)
             sort = np.argsort(confidence)
-            max_nb = 10
-            pred_max = np.argmax(np.bincount(np.argmax(y_batches_[sort[-max_nb:]], axis=1), minlength=nb_classes))
+            max_nb = 20
+            pred_max = np.argmax(np.bincount(np.argmax(y_eval_out[sort[-max_nb:]], axis=1), minlength=nb_classes))
             
-            true = np.argmax(np.mean(y_batches, axis=0))
-            
+            true = np.argmax(y_batches[x_isInteresting][0])
+
 
             global_nb += 1
             global_correct_mean += 1 if (pred_mean == true) else 0
@@ -368,14 +378,14 @@ class Trainer(AbstractTrainer):
                 y_batches_ = Metrics.inv_sigmoid(y_batches_)
 
 
-                # fig, ax = plotADSB(CTX, self.dl.yScaler.classes_, 
-                #                    f"{file}    Y : {self.dl.yScaler.classes_[true]} Ŷ : {self.dl.yScaler.classes_[pred_max]}", 
-                #                    df["timestamp"].values, df['latitude'].values, df['longitude'].values, 
-                #                    df['groundspeed'].values, df['track'].values, df['vertical_rate'].values, 
-                #                    df['altitude'].values, df['geoaltitude'].values, 
-                #                    y_batches_, self.dl.yScaler.classes_[true], [(relative_track, "relative_track")])
-                # pdf.savefig(fig)
-                # plt.close(fig)
+                fig, ax = plotADSB(CTX, self.dl.yScaler.classes_, 
+                                   f"{file}    Y : {self.dl.yScaler.classes_[true]} Ŷ : {self.dl.yScaler.classes_[pred_max]}", 
+                                   df["timestamp"].values, df['latitude'].values, df['longitude'].values, 
+                                   df['groundspeed'].values, df['track'].values, df['vertical_rate'].values, 
+                                   df['altitude'].values, df['geoaltitude'].values, 
+                                   y_batches_, self.dl.yScaler.classes_[true], [(relative_track, "relative_track")])
+                pdf.savefig(fig)
+                plt.close(fig)
 
 
 
@@ -401,6 +411,13 @@ class Trainer(AbstractTrainer):
             df["prediction"] = correct_predict
             df["y_"] = df_y_
             df.to_csv(os.path.join("./A_Dataset/AircraftClassification/Outputs/Eval", file), index=False)
+
+
+
+            tmp_accuracy = global_correct_max / global_nb*100.0
+            label_pred = self.dl.yScaler.classes_[pred_max]
+            label_true = self.dl.yScaler.classes_[true]
+            print("EVAL : |", "-"*(nb)+" "*(LEN-nb)+"| "+str(i + 1).rjust(len(str(len(files))), " ") + "/" + str(len(files)), "pred:", label_pred, "true:", label_true , "Acc :", tmp_accuracy, end="\r", flush=True)
           
             
 

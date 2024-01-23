@@ -60,3 +60,8 @@ else:
         print("The flight is legit")
     else:
         print("ALERT ! The flight pretend to be", labelToName(truth), "but is a", labelToName(major_label_flight_2))
+
+
+
+
+

@@ -40,6 +40,8 @@ def fitOnce(Model:"type[_Model_]", Trainer:"type[_Trainer_]", CTX, default_CTX=N
             if (param not in CTX):
                 CTX[param] = default_CTX[param]
 
+    print(CTX["USED_FEATURES"])
+
     with mlflow.start_run(run_name=run_name) as run:
         for param in CTX:
             if (type(CTX[param]) == bool): # Convert bool to int the make boolean hyperparameters visualisable in mlflow

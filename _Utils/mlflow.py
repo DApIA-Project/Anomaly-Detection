@@ -5,7 +5,7 @@ USE_MLFLOW = False
 if (USE_MLFLOW):
     try:
         from mlflow import *
-        from _Utils.secrets import IP
+        from _Utils.secrets_stuffs import IP
     except:
         USE_MLFLOW = False
 

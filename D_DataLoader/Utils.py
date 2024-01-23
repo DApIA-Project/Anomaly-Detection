@@ -6,7 +6,23 @@ import os
 from PIL import Image
 from _Utils import Color  
 from _Utils.DataFrame import DataFrame  
+from D_DataLoader.Airports import TOULOUSE
 
+def latlondistance(lat1, lon1, lat2, lon2):
+    """
+    Compute the distance between two points on earth
+    """
+    R = 6371e3
+    phi1 = np.radians(lat1)
+    phi2 = np.radians(lat2)
+    delta_phi = np.radians(lat2-lat1)
+    delta_lambda = np.radians(lon2-lon1)
+
+    a = np.sin(delta_phi/2) * np.sin(delta_phi/2) + np.cos(phi1) * np.cos(phi2) * np.sin(delta_lambda/2) * np.sin(delta_lambda/2)
+    c = 2 * np.arctan2(np.sqrt(a), np.sqrt(1-a))
+
+    d = R * c
+    return d
 
 def pad(df:DataFrame, CTX):
     """
@@ -75,6 +91,19 @@ def dfToFeatures(df:DataFrame, CTX, __LIB__=False, __EVAL__=False):
     relative_track[0] = 0
     df.add_column("relative_track", relative_track)
     df.set("timestamp", slice(0, len(df)), df["timestamp"] - df["timestamp"][0])
+
+
+    if ("toulouse_0" in CTX["USED_FEATURES"]):
+        dists = np.zeros((len(df), len(TOULOUSE)), dtype=np.float64)
+        for airport in range(len(TOULOUSE)):
+            lats, lons = df["latitude"], df["longitude"]
+            dists[:, airport] = latlondistance(lats, lons, TOULOUSE[airport]['lat'], TOULOUSE[airport]['long']) / 1000
+
+        # cap distance to 50km max
+        dists = np.clip(dists, 0, 50)
+
+        for i in range(len(TOULOUSE)):
+            df.add_column("toulouse_"+str(i), dists[:, i])
 
 
 

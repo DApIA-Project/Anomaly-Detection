@@ -304,6 +304,7 @@ def predictAircraftType(messages: "list[dict[str, str]]"):
 
     return : probability array of shape [?, FEATURES_OUT]
     """
+    # print("yeah !")
 
     # sort message by timestamp
     messages.sort(key=lambda x: int(x["timestamp"]))

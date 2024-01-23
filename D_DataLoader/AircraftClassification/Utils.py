@@ -36,9 +36,25 @@ def getLabel(CTX, icao, callsign):
     if (icao in __icao_db__):
         return __icao_db__[icao]
     
-    print("[Warning]", icao, "not found in labels.csv")
+    print("[Warning]", icao, "not found in labels.csv\n\n")
     
     return 0
+
+
+__airport_db__ = None
+__airport_id__ = None
+def getAirport(lat, lon):
+    """
+    give the nearest airport from a lat lon
+    """
+    global __airport_db__, __airport_id__
+    if __airport_db__ is None:
+        __airport_db__ = pd.read_csv("./A_Dataset/AircraftClassification/airports.csv", sep=",")
+        __airport_id__ = {}
+
+    
+
+    
 
 def resetICAOdb():
     global __icao_db__
@@ -88,8 +104,26 @@ def batchPreProcess(CTX, flight, relative_position=False, relative_track=False, 
     track = flight[:, FEATURE_MAP["track"]]
     groundspeed = flight[:, FEATURE_MAP["groundspeed"]]
 
+    i = 0
+    while i < len(lat) and (round(lat[i],  7) == 0 or round(lon[i], 7) == 0):
+        i += 1
+    if (i == len(lat)):
+        return flight
+    i -= 1
+    while (i >= 0):
+        lat[i] = lat[i+1]
+        lon[i] = lon[i+1]
+        i -= 1
+
+    flight[:, FEATURE_MAP["latitude"]] = lat[:]
+    flight[:, FEATURE_MAP["longitude"]] = lon[:]
+
     last_lat, last_lon = getAircraftPosition(CTX, flight)
     non_zeros_lat_lon = np.logical_or(lat != 0, lon != 0)
+
+
+
+
 
 
     # do not change angle, and rotate the whole bounding box to 0, 0 (not relative just normalizing)
@@ -302,31 +336,54 @@ def inBB(lat, lon, CTX):
         and lat <= CTX["BOUNDING_BOX"][1][0] \
         and lon >= CTX["BOUNDING_BOX"][0][1] \
         and lon <= CTX["BOUNDING_BOX"][1][1] \
+        
+
+def check_batch(CTX, x, i, t):
+    lats = x[i][:, CTX["FEATURE_MAP"]["latitude"]]
+    lons = x[i][:, CTX["FEATURE_MAP"]["longitude"]]
+
+    lat = lats[t]
+    lon = lons[t]
+
+    if (lat == 0 and lon == 0):
+        return False
+    
 
 
-def pick_an_interesting_aircraft(CTX, x, y, label, n=1):
+    if (t>0 and lats[t-1] == lats[t] and lons[t-1] == lons[t]):
+        return False
+    
+    if (not inBB(lat, lon, CTX)):
+        return False
+    
+    return True
 
 
-    flight_i = -1
-    while flight_i == -1 or y[flight_i, label] != 1:
-        flight_i = np.random.randint(0, len(x))
+def pick_an_interesting_aircraft(CTX, x, y, label, n=1, filenames=[]):
 
-    time_step = 0
-    lat = None
-    lon = None
-    while (lat is None or not(inBB(lat, lon, CTX))):
+
+    i = -1
+    while i == -1 or y[i, label] != 1:
+        i = np.random.randint(0, len(x))
+
+    t = None
+    tries = 0
+    while t == None or not(check_batch(CTX, x, i, t)):
 
         negative = np.random.randint(0, 100) <= 5
         if (negative):
-            time_step = np.random.randint(0, CTX["HISTORY"]-1)
+            t = np.random.randint(CTX["HISTORY"]//2, CTX["HISTORY"]-1)
         else:
-            time_step = np.random.randint(CTX["HISTORY"]-1, len(x[flight_i])-(n-1))
+            t = np.random.randint(CTX["HISTORY"]-1, len(x[i])-(n-1))
         
-        lat = x[flight_i][time_step, CTX["FEATURE_MAP"]["latitude"]]
-        lon = x[flight_i][time_step, CTX["FEATURE_MAP"]["longitude"]]
+        tries += 1
+        if (tries > 1000):
+            print("Warning: pick_an_interesting_aircraft() failed to find an interesting aircraft in ", filenames[i])
+            return pick_an_interesting_aircraft(CTX, x, y, label, n, filenames)
 
 
-    return flight_i, np.arange(time_step, time_step+n)
+
+    return i, np.arange(t, t+n)
 
 def to_scientific_notation(number):
     """"

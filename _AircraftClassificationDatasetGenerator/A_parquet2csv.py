@@ -12,7 +12,7 @@ import numpy as np
 MIN_DURATION = 15*60 # 15 minutes
 SPLIT_FLIGHT_GAP = 5*60 # 5 minutes
 
-FOLDER = "ToulouseV2"
+FOLDER = "ToulouseV1"
 
 BOXS = {
     "ToulouseV1" : [(43.11581, 0.72561), (44.07449, 2.16344)],
@@ -37,13 +37,13 @@ def flight_is_valid(flight_df):
         return False
 
     # check that at least one timestamp is in the box
-    in_box = False
+    in_box = 0
     for i in range(len(flight_df)):
         if (BOX[0][0] <= flight_df['latitude'].iloc[i] <= BOX[1][0]) and (BOX[0][1] <= flight_df['longitude'].iloc[i] <= BOX[1][1]):
-            in_box = True
-            break
-
-    return in_box
+            in_box += 1
+            if (in_box > MIN_DURATION//3):
+                return True
+    return False
 
 
 
@@ -72,15 +72,15 @@ if __name__ == "__main__":
 
         df = pd.read_parquet('./A_parquets/'+FOLDER+'/'+file)
         
+        # save df
+        df.to_parquet('./A_parquets/'+FOLDER+'/'+file, compression='gzip')
+        
         # pre-clean the dataframe
         df.reset_index(drop=True, inplace=True)
         df = df.drop(columns=["last_position", "hour"]) # drop last_position and hour columns
         df = df.dropna(subset=['latitude', 'longitude']) # drop each row with a latitute or longitude null
         if ("serials" in df.columns): df = df.drop(columns=["serials"]) # drop serials column
 
-        # remplace timestamp (datetime) by timestamp (int)
-        if (df['timestamp'].dtype == 'datetime64[ns]'):
-            df['timestamp'] = df['timestamp'].astype('int64') // 10**9
             
         df['callsign'] = df['callsign'].fillna("None") # remplace each None callsign by "None"
 

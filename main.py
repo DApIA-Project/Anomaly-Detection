@@ -31,23 +31,23 @@ elif (len(sys.argv) == 3):
 
 
 if (algo == "AircraftClassification"):
-    if model== "CNN1":
+    if model == "CNN1":
         import G_Main.AircraftClassification.exp_CNN1 as CNN1
         CNN1.__main__()
 
-    if model== "CNN2":
+    if model == "CNN2":
         import G_Main.AircraftClassification.exp_CNN2 as CNN2
         CNN2.__main__()
 
-    elif model== "LSTM":
+    elif model == "LSTM":
         import G_Main.AircraftClassification.exp_LSTM as LSTM
         LSTM.__main__()
 
-    elif model== "Transformer":
+    elif model == "Transformer":
         import G_Main.AircraftClassification.exp_Transformer as Transformer
         Transformer.__main__()
 
-    elif model== "Reservoir":
+    elif model == "Reservoir":
         import G_Main.AircraftClassification.exp_Reservoir as Reservoir
         Reservoir.__main__()
 

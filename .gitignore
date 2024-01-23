@@ -14,9 +14,10 @@ test.py
 mlruns/
 _Artifacts/*
 !_Artifacts/readme.md
+output.txt
 
 # hide IP, API tokens and other secrets
-_Utils/secrets.py
+_Utils/secrets_stuffs.py
 
 
 __pycache__/

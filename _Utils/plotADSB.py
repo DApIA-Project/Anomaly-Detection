@@ -7,8 +7,14 @@ from D_DataLoader.AircraftClassification.Utils import MAP, deg2num_int, deg2num,
 
 
 
-def genPlotMapBG(bounds):
+def genPlotMapBG(bounds, BB):
     """Generate an image of the map from the bounds"""
+
+    img_bounds = [np.max([bounds[0], BB[0][0]]), np.max([bounds[1], BB[0][1]]), np.min([bounds[2], BB[1][0]]), np.min([bounds[3], BB[1][1]])]
+
+
+
+
     #######################################################
     # Convert lat, lon to px
     # thoses param are constants used to generate the map 
@@ -19,21 +25,31 @@ def genPlotMapBG(bounds):
     xmax, ymin = deg2num_int(max_lat, max_lon, zoom)
     #######################################################
 
-    x_min, y_max = deg2num(bounds[0], bounds[1], zoom)
-    x_max, y_min = deg2num(bounds[2], bounds[3], zoom)
-    x_min = int((x_min - xmin)*255.0)
-    x_max = int((x_max - xmin)*255.0)
-    y_min = int((y_min - ymin)*255.0)
-    y_max = int((y_max - ymin)*255.0)
+    x_bb_min, y_bb_max = deg2num(bounds[0], bounds[1], zoom)
+    x_bb_max, y_bb_min = deg2num(bounds[2], bounds[3], zoom)
+    x_bb_min = int((x_bb_min - xmin)*255.0)
+    x_bb_max = int((x_bb_max - xmin)*255.0)
+    y_bb_min = int((y_bb_min - ymin)*255.0)
+    y_bb_max = int((y_bb_max - ymin)*255.0)
 
-    # print(x_min, x_max, y_min, y_max)
+    img = np.zeros((y_bb_max-y_bb_min, x_bb_max-x_bb_min, 3))
 
+    x_img_min, y_img_max = deg2num(img_bounds[0], img_bounds[1], zoom)
+    x_img_max, y_img_min = deg2num(img_bounds[2], img_bounds[3], zoom)
+    x_img_min = int((x_img_min - xmin)*255.0)
+    x_img_max = int((x_img_max - xmin)*255.0)
+    y_img_min = int((y_img_min - ymin)*255.0)
+    y_img_max = int((y_img_max - ymin)*255.0)
+
+    xo = -x_img_min if (x_img_min < 0) else 0
+    yo = -y_img_min if (y_img_min < 0) else 0
+    sx = x_img_max - x_img_min
+    sy = y_img_max - y_img_min
+    img[yo:yo+sy, xo:xo+sx, :] = MAP[y_img_min:y_img_max, x_img_min:x_img_max, :]
+
+    extent = [bounds[1], bounds[3], bounds[0], bounds[2]]
     
-    img = MAP[
-        y_min:y_max,
-        x_min:x_max, :]
-    
-    return img
+    return img, extent
 
 
 
@@ -41,11 +57,13 @@ def plotADSB(CTX, classes_, title, timestamp, lat, lon, groundspeed, track, vert
     
     LABEL_NAMES = CTX["LABEL_NAMES"]
     CLASSES_ = classes_
-    COLORS = ["tab:blue", "tab:orange", "tab:green", "tab:red", "tab:purple", "tab:brown", "tab:pink", "tab:gray", "tab:olive", "tab:cyan", "black", "gray", "gold"]
+    COLORS = ["gray", "tab:cyan", "tab:green", "tab:red", "tab:purple", "tab:brown", "tab:blue", "tab:pink", "tab:olive", "tab:orange", "black", "gold"]
 
 
     # Y
     labels = np.argmax(probabilities, axis=1)
+    # set labels wyere propabilities is [0, 0, 0] to 0
+    labels = [labels[i] if (sum(probabilities[i]) != 0) else 0 for i in range(len(probabilities))]
     labels = np.array([CLASSES_[label] for label in labels])
     confiance = compute_confidence(probabilities)
 
@@ -104,7 +122,9 @@ def plotADSB(CTX, classes_, title, timestamp, lat, lon, groundspeed, track, vert
 
     # generate the map background
     bounds = [np.min(lat), np.min(lon), np.max(lat), np.max(lon)]
-    img = genPlotMapBG(bounds)
+    img, extent = genPlotMapBG(bounds,  CTX["BOUNDING_BOX"])
+
+
 
     # compute the size of the figure
     lat_lon_ratio = (bounds[2] - bounds[0]) / (bounds[3] - bounds[1])
@@ -122,7 +142,7 @@ def plotADSB(CTX, classes_, title, timestamp, lat, lon, groundspeed, track, vert
     for i in range(len(features)):
         if (i == 0):
             # # prepare the map background + print a first trace for highlighting
-            ax[i].imshow(img, extent=[np.min(lon), np.max(lon), np.min(lat), np.max(lat)])
+            ax[i].imshow(img, extent=extent)
             ax[i].plot(lon, lat, color="black", linewidth=1.1, alpha=0.5)
             ax[i].set_xticks([])
             ax[i].set_yticks([])

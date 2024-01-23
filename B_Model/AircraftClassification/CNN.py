@@ -297,7 +297,7 @@ class ADS_B_Module(tf.Module):
             self.map = RepeatVector(self.CTX["INPUT_LEN"] // 2 - valid_padding_to_remove)
         self.cat = Concatenate()
         self.convNN = convNN
-        self.probability = Activation("sigmoid", name=CTX["ACTIVATION"])
+        self.probability = Activation(CTX["ACTIVATION"], name=CTX["ACTIVATION"])
 
     def __call__(self, x):
 
