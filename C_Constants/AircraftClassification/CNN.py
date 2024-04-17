@@ -1,6 +1,6 @@
 
 LEARNING_RATE = 0.00015
-EPOCHS = 100
+EPOCHS = 80
 BATCH_SIZE = 64
 NB_BATCH = 32
 
@@ -12,7 +12,7 @@ INPUT_LEN = HISTORY // DILATION_RATE
 RELATIVE_POSITION = True
 RELATIVE_TRACK = False
 RANDOM_TRACK = False
-TRAINING_NOISE = 0.1
+# TRAINING_NOISE = 0.1
 
 # "valid" do not pad convolutions
 # "same" pad convolutions
@@ -21,8 +21,7 @@ MODEL_PADDING = "same"
 # "valid" do not pad convolutions
 # "last" duplicate the last row
 # "nan" fill with nan (as the model "know" what is a nan value)
-INPUT_PADDING = "nan" 
-# TODO study padding, maybe, it is preprocessed in batchPreProcess()
+INPUT_PADDING = "nan"
 
 
 LAYERS = 1
@@ -32,6 +31,7 @@ SKIP_CONNECTION = 0.1
 
 ADD_TAKE_OFF_CONTEXT = True
 ADD_MAP_CONTEXT = True
+ADD_AIRPORT_CONTEXT = True
 
 USED_FEATURES = [
     "latitude", "longitude",
@@ -39,9 +39,9 @@ USED_FEATURES = [
     "vertical_rate", "onground",
     # "alert", "spi", "squawk",
     "altitude", "geoaltitude",
-    "relative_track", 
-    # "timestamp", 
-    "toulouse"
+    "relative_track",
+    # "timestamp",
+    # "toulouse"
 ]
 
 FEATURES_IN = len(USED_FEATURES)

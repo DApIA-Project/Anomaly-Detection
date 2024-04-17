@@ -11,45 +11,11 @@ import os
 from random import randint
 
 class Model(AbstactModel):
-    """
-    Convolutional neural network model for 
-    aircraft classification based on 
-    recordings of ADS-B data fragment.
-
-    Parameters:
-    ------------
-
-    CTX: dict
-        The hyperparameters context
-
-
-    Attributes:
-    ------------
-
-    name: str (MENDATORY)
-        The name of the model for mlflow logs
-    
-    Methods:
-    ---------
-
-    predict(x): (MENDATORY)
-        return the prediction of the model
-
-    compute_loss(x, y): (MENDATORY)
-        return the loss and the prediction associated to x, y and y_
-
-    training_step(x, y): (MENDATORY)
-        do one training step.
-        return the loss and the prediction of the model for this batch
-
-    visualize(save_path):
-        Generate a visualization of the model's architecture
-    """
 
     name = "CNN2"
 
     def __init__(self, CTX:dict):
-        """ 
+        """
         Generate model architecture
         Define loss function
         Define optimizer
@@ -63,14 +29,14 @@ class Model(AbstactModel):
         x_input_shape = (self.CTX["INPUT_LEN"], self.CTX["FEATURES_IN"])
         if (CTX["ADD_TAKE_OFF_CONTEXT"]): takeoff_input_shape = (self.CTX["INPUT_LEN"], self.CTX["FEATURES_IN"])
         if (CTX["ADD_MAP_CONTEXT"]): map_input_shape = (self.CTX["IMG_SIZE"], self.CTX["IMG_SIZE"], 3)
-    
+
         # generate layers
         x = tf.keras.Input(shape=x_input_shape, name='input')
         inputs = [x]
         outputs = []
 
         adsb_module_inputs = [x]
-        if (CTX["ADD_TAKE_OFF_CONTEXT"]): 
+        if (CTX["ADD_TAKE_OFF_CONTEXT"]):
             takeoff = tf.keras.Input(shape=takeoff_input_shape, name='takeoff')
             inputs.append(takeoff)
 
@@ -80,7 +46,7 @@ class Model(AbstactModel):
             self.TAKEOFF = len(outputs)
 
 
-        if (CTX["ADD_MAP_CONTEXT"]): 
+        if (CTX["ADD_MAP_CONTEXT"]):
             map = tf.keras.Input(shape=map_input_shape, name='map')
             inputs.append(map)
 
@@ -89,11 +55,20 @@ class Model(AbstactModel):
             adsb_module_inputs.append(map_ctx)
             self.MAP = len(outputs)
 
+        if (CTX["ADD_AIRPORT_CONTEXT"]):
+            airport = tf.keras.Input(shape=(self.CTX["AIRPORT_CONTEXT_IN"],), name='airport')
+            inputs.append(airport)
+
+            self.airport_module = AirportModule(self.CTX)
+            airport_ctx = self.airport_module(airport)
+            adsb_module_inputs.append(airport_ctx)
+            self.AIRPORT = len(outputs)
+
 
         self.ads_b_module = ADS_B_Module(self.CTX)
         proba = self.ads_b_module(adsb_module_inputs)
         outputs.insert(0, proba)
-        
+
 
         # generate model
         self.model = tf.keras.Model(inputs, outputs)
@@ -107,7 +82,7 @@ class Model(AbstactModel):
 
     def predict(self, x):
         """
-        Make prediction for x 
+        Make prediction for x
         """
         return self.model(x)
 
@@ -142,12 +117,12 @@ class Model(AbstactModel):
 
 
 
-    def visualize(self, save_path="./_Artifacts/"):
+    def visualize(self, filename="./_Artifacts/"):
         """
         Generate a visualization of the model's architecture
         """
 
-        filename = os.path.join(save_path, self.name+".png")
+        filename = os.path.join(filename, self.name+".png")
         tf.keras.utils.plot_model(self.model, to_file=filename, show_shapes=True)
 
 
@@ -196,12 +171,12 @@ class TakeOffModule(tf.Module):
 
         self.convNN = convNN
 
-    
+
     def __call__(self, x):
         for layer in self.convNN:
             x = layer(x)
         return x
-    
+
 class MapModule(tf.Module):
 
 
@@ -223,7 +198,7 @@ class MapModule(tf.Module):
             convNN.append(Conv2DModule(64, 3, padding=self.CTX["MODEL_PADDING"]))
 
         # convNN.append(GlobalMaxPooling2D())
-            
+
         convNN.append(Conv2D(32, (2, 2), (2, 2)))
         convNN.append(BatchNormalization())
         convNN.append(Flatten())
@@ -236,7 +211,26 @@ class MapModule(tf.Module):
         for layer in self.convNN:
             x = layer(x)
         return x
-    
+
+
+class AirportModule(tf.Module):
+    """ very simple only a (dense module 64) * nb layers"""
+
+    def __init__(self, CTX):
+        self.CTX = CTX
+        self.layers = self.CTX["LAYERS"]
+        self.dropout = self.CTX["DROPOUT"]
+        self.outs = self.CTX["FEATURES_OUT"]
+
+        denseNN = []
+        for _ in range(self.layers):
+            denseNN.append(DenseModule(64, dropout=self.dropout))
+        self.denseNN = denseNN
+
+    def __call__(self, x):
+        for layer in self.denseNN:
+            x = layer(x)
+        return x
 
 
 class ADS_B_Module(tf.Module):
@@ -260,15 +254,13 @@ class ADS_B_Module(tf.Module):
 
 
         self.cat = Concatenate()
-        self.catmap = Concatenate()
 
-        convNN = []
-        convNN.append(DenseModule(128, dropout=self.dropout))
-        convNN.append(Dense(self.outs, activation="linear", name="prediction"))
+        denseNN = []
+        denseNN.append(Dense(self.outs, activation="linear", name="prediction"))
 
         self.preNN = preNN
         self.postMap = postMap
-        self.convNN = convNN
+        self.denseNN = denseNN
         self.probability = Activation(CTX["ACTIVATION"], name=CTX["ACTIVATION"])
 
     def __call__(self, x):
@@ -278,6 +270,8 @@ class ADS_B_Module(tf.Module):
             takeoff = x.pop(0)
         if (self.CTX["ADD_MAP_CONTEXT"]):
             map = x.pop(0)
+        if (self.CTX["ADD_AIRPORT_CONTEXT"]):
+            airport = x.pop(0)
 
 
 
@@ -296,11 +290,13 @@ class ADS_B_Module(tf.Module):
             cat.append(map)
         if (self.CTX["ADD_TAKE_OFF_CONTEXT"]):
             cat.append(takeoff)
+        if (self.CTX["ADD_AIRPORT_CONTEXT"]):
+            cat.append(airport)
 
-        x = self.cat([x, map, takeoff])
+        x = self.cat(cat)
 
         # get prediction
-        for layer in self.convNN:
+        for layer in self.denseNN:
             x = layer(x)
         x = self.probability(x)
         return x
@@ -309,3 +305,5 @@ class ADS_B_Module(tf.Module):
 # global accuracy mean :  92.0 ( 575 / 625 )
 # global accuracy count :  92.2 ( 576 / 625 )
 # global accuracy max :  87.2 ( 545 / 625 )
+
+

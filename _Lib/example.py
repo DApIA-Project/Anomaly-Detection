@@ -3,7 +3,7 @@ import pandas as pd
 import numpy as np
 
 # utilisation du modèle sur deux vols simultanés
-flight_1 = pd.read_csv("./2022-01-15_14-25-40_FHJAT_39a413.csv", dtype=str)
+flight_1 = pd.read_csv("./2022-01-12_13-19-13_SAMU31_39ac45.csv", dtype=str)
 flight_2 = pd.read_csv("./2022-04-04_16-37-21_FJDGY_3a2cbc.csv", dtype=str)
 
 # enregistrement des prédictions dans un dictionnaire qui associe 

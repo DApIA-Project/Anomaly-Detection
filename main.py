@@ -2,6 +2,7 @@ import warnings
 warnings.filterwarnings("ignore")
 import tensorflow as tf
 import sys
+from _Utils.DebugGui import activate
 
 
 
@@ -15,18 +16,27 @@ algo = "AircraftClassification"
 model = "CNN2"
 
 # algo = "FloodingSolver"
-# model = "CNN"
+# model = "LSTM"
 
 # algo = "ReplaySolver"
 # model = "HASH"
+
+# algo = "TrajectorySeparator"
+# model = "ALG"
 ###################################
+argv = sys.argv
+if ("-ui" in argv):
+    activate()
+    argv.remove("-ui")
+
+if (len(sys.argv) >= 2):
+    model =argv[1]
+
+elif (len(sys.argv) >= 3):
+    algo =argv[1]
+    model =argv[2]
 
 
-if (len(sys.argv) == 2):
-    model = sys.argv[1]
-elif (len(sys.argv) == 3):
-    algo = sys.argv[1]
-    model = sys.argv[2]
 
 
 
@@ -53,13 +63,22 @@ if (algo == "AircraftClassification"):
 
 
 
-if (algo == "FloodingSolver"):
+elif (algo == "FloodingSolver"):
     if (model == "CNN"):
         import G_Main.FloodingSolver.exp_CNN as CNN
         CNN.__main__()
 
-if (algo == "ReplaySolver"):
+    elif (model == "LSTM"):
+        import G_Main.FloodingSolver.exp_LSTM as LSTM
+        LSTM.__main__()
+
+
+elif (algo == "ReplaySolver"):
     if (model == "HASH"):
         import G_Main.ReplaySolver.exp_HASH as HASH
         HASH.__main__()
 
+elif (algo == "TrajectorySeparator"):
+    if (model == "ALG"):
+        import G_Main.TrajectorySeparator.exp_ALG as ALG
+        ALG.__main__()

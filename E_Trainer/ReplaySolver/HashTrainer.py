@@ -1,135 +1,117 @@
-import _Utils.mlflow as mlflow
 from _Utils.save import write, load
 import _Utils.Color as C
 from _Utils.Color import prntC
-
 
 from B_Model.AbstractModel import Model as _Model_
 from D_DataLoader.ReplaySolver.DataLoader import DataLoader
 from E_Trainer.AbstractTrainer import Trainer as AbstractTrainer
 
-
 import os
 import time
-import json
-import time
-import pandas as pd
-import numpy as np
-import matplotlib.pyplot as plt 
+import matplotlib.pyplot as plt
 from matplotlib.backends.backend_pdf import PdfPages
 
 
+# parent folder
+PBM_NAME = os.path.dirname(os.path.abspath(__file__)).split("/")[-1]
 
+
+###################################################
+# Trainer class
+###################################################
 
 class Trainer(AbstractTrainer):
-    """"
-    Manage model's training environment to solve trajectories replay.
 
-    Attributes :
-    ------------
-
-    CTX : dict
-        The hyperparameters context
-
-    dl : DataLoader
-        The data loader corresponding to the problem
-        we want to solve
-
-    model : Model
-        The model instance we want to train   
-
-    Methods :
-    ---------
-
-    run(): Inherited from AbstractTrainer
-
-    train():
-        Manage the training loop
-
-    eval():
-        Evaluate the model and return metrics
-    """
+    ###################################################
+    # Initialization
+    ###################################################
 
     def __init__(self, CTX:dict, Model:"type[_Model_]"):
         super().__init__(CTX, Model)
         self.CTX = CTX
-
         self.model:_Model_ = Model(CTX)
-        
-        try:
-            self.model.visualize()
-        except:
-            print("WARNING : visualization of the model failed")
 
-        # create the data loader
+        self.makes_artifacts()
+        self.viz_model("./test.png")
+
         self.dl = DataLoader(CTX, "./A_Dataset/AircraftClassification/Train")
-        
-        # If "_Artifactss/" folder doesn't exist, create it.
+
+
+    def makes_artifacts(self):
+        self.ARTIFACTS = "./_Artifacts/"+PBM_NAME+"/"+self.model.name
+
         if not os.path.exists("./_Artifacts"):
             os.makedirs("./_Artifacts")
+        if not os.path.exists("./_Artifacts/"+PBM_NAME):
+            os.makedirs("./_Artifacts/"+PBM_NAME)
+        if not os.path.exists(self.ARTIFACTS):
+            os.makedirs(self.ARTIFACTS)
 
+
+    ###################################################
+    # Save and load model
+    ###################################################
+
+    def save(self):
+        write(self.ARTIFACTS+"/w", self.model.getVariables())
+
+    def load(self):
+        self.model.setVariables(load(self.ARTIFACTS+"/w"))
+
+
+
+    ###################################################
+    # Training
+    ###################################################
 
     def train(self):
-        """
-        Train the model.
-        """
+
         CTX = self.CTX
 
-        # if _Artifacts/modelsW folder exists and is not empty, clear it
-        if os.path.exists("./_Artifacts/modelsW"):
-            if (len(os.listdir("./_Artifacts/modelsW")) > 0):
-                os.system("rm ./_Artifacts/modelsW/*")
-        else:
-            os.makedirs("./_Artifacts/modelsW")
-
         for ep in range(1, CTX["EPOCHS"] + 1):
-            ##############################
-            #         Training           #
-            ##############################
+            # Training
             start = time.time()
-            x_inputs, y_batches = self.dl.genEpochTrain(CTX["NB_BATCH"], CTX["BATCH_SIZE"])
-
-            
+            x_inputs, y_batches = self.dl.genEpochTrain()
             for batch in range(len(x_inputs)):
                 loss, output = self.model.training_step(x_inputs[batch], y_batches[batch])
 
-            ##############################
-            #          Testing           #
-            ##############################
-            x_inputs, test_y = self.dl.genEpochTest()
-            acc, res = self.model.compute_loss(x_inputs, test_y)
-            for i in range(len(res)):
-                print("pred : ", res[i], " true : ", test_y[i])
 
-            print("Epoch : ", ep, " acc : ", acc * 100.0, " time : ", time.time() - start, flush=True)
+            # Testing
+            x_inputs, y_batches = self.dl.genEpochTest()
+            if (len(x_inputs) > 1):
+                prntC(C.ERROR, "Batch size should be 1 !")
+            for batch in range(len(x_inputs)):
+                acc, res = self.model.compute_loss(x_inputs[batch], y_batches[batch])
+
+
+
+            for i in range(len(res)):
+                prntC(C.INFO, "pred : ", C.BLUE, res[i], C.RESET, " true : ", C.BLUE, y_batches[0][i])
+            prntC(C.INFO, "Epoch : ", C.BLUE, ep, C.RESET, " acc : ", C.BLUE, acc * 100.0, C.RESET, " time : ", C.BLUE, time.time() - start, C.RESET, 's', flush=True)
 
         if (CTX["EPOCHS"]):
-            write("./_Artifacts/"+self.model.name+".w", self.model.getVariables())
+            self.save()
 
 
-    def load(self):
-        """
-        Load the model's weights from the _Artifacts folder
-        """
-        self.model.setVariables(load("./_Artifacts/"+self.model.name+".w"))
+    ###################################################
+    # Evaluation
+    ###################################################
+
 
 
     def eval(self):
-        """
-        Evaluate the model and return metrics
 
-        Returns:
-        --------
+        x_inputs, y_batches, alterations = self.dl.genEval()
+        if (len(x_inputs) > 1):
+                prntC(C.ERROR, "Batch size should be 1 !")
 
-        metrics : dict
-            The metrics dictionary of the model's performance
-        """
-        x_inputs, test_y, alterations = self.dl.genEval()
-        acc, res = self.model.compute_loss(x_inputs, test_y)
+        for batch in range(len(x_inputs)):
+            acc, res = self.model.compute_loss(x_inputs[batch], y_batches[batch])
+
         for i in range(len(res)):
-            print(test_y[i], " with ", alterations[i], " pred : ", res[i])
+            print(y_batches[0][i], " with ", alterations[0][i], " pred : ", res[i])
 
         print("Eval",  "acc : ", acc * 100.0, flush=True)
-        
+
         return {}
 

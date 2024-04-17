@@ -193,6 +193,7 @@ for import_ in imports:
 os.system(f"cp ../_Artifacts/{used_model}.w ./AdsbAnomalyDetector/w")
 os.system(f"cp ../_Artifacts/{used_model}.xs ./AdsbAnomalyDetector/xs")
 os.system(f"cp ../_Artifacts/{used_model}.xts ./AdsbAnomalyDetector/xts")
+os.system(f"cp ../_Artifacts/{used_model}.xas ./AdsbAnomalyDetector/xas")
 # copy geo map
 os.system(f"cp ../A_Dataset/AircraftClassification/map.png ./AdsbAnomalyDetector/map.png")
 os.system(f"cp ../A_Dataset/AircraftClassification/labels.csv ./AdsbAnomalyDetector/labels.csv")
@@ -209,14 +210,6 @@ file_content_remplace(file,
                       "\"A_Dataset/AircraftClassification/map.png\"", 
                       "HERE+\"/map.png\"")
 
-
-file_content_remplace("./AdsbAnomalyDetector/mlflow.py",
-                      "USE_MLFLOW = True", 
-                      "USE_MLFLOW = False")
-
-file_content_remplace("./AdsbAnomalyDetector/mlviz.py",
-                      "USE_MLVIZ=True", 
-                      "USE_MLVIZ=False")
 
 
 if (os.path.exists("./dist")):

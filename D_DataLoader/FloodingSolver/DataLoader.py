@@ -15,8 +15,6 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 
-import _Utils.mlviz as MLviz
-
 from _Utils.DataFrame import DataFrame
 
 
@@ -173,7 +171,6 @@ class DataLoader(AbstractDataLoader):
             if ("y_" in df.columns):
                 df.drop(["y_"], axis=1, inplace=True)
 
-            df = DataFrame(df)
             array = U.dfToFeatures(df, CTX)
             
             # Add the flight to the dataset
@@ -205,19 +202,19 @@ class DataLoader(AbstractDataLoader):
             self.FEATURES_MAX_VALUES = np.nanmax([self.FEATURES_MAX_VALUES, np.nanmax(self.x[i], axis=0)], axis=0)
         
         # fit the scalers and define the min values
-        self.FEATURES_PAD_VALUES = self.FEATURES_MIN_VALUES.copy()
+        self.PAD = self.FEATURES_MIN_VALUES.copy()
         for f in range(len(CTX["USED_FEATURES"])):
             feature = CTX["USED_FEATURES"][f]
 
             if (feature == "latitude"):
-                self.FEATURES_PAD_VALUES[f] = 0
+                self.PAD[f] = 0
             elif (feature == "longitude"):
-                self.FEATURES_PAD_VALUES[f] = 0
+                self.PAD[f] = 0
 
             else:
-                self.FEATURES_PAD_VALUES[f] = 0
+                self.PAD[f] = 0
 
-        self.x = fillNaN3D(self.x, self.FEATURES_PAD_VALUES)
+        self.x = fillNaN3D(self.x, self.PAD)
 
         # Create the scalers
         self.xScaler = StandardScaler3D()
@@ -305,7 +302,7 @@ class DataLoader(AbstractDataLoader):
                 plt.clf()
 
             
-            x_batches[n, :pad_lenght] = self.FEATURES_PAD_VALUES
+            x_batches[n, :pad_lenght] = self.PAD
             x_batches[n, pad_lenght:] = batch[:-1]
 
             y_batches[n] = batch[-1, FEATURES_OUT]
@@ -346,7 +343,7 @@ class DataLoader(AbstractDataLoader):
             print("std dev:","|".join([str(round(v, 1)).ljust(len(self.CTX["USED_FEATURES"][i])) for i, v in enumerate(self.xScaler.stds)]))
             # print("mean TO:","|".join([str(round(v, 1)).ljust(len(self.CTX["USED_FEATURES"][i])) for i, v in enumerate(self.xTakeOffScaler.means)]))
             # print("std  TO:","|".join([str(round(v, 1)).ljust(len(self.CTX["USED_FEATURES"][i])) for i, v in enumerate(self.xTakeOffScaler.stds)]))
-            print("nan pad:","|".join([str(round(v, 1)).ljust(len(self.CTX["USED_FEATURES"][i])) for i, v in enumerate(self.FEATURES_PAD_VALUES)]))
+            print("nan pad:","|".join([str(round(v, 1)).ljust(len(self.CTX["USED_FEATURES"][i])) for i, v in enumerate(self.PAD)]))
             print("min    :","|".join([str(round(v, 1)).ljust(len(self.CTX["USED_FEATURES"][i])) for i, v in enumerate(self.FEATURES_MIN_VALUES)]))
             print("max    :","|".join([str(round(v, 1)).ljust(len(self.CTX["USED_FEATURES"][i])) for i, v in enumerate(self.FEATURES_MAX_VALUES)]))
         
@@ -413,7 +410,7 @@ class DataLoader(AbstractDataLoader):
 
             batch = SU.batchPreProcess(CTX, batch, CTX["RELATIVE_POSITION"], CTX["RELATIVE_TRACK"], CTX["RANDOM_TRACK"])
 
-            x_batches[n, :pad_lenght] = self.FEATURES_PAD_VALUES
+            x_batches[n, :pad_lenght] = self.PAD
             x_batches[n, pad_lenght:] = batch[:-1]
 
             y_batches[n] = batch[-1, FEATURES_OUT]
@@ -459,10 +456,9 @@ class DataLoader(AbstractDataLoader):
             df.drop(["y_"], axis=1, inplace=True)
 
         
-        df = DataFrame(df)
         array = U.dfToFeatures(df, CTX, __EVAL__=True)
         
-        array = fillNaN3D([array], self.FEATURES_PAD_VALUES)[0]
+        array = fillNaN3D([array], self.PAD)[0]
 
         x_batches = np.zeros((len(array)-CTX["HORIZON"], CTX["INPUT_LEN"], CTX["FEATURES_IN"]))
         y_batches = np.zeros((len(array)-CTX["HORIZON"], CTX["FEATURES_OUT"]))
@@ -471,7 +467,8 @@ class DataLoader(AbstractDataLoader):
         FEATURES_OUT = [CTX["FEATURE_MAP"][f] for f in FEATURES_OUT]
 
         i = 0
-        ts = []
+        ts_to_pred = []
+        ts_last = []
         for n in range(len(x_batches)):
             
             if not(SU.checkTrajectory(CTX, [array], 0, n)):
@@ -495,9 +492,11 @@ class DataLoader(AbstractDataLoader):
             batch = SU.batchPreProcess(CTX, batch, CTX["RELATIVE_POSITION"], CTX["RELATIVE_TRACK"], False)
             
 
-            x_batches[i, :pad_lenght] = self.FEATURES_PAD_VALUES
+            x_batches[i, :pad_lenght] = self.PAD
             x_batches[i, pad_lenght:] = batch[:-1]
-            ts.append(array[end+CTX["HORIZON"]-1, CTX["FEATURE_MAP"]["timestamp"]])
+
+            ts_to_pred.append(int(array[end+CTX["HORIZON"]-1, CTX["FEATURE_MAP"]["timestamp"]]))
+            ts_last.append(int(array[n, CTX["FEATURE_MAP"]["timestamp"]]))
     
             y_batches[i] = batch[-1, FEATURES_OUT]
             i += 1
@@ -509,4 +508,5 @@ class DataLoader(AbstractDataLoader):
         y_batches = self.yScaler.transform(y_batches)
 
 
-        return x_batches, y_batches, ts
+
+        return x_batches, y_batches, ts_to_pred

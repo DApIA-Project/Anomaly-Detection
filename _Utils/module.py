@@ -33,5 +33,10 @@ def module_to_dict(Module):
 
                 if ("FEATURE_MAP" in res):
                     res["FEATURE_MAP"] = dict([[res["USED_FEATURES"][i], i] for i in range(res["FEATURES_IN"])])
+            
+    if ("ADD_AIRPORT_CONTEXT" in res and res["ADD_AIRPORT_CONTEXT"]):
+        res["AIRPORT_CONTEXT_IN"] = len(TOULOUSE)
+        if ("ADD_TAKE_OFF_CONTEXT" in res and res["ADD_TAKE_OFF_CONTEXT"]):
+            res["AIRPORT_CONTEXT_IN"] *= 2
 
     return res  

@@ -1,496 +1,451 @@
-
-import _Utils.mlflow as mlflow
-import _Utils.Metrics as Metrics
-from _Utils.save import write, load, formatJson
-import _Utils.Color as C
-from _Utils.Color import prntC
-from _Utils.plotADSB import plotADSB
+# This file contains the Trainer class for the AircraftClassification problem
 
 
-from B_Model.AbstractModel import Model as _Model_
-from D_DataLoader.AircraftClassification.DataLoader import DataLoader
-from D_DataLoader.Utils import angle_diff
-from E_Trainer.AbstractTrainer import Trainer as AbstractTrainer
-
+# |====================================================================================================================
+# | IMPORTS
+# |====================================================================================================================
 
 import os
 import time
-import json
-import time
 import pandas as pd
 import numpy as np
-import matplotlib.pyplot as plt 
+import matplotlib.pyplot as plt
 from matplotlib.backends.backend_pdf import PdfPages
 
+from B_Model.AbstractModel import Model as _Model_
+from D_DataLoader.AircraftClassification.DataLoader import DataLoader
+import D_DataLoader.Utils as U
+import D_DataLoader.AircraftClassification.Utils as SU
+from E_Trainer.AbstractTrainer import Trainer as AbstractTrainer
 
-
-def reshape(x):
-    """
-    x = [batch size][[x],[takeoff],[map]]
-    x = [[x of batch size], [takeoff of batch size], [map of batch size]]
-    """
-    x_reshaped = []
-    for i in range(len(x[0])):
-        x_reshaped.append([])
-
-        for j in range(len(x)):
-            x_reshaped[i].append(x[j][i])
-
-        x_reshaped[i] = np.array(x_reshaped[i])
-
-    return x_reshaped
+import _Utils.Metrics as Metrics
+from _Utils.save import write, load
+import _Utils.Color as C
+from _Utils.Color import prntC
+# TODO from _Utils.plotADSB import plotADSB improve output from training, and visualization of the prediction
+from _Utils.ProgressBar import ProgressBar
+from _Utils.DebugGui import GUI
+import _Utils.plotADSB as PLT
 
 
 
+
+# |====================================================================================================================
+# | CONSTANTS
+# |====================================================================================================================
+
+# get problem name from parent folder for artifact saving
+PBM_NAME = os.path.dirname(os.path.abspath(__file__)).split("/")[-1]+"/"
+ARTIFACTS = "./_Artifacts/"
+
+EVAL_FOLDER = "./A_Dataset/AircraftClassification/Eval/"
+EVAL_FILES = U.listFlight(EVAL_FOLDER)[0:64]
+
+H_TRAIN_LOSS = 0
+H_TEST_LOSS = 1
+H_TRAIN_ACC = 2
+H_TEST_ACC = 3
+
+
+BAR = ProgressBar(max = len(EVAL_FILES))
+
+
+# |====================================================================================================================
+# | UTILITY FUNCTIONS
+# |====================================================================================================================
+
+
+def __alloc_pred_batches__(CTX:dict, train_batches:int, train_size:int,
+                                     test_batches :int, test_size :int) \
+        ->"tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]":
+
+    return np.zeros((train_batches, train_size, CTX["FEATURES_OUT"]), dtype=np.float32), \
+           np.zeros((test_batches,  test_size,  CTX["FEATURES_OUT"]), dtype=np.float32), \
+           np.zeros(train_batches, dtype=np.float32), np.zeros(test_size, dtype=np.float32)
+
+
+# |====================================================================================================================
+# | BEGIN OF TRAINER CLASS
+# |====================================================================================================================
 
 class Trainer(AbstractTrainer):
-    """"
-    Manage the whole training of a Direct model.
-    (A model that can directly output the desired result from a dataset)
 
-    Parameters :
-    ------------
 
-    CTX : dict
-        The hyperparameters context
-    
-    model : type[Model]
-        The model class of the model we want to train
+# |====================================================================================================================
+# |     INITIALIZATION
+# |====================================================================================================================
 
-    Attributes :
-    ------------
+    def __init__(self, CTX:dict, Model:"type[_Model_]") -> None:
 
-    CTX : dict
-        The hyperparameters context
-
-    dl : DataLoader
-        The data loader corresponding to the problem
-        we want to solve
-
-    model : Model
-        The model instance we want to train   
-
-    Methods :
-    ---------
-
-    run(): Inherited from AbstractTrainer
-        Run the whole training pipeline
-        and give metrics about the model's performance
-
-    train():
-        Manage the training loop
-
-    eval():
-        Evaluate the model and return metrics
-    """
-
-    def __init__(self, CTX:dict, Model:"type[_Model_]"):
-        super().__init__(CTX, Model)
+        # Public attributes
         self.CTX = CTX
-
         self.model:_Model_ = Model(CTX)
-        
-        try:
-            self.model.visualize()
-        except Exception as e:
-            print("WARNING : visualization of the model failed")
-            print(e)
+        self.__makes_artifacts__()
+        self.__init_GUI__()
+        self.viz_model(self.ARTIFACTS)
+        GUI.visualize("/Model/Achitecture", GUI.IMAGE, self.ARTIFACTS+f"/{self.model.name}.png")
 
         self.dl = DataLoader(CTX, "./A_Dataset/AircraftClassification/Train")
-        
-        # If "_Artifactss/" folder doesn't exist, create it.
-        if not os.path.exists("./_Artifacts"):
-            os.makedirs("./_Artifacts")
+
+        # Private attributes
+        self.__ep__ = -1
+        self.__history__ = None
+        self.__history_mov_avg__ = None
 
 
 
 
 
-    def train(self):
-        """
-        Train the model.
-        Plot the loss curves into Artefacts folder.
-        """
+    def __makes_artifacts__(self) -> None:
+        self.ARTIFACTS = ARTIFACTS+PBM_NAME+self.model.name
+
+        if not os.path.exists(ARTIFACTS):
+            os.makedirs(ARTIFACTS)
+        if not os.path.exists(ARTIFACTS+PBM_NAME):
+            os.makedirs(ARTIFACTS+PBM_NAME)
+        if not os.path.exists(self.ARTIFACTS):
+            os.makedirs(self.ARTIFACTS)
+        if not os.path.exists(self.ARTIFACTS+"/weights"):
+            os.makedirs(self.ARTIFACTS+"/weights")
+
+
+# |====================================================================================================================
+# |     SAVE & LOAD MODEL'S VARIABLES
+# |====================================================================================================================
+
+    def save(self) -> None:
         CTX = self.CTX
-        
-        history = [[], [], [], []]
+        write(self.ARTIFACTS+"/w", self.model.getVariables())
+        write(self.ARTIFACTS+"/xs", self.dl.xScaler.getVariables())
 
-        best_variables = None
-        best_loss= 10000000
+        if (CTX["ADD_TAKE_OFF_CONTEXT"]):
+            write(self.ARTIFACTS+"/xts", self.dl.xTakeOffScaler.getVariables())
+        if (CTX["ADD_AIRPORT_CONTEXT"]):
+            write(self.ARTIFACTS+"/xas", self.dl.xAirportScaler.getVariables())
 
-        test_save_x, test_save_y = None, None
+        write(self.ARTIFACTS+"/pad", self.dl.PAD)
 
-        # if _Artifacts/modelsW folder exists and is not empty, clear it
-        if os.path.exists("./_Artifacts/modelsW"):
-            if (len(os.listdir("./_Artifacts/modelsW")) > 0):
-                os.system("rm ./_Artifacts/modelsW/*")
-        else:
-            os.makedirs("./_Artifacts/modelsW")
+
+
+    def load(self) -> None:
+        self.model.setVariables(load(self.ARTIFACTS+"/w"))
+        self.dl.xScaler.setVariables(load(self.ARTIFACTS+"/xs"))
+
+        self.dl.yScaler.setVariables(self.CTX["USED_LABELS"])
+
+        if (self.CTX["ADD_TAKE_OFF_CONTEXT"]):
+            self.dl.xTakeOffScaler.setVariables(load(self.ARTIFACTS+"/xts"))
+        if (self.CTX["ADD_AIRPORT_CONTEXT"]):
+            self.dl.xAirportScaler.setVariables(load(self.ARTIFACTS+"/xas"))
+
+        self.dl.PAD = load(self.ARTIFACTS+"/pad")
+
+
+# |====================================================================================================================
+# |     TRAINING FUNCTIONS
+# |====================================================================================================================
+
+    def train(self) -> dict:
+        CTX = self.CTX
 
         for ep in range(1, CTX["EPOCHS"] + 1):
-            ##############################
-            #         Training           #
-            ##############################
-            start = time.time()
-            x_inputs, y_batches = self.dl.genEpochTrain(CTX["NB_BATCH"], CTX["BATCH_SIZE"])
-            
 
-            # count the number of sample in each class
-            nb_sample_per_class = np.zeros((CTX["FEATURES_OUT"]), dtype=np.int32)
-            for batch in range(len(y_batches)):
-                for t in range(len(y_batches[batch])):
-                    nb_sample_per_class[np.argmax(y_batches[batch][t])] += 1
+            # Data allocation
+            elapsed = time.time()
+            x_train, y_train = self.dl.genEpochTrain()
+            x_test, y_test = self.dl.genEpochTest()
 
-            train_loss = 0
-            train_y_ = []
-            train_y = []
-            for batch in range(len(x_inputs)):
-                loss, output = self.model.training_step(x_inputs[batch], y_batches[batch])
-                train_loss += loss
+            _y_train, _y_test, loss_train, loss_test = __alloc_pred_batches__(
+                CTX, len(x_train), len(x_train[0][0]), len(x_test),  len(x_test[0][0]))
 
-                train_y_.append(output)
-                train_y.append(y_batches[batch])
-
-            train_loss /= len(x_inputs)
-            train_y_ = np.concatenate(train_y_, axis=0)
-            train_y = np.concatenate(train_y, axis=0)
-
-            train_acc = Metrics.perClassAccuracy(train_y, train_y_)
-
-            ##############################
-            #          Testing           #
-            ##############################
-            # if (test_save_x is None):
-            #     test_save_x, test_save_y = self.dl.genEpochTest()
-            x_inputs, test_y = self.dl.genEpochTest()
-
-            test_loss = 0
-            n = 0
-            test_y_ = np.zeros((len(x_inputs), CTX["FEATURES_OUT"]), dtype=np.float32)
-            for batch in range(0, len(x_inputs), CTX["BATCH_SIZE"]):
-                sub_test_x = x_inputs[batch:batch+CTX["BATCH_SIZE"]]
-                sub_test_y = test_y[batch:batch+CTX["BATCH_SIZE"]]
-
-                sub_loss, sub_output = self.model.compute_loss(reshape(sub_test_x), sub_test_y)
-
-                test_loss += sub_loss
-                n += 1
-                test_y_[batch:batch+CTX["BATCH_SIZE"]] = sub_output
-
-            test_loss /= n
-            test_acc = Metrics.perClassAccuracy(test_y, test_y_)
+            BAR.reset(max=len(x_train) + len(x_test))
 
 
-            # Verbose area
-            print()
-            print(f"Epoch {ep}/{CTX['EPOCHS']} - train_loss: {train_loss:.4f} - test_loss: {test_loss:.4f} - time: {time.time() - start:.0f}s" , flush=True)
-            print("-----------" + "-"*(len(self.dl.yScaler.classes_)*4-1))
-            prntC("classes   :",C.BLUE, (C.RESET+"|"+C.BLUE).join([str(int(round(v, 0))).rjust(3, " ") for v in self.dl.yScaler.classes_]))
-            print("-----------" + "-"*(len(self.dl.yScaler.classes_)*4-1))
-            print("train_acc :", "|".join([str(int(round(v, 0))).rjust(3, " ") for v in train_acc]))
-            print("train_nb  :", "|".join([str(int(round(v, 0))).rjust(3, " ") for v in nb_sample_per_class]))
-            print("-----------" + "-"*(len(self.dl.yScaler.classes_)*4-1))
-            print("test_acc  :", "|".join([str(int(round(v, 0))).rjust(3, " ") for v in test_acc]))
-            print("-----------" + "-"*(len(self.dl.yScaler.classes_)*4-1))
-
-            train_acc, test_acc = Metrics.accuracy(train_y, train_y_), Metrics.accuracy(test_y, test_y_)
-            print(f"train acc: {train_acc:.1f}")
-            print(f"test acc : {test_acc:.1f}")
-            print()
-
-            # Save the model loss
-            history[0].append(train_loss)
-            history[1].append(test_loss)
-            history[2].append(train_acc)
-            history[3].append(test_acc)
-            
-            # Log metrics to mlflow
-            mlflow.log_metric("train_loss", train_loss, step=ep)
-            mlflow.log_metric("test_loss", test_loss, step=ep)
-            mlflow.log_metric("epoch", ep, step=ep)
-
-            # Save the model weights
-            write("./_Artifacts/modelsW/"+self.model.name+"_"+str(ep)+".w", self.model.getVariables())
-
-        # load best model
+            # Training
+            for batch in range(len(x_train)):
+                loss_train[batch], _y_train[batch] = self.model.training_step(x_train[batch], y_train[batch])
+                BAR.update(batch+1)
+            _y_train = _y_train.reshape(-1, _y_train.shape[-1])
+            y_train = y_train.reshape(-1, y_train.shape[-1])
 
 
-        # Compute the moving average of the loss for a better visualization
-        history_avg = [[], [], [], []]
-        window_len = 5
-        for i in range(len(history[0])):
-            min_ = max(0, i - window_len)
-            max_ = min(len(history[0]), i + window_len)
-            history_avg[0].append(np.mean(history[0][min_:max_]))
-            history_avg[1].append(np.mean(history[1][min_:max_]))
-            history_avg[2].append(np.mean(history[2][min_:max_]))
-            history_avg[3].append(np.mean(history[3][min_:max_]))
+            # Testing
+            for batch in range(len(x_test)):
+                loss_test[batch], _y_test[batch] = self.model.compute_loss(x_test[batch], y_test[batch])
+                BAR.update(len(x_train)+batch+1)
+            _y_test = _y_test.reshape(-1, _y_test.shape[-1])
+            y_test = y_test.reshape(-1, y_test.shape[-1])
 
 
-        Metrics.plotLoss(history[0], history[1], history_avg[0], history_avg[1])
-        Metrics.plotLoss(history[2], history[3], history_avg[2], history_avg[3], "accuracy", filename="accuracy.png")
+            # Statistics
+            elapsed = time.time() - elapsed
+            self.__epoch_stats__(ep, elapsed, y_train, _y_train, y_test, _y_test)
 
-        # #  load back best model
-        if (len(history[1]) > 0):
-            # find best model epoch with history_avg_accuracy 
-            best_i = np.argmax(history_avg[3]) + 1
-
-            print("load best model, epoch : ", best_i, " with Acc : ", history[3][best_i-1], flush=True)
-            
-            best_variables = load("./_Artifacts/modelsW/"+self.model.name+"_"+str(best_i)+".w")
-            self.model.setVariables(best_variables)
-        else:
-            print("WARNING : no history of training has been saved")
+        self.__load_best_model__()
 
 
-        write("./_Artifacts/"+self.model.name+".w", self.model.getVariables())
-        if (CTX["ADD_TAKE_OFF_CONTEXT"]):
-            write("./_Artifacts/"+self.model.name+".xts", self.dl.xTakeOffScaler.getVariables())
-        write("./_Artifacts/"+self.model.name+".xs", self.dl.xScaler.getVariables())
-        write("./_Artifacts/"+self.model.name+".min", self.dl.FEATURES_MIN_VALUES)
+# |--------------------------------------------------------------------------------------------------------------------
+# |    STATISTICS FOR TRAINING
+# |--------------------------------------------------------------------------------------------------------------------
 
-    def load(self):
-        """
-        Load the model's weights from the _Artifacts folder
-        """
-        self.model.setVariables(load("./_Artifacts/"+self.model.name+".w"))
-        # self.model.setVariables(load("./_Artifacts/modelsW/CNN_80.w"))
-        self.dl.xScaler.setVariables(load("./_Artifacts/"+self.model.name+".xs"))
-        if (self.CTX["ADD_TAKE_OFF_CONTEXT"]):
-            self.dl.xTakeOffScaler.setVariables(load("./_Artifacts/"+self.model.name+".xts"))
-        self.dl.yScaler.setVariables(self.CTX["USED_LABELS"])
-        self.dl.FEATURES_MIN_VALUES = load("./_Artifacts/"+self.model.name+".min")
+    def __epoch_stats__(self, ep:int, elapsed:float,
+                        y_train:np.ndarray, _y_train:np.ndarray,
+                        y_test :np.ndarray, _y_test :np.ndarray) -> None:
+
+        train_acc, train_loss = Metrics.spoofing_training_statistics(y_train, _y_train)
+        test_acc,  test_loss  = Metrics.spoofing_training_statistics(y_test, _y_test)
 
 
-    def eval(self):
-        """
-        Evaluate the model and return metrics
+        # |--------------------------
+        # | On first epoch
+        if (self.__ep__ == -1 or self.__ep__ > ep):
+            self.__history__         = np.full((4, self.CTX["EPOCHS"]), np.nan, dtype=np.float32)
+            self.__history_mov_avg__ = np.full((4, self.CTX["EPOCHS"]), np.nan, dtype=np.float32)
+
+        # |--------------------------
+        # | On epoch change
+        if (self.__ep__ != ep):
+            self.__ep__ = ep
+            self.__history__[:, ep-1] = [train_loss, test_loss, train_acc, test_acc]
+            for i in range(4):
+                self.__history_mov_avg__[i, ep-1] = Metrics.moving_average_at(self.__history__[i], ep-1, w=5)
+
+            write(self.ARTIFACTS+"/weights/"+str(ep)+".w", self.model.getVariables())
+
+            per_class_acc = Metrics.perClassAccuracy(y_test, _y_test)
+            self.__print_epoch_stats__(ep, elapsed, train_loss, test_loss, train_acc, test_acc, per_class_acc)
+            self.__plot_epoch_stats__()
+            self.__plot_train_exemple__(y_train, _y_train)
 
 
-        Returns:
-        --------
 
-        metrics : dict
-            The metrics dictionary of the model's performance
-        """
+    def __print_epoch_stats__(self, ep:int, elapsed:float,
+                              train_loss:float, test_loss:float,
+                              train_acc:float, test_acc:float,
+                              per_class_acc:np.ndarray) -> None:
+
+        prntC(C.INFO,  "Epoch :", C.BLUE, ep, C.RESET, "/", C.BLUE, self.CTX["EPOCHS"], C.RESET,
+                     "- Takes :",      C.BLUE, round(elapsed, 2), "s")
+        prntC(C.INFO_, "Train Loss :", C.BLUE, round(train_loss, 4), C.RESET,
+                     "- Test  Loss :", C.BLUE, round(test_loss,  4))
+        prntC(C.INFO_, "Train Acc  :", C.BLUE, round(train_acc,  4), C.RESET,
+                     "- Test  Acc  :", C.BLUE, round(test_acc,   4))
+
+        prntC(C.INFO_, "Per class accuracy : ")
+        for i in range(len(per_class_acc)):
+            prntC(C.INFO_, "\t-",
+                  self.CTX["LABEL_NAMES"][self.CTX["USED_LABELS"][i]], ":",
+                  C.BLUE, round(per_class_acc[i],2))
+        prntC()
+
+
+
+    def __init_GUI__(self) -> None:
+        GUI.visualize("/Model", GUI.COLAPSIING_HEADER)
+        GUI.visualize("/Training/TableTitle", GUI.TEXT, "Training curves", opened=True)
+        GUI.visualize("/Training/Table", GUI.TABLE, 2, opened=True)
+        GUI.visualize("/Training/Table/0/0/loss", GUI.TEXT, "Loading...")
+        GUI.visualize("/Training/PredTitle", GUI.TEXT, "Example of prediction :")
+        GUI.visualize("/Training/PredPlot", GUI.TEXT, "Loading...")
+
+
+
+    def __plot_epoch_stats__(self) -> None:
+
+        # plot loss curves
+        Metrics.plotLoss(self.__history__[H_TRAIN_LOSS], self.__history__[H_TEST_LOSS],
+                         self.__history_mov_avg__[H_TRAIN_LOSS], self.__history_mov_avg__[H_TEST_LOSS],
+                            type="loss", path=self.ARTIFACTS+"/loss.png")
+
+        Metrics.plotLoss(self.__history__[H_TRAIN_ACC], self.__history__[H_TEST_ACC],
+                         self.__history_mov_avg__[H_TRAIN_ACC], self.__history_mov_avg__[H_TEST_ACC],
+                            type="accuracy", path=self.ARTIFACTS+"/accuracy.png")
+
+        GUI.visualize("/Training/Table/0/0/loss", GUI.IMAGE, self.ARTIFACTS+"/loss.png")
+        GUI.visualize("/Training/Table/1/0/acc", GUI.IMAGE, self.ARTIFACTS+"/accuracy.png")
+
+
+
+    def __plot_train_exemple__(self, y_train:np.ndarray, _y_train:np.ndarray)->None:
+
+        NAME = "train_example"
+        filename = PLT.get_data(NAME)["filename"]
+
+        true_label = self.CTX["LABEL_NAMES"][self.CTX["USED_LABELS"][np.argmax(y_train[0])]]
+        pred_label = self.CTX["LABEL_NAMES"][self.CTX["USED_LABELS"][np.argmax(_y_train[0])]]
+        confidence = round(_y_train[0][np.argmax(_y_train[0])] * 100, 1)
+        PLT.title(NAME, f"{filename} -> True : {true_label} - Pred : {pred_label} ({confidence}%)")
+        PLT.show(NAME, self.ARTIFACTS+"/train_example.png")
+
+        GUI.visualize("/Training/PredPlot", GUI.IMAGE, self.ARTIFACTS+"/train_example.png")
+
+
+
+# |--------------------------------------------------------------------------------------------------------------------
+# |     FIND AND LOAD BEST MODEL WHEN TRAINING IS DONE
+# |--------------------------------------------------------------------------------------------------------------------
+
+    def __load_best_model__(self) -> None:
+
+        if (len(self.__history__[1]) == 0):
+            prntC(C.WARNING, "No history of training has been saved")
+            return
+
+        best_i = np.argmax(self.__history_mov_avg__[H_TEST_ACC]) + 1
+
+        prntC(C.INFO, "load best model, epoch : ",
+              C.BLUE, best_i, C.RESET, " with Acc : ",
+              C.BLUE, self.__history__[H_TEST_ACC][best_i-1])
+
+        self.model.setVariables(load(self.ARTIFACTS+"/weights/"+str(best_i)+".w"))
+        self.save()
+
+
+# |====================================================================================================================
+# |     MAKING PREDICTIONS FROM RAW ADSB MESSAGES
+# |====================================================================================================================
+
+    def predict(self, x:"list[dict[str,object]]") -> np.ndarray:
+
+        x_inputs, isInteresting = None, []
+
+        for i in range(len(x)):
+            sample, valid = self.dl.streamer.stream(x[i])
+            isInteresting.append(valid)
+
+            if (x_inputs is None):
+                x_inputs = [np.zeros((len(x),) + sample[d].shape[1:], dtype=np.float32)
+                                for d in range(len(sample))]
+
+            for input in range(len(x_inputs)):
+                x_inputs[input][i] = sample[input][0]
+
+        # add if interesting flag
+        i_loc = np.arange(0, len(isInteresting), dtype=int)[isInteresting]
+        x_batch =  [x_inputs[d][i_loc] for d in range(len(x_inputs))]
+        y_ = np.zeros((len(x_inputs[0]), self.CTX["FEATURES_OUT"]), dtype=np.float32)
+        # exit(0)
+        y_[i_loc] = self.model.predict(x_batch)
+        return y_
+
+
+# |====================================================================================================================
+# |     EVALUATION
+# |====================================================================================================================
+
+    def __nb_batch__(self, nb_flights):
+        return (nb_flights-1) // self.CTX["MAX_BATCH_SIZE"] + 1
+
+
+    def __batch_size__(self, ith_batch, NB_BATCH, nb_flights):
+        batch_size = nb_flights//NB_BATCH
+        if (ith_batch == 0):
+            return nb_flights - batch_size*(NB_BATCH-1)
+        return batch_size
+
+
+    def __gen_eval_batch__(self, files):
+
+        # load all ressources needed for the batch
+        files_df, max_lenght = [], 0
+        y, y_ = [], []
+        for f in range(len(files)):
+
+            df = pd.read_csv(EVAL_FOLDER+files[f], dtype={'icao24': str})
+            files_df.append(df)
+            y.append(SU.getLabel(self.CTX, df))
+            y_.append(np.zeros((len(df), self.CTX["FEATURES_OUT"]), dtype=np.float32))
+
+            max_lenght = max(max_lenght, len(df))
+
+        y = self.dl.yScaler.transform(y)
+        return files_df, max_lenght, y, y_
+
+
+    def __next_msgs__(self, dfs:"list[pd.DataFrame]", t):
+        x, files = [], []
+        for f in range(len(dfs)):
+            if (t < len(dfs[f])):
+                x.append(dfs[f].iloc[t])
+                files.append(f)
+        return x, files
+
+
+    def eval(self)->dict:
         CTX = self.CTX
-        FOLDER = "./A_Dataset/AircraftClassification/Eval"
-        files = os.listdir(FOLDER)
-        files = [file for file in files if file.endswith(".csv")]
-        files = files[:]
+        NB_BATCH = (len(EVAL_FILES)-1) // CTX["MAX_BATCH_SIZE"] + 1
+        BAR.reset(max=len(EVAL_FILES))
+        file_i = 0
+
+        y = np.zeros((len(EVAL_FILES), self.CTX["FEATURES_OUT"]), dtype=np.float32)
+        y_ = [np.ndarray((0,)) for _ in range(len(EVAL_FILES))]
+
+        for batch in range(NB_BATCH):
+            BATCH_I = slice(file_i, file_i+CTX["MAX_BATCH_SIZE"], 1)
+            BATCH_SIZE = self.__batch_size__(batch, NB_BATCH, len(EVAL_FILES))
+            prntC(C.INFO, "Starting batch", batch, "with", BATCH_SIZE, "files")
+            batch_files = EVAL_FILES[BATCH_I]
+            dfs, max_len, y[BATCH_I], y_[BATCH_I] = self.__gen_eval_batch__(batch_files)
+
+            for t in range(max_len):
+                x, files = self.__next_msgs__(dfs, t)
+                yt_ = self.predict(x)
+                for i in range(len(files)):
+                    y_[BATCH_I][files[i]][t] = yt_[i]
+
+                # Show progression :
+                __batch_realized = (t+1) / max_len + batch
+                BAR.update(__batch_realized / NB_BATCH * len(EVAL_FILES), f"remaining files: {len(files)}")
+
+            file_i += BATCH_SIZE
+
+        self.__eval_stats__(y, y_)
 
 
-        nb_classes = self.dl.yScaler.classes_.shape[0]
-
-        global_nb = 0
-        global_correct_mean = 0
-        global_correct_count = 0
-        global_correct_max = 0
-        global_ts_confusion_matrix = np.zeros((nb_classes, nb_classes), dtype=int)
-        global_confusion_matrix = np.zeros((nb_classes, nb_classes), dtype=int)
-
-        # create a plotting pdf
-        pdf = PdfPages("./_Artifacts/tmp")
-
-        failed_files = []
-
-        # clear output eval folder
-        os.system("rm ./A_Dataset/AircraftClassification/Outputs/Eval/*")
-
-        for i in range(len(files)):
-            LEN = 20
-            nb = int((i+1)/len(files)*LEN)
+# |====================================================================================================================
+# |     EVALUATION STATISTICS
+# |====================================================================================================================
 
 
-            file = files[i]
-            x_inputs, y_batches, x_isInteresting = self.dl.genEval(os.path.join(FOLDER, file))
-            if (len(x_inputs) == 0): # skip empty file (no label)
-                continue
+    def __eval_stats__(self, y:np.ndarray, y_:np.ndarray) -> None:
+        OUT = np.ndarray((len(y), self.CTX["FEATURES_OUT"]), dtype=np.float32)
+        agg_mean, agg_max, agg_count, agg_nth_max = OUT.copy(), OUT.copy(), OUT.copy(), OUT.copy()
 
-            start = time.time()
-            x_input_to_predi_loc = np.arange(0, len(x_inputs))[x_isInteresting]
+        for f in range(len(EVAL_FILES)):
+            confidence = Metrics.confidence(y_[f])
+            agg_mean[f] = np.mean(y_[f], axis=0)
+            agg_max[f] = y_[f][np.argmax(confidence)]
+            agg_count[f] = np.bincount(np.argmax(y_[f], axis=1), minlength=self.CTX["FEATURES_OUT"])
+            agg_count[f] = agg_count[f] / np.sum(agg_count[f])
+            # 20 most confident prediction
+            agg_nth_max[f] = np.mean(y_[f][np.argsort(confidence)[-20:]])
 
-            if (len(x_input_to_predi_loc) == 0):
-                print()
-                print("WARNING : no prediction for file : ", file)
-                print()
-                continue
+        methods = ["mean", "max", "count", "nth_max"]
+        prediction_methods = [agg_mean, agg_max, agg_count, agg_nth_max]
+        accuracy_per_method = [
+            Metrics.accuracy(y, method) for method in prediction_methods
+        ]
+        best_method = np.argmax(accuracy_per_method)
 
-            x_inputs_to_predicts = [x_inputs[i] for i in x_input_to_predi_loc]
-            y_batches_ = np.zeros((len(x_inputs), nb_classes), dtype=np.float32)
-            jumps = 1024
-            for b in range(0, len(x_inputs_to_predicts),jumps):
-                x_batch = x_inputs_to_predicts[b:b+jumps]
-                pred = self.model.predict(reshape(x_batch)).numpy()
-                y_batches_[x_input_to_predi_loc[b:b+jumps]] = pred
+        for i in range(len(methods)):
+            prntC(C.INFO, "with", methods[i], " aggregation, accuracy : ", accuracy_per_method[i])
+        prntC(C.INFO, "Best method is :", methods[best_method])
 
-            #### stats
-
-            global_ts_confusion_matrix += Metrics.confusionMatrix(y_batches, y_batches_)
-
-            y_eval_out = y_batches_[x_isInteresting]
-
-            pred_mean = np.argmax(np.mean(y_eval_out, axis=0))
-            pred_count = np.argmax(np.bincount(np.argmax(y_eval_out, axis=1), minlength=nb_classes))
-            # pred_max = np.argmax(y_eval_out[np.argmax(np.max(y_eval_out, axis=1))])
-            # sort prediction by confidence
-            confidence = np.max(y_eval_out, axis=1)
-            sort = np.argsort(confidence)
-            max_nb = 20
-            pred_max = np.argmax(np.bincount(np.argmax(y_eval_out[sort[-max_nb:]], axis=1), minlength=nb_classes))
-            
-            true = np.argmax(y_batches[x_isInteresting][0])
+        confusion_matrix = Metrics.confusionMatrix(y, prediction_methods[best_method])
+        prntC(confusion_matrix)
 
 
-            global_nb += 1
-            global_correct_mean += 1 if (pred_mean == true) else 0
-            global_correct_count += 1 if (pred_count == true) else 0
-            global_correct_max += 1 if (pred_max == true) else 0
+        L = [self.CTX["LABEL_NAMES"][i] for i in self.CTX["USED_LABELS"]]
+        Metrics.plotConfusionMatrix(confusion_matrix,
+                                    self.ARTIFACTS+"/confusion_matrix.png",
+                                    L)
 
-            global_confusion_matrix[true, pred_max] += 1
-
-
-
-            
-            # compute binary (0/1) correct prediction
-            correct_predict = np.full((len(x_inputs)), np.nan, dtype=np.float32)
-            #   start at history to remove padding
-            for t in range(0, len(x_inputs)):
-                correct_predict[t] = np.argmax(y_batches_[t]) == np.argmax(y_batches[t])
-            # check if A_dataset/output/ doesn't exist, create it
-            if not os.path.exists("./A_Dataset/AircraftClassification/Outputs/Eval"):
-                os.makedirs("./A_Dataset/AircraftClassification/Outputs/Eval")
-
-
-            # save the input df + prediction in A_dataset/output/
-            df = pd.read_csv(os.path.join("./A_Dataset/AircraftClassification/Eval", file),dtype={'icao24': str})
-            # change "timestamp" '2022-12-04 11:48:21' to timestamp 1641244101
-            # df["timestamp"] = pd.to_datetime(df["timestamp"]).astype(np.int64) // 10**9
-
-            if (pred_max != true):
-                failed_files.append((file, str(self.dl.yScaler.classes_[true]), str(self.dl.yScaler.classes_[pred_max])))
-                track = df["track"].values
-                relative_track = track.copy()
-                for i in range(1, len(relative_track)):
-                    relative_track[i] = angle_diff(track[i], track[i-1])
-                relative_track[0] = 0
-
-                y_batches_ = Metrics.inv_sigmoid(y_batches_)
-
-
-                fig, ax = plotADSB(CTX, self.dl.yScaler.classes_, 
-                                   f"{file}    Y : {self.dl.yScaler.classes_[true]} Ŷ : {self.dl.yScaler.classes_[pred_max]}", 
-                                   df["timestamp"].values, df['latitude'].values, df['longitude'].values, 
-                                   df['groundspeed'].values, df['track'].values, df['vertical_rate'].values, 
-                                   df['altitude'].values, df['geoaltitude'].values, 
-                                   y_batches_, self.dl.yScaler.classes_[true], [(relative_track, "relative_track")])
-                pdf.savefig(fig)
-                plt.close(fig)
-
-
-
-            if (CTX["INPUT_PADDING"] != "valid"):
-                # list all missing timestep that are not in the real dataset
-
-                missing_timestamp = []
-                ind = 0
-                for t in range(0, len(df["timestamp"])-1):
-                    if df["timestamp"][t + 1] != df["timestamp"][t] + 1:
-                        nb_missing_timestep = df["timestamp"][t + 1] - df["timestamp"][t] - 1
-                        for j in range(nb_missing_timestep):
-                            missing_timestamp.append(df["timestamp"][t] + 1 + j - df["timestamp"][0])
-                            ind += 1
-                    ind += 1
-
-                # remove those timestep from the prediction
-                correct_predict = np.delete(correct_predict, missing_timestamp)
-                y_batches_ = np.delete(y_batches_, missing_timestamp, axis=0)
-
-            correct_predict = ["" if np.isnan(x) else "True" if x else "False" for x in correct_predict]
-            df_y_ = [";".join([str(x) for x in y]) for y in y_batches_]
-            df["prediction"] = correct_predict
-            df["y_"] = df_y_
-            df.to_csv(os.path.join("./A_Dataset/AircraftClassification/Outputs/Eval", file), index=False)
-
-
-
-            tmp_accuracy = global_correct_max / global_nb*100.0
-            label_pred = self.dl.yScaler.classes_[pred_max]
-            label_true = self.dl.yScaler.classes_[true]
-            print("EVAL : |", "-"*(nb)+" "*(LEN-nb)+"| "+str(i + 1).rjust(len(str(len(files))), " ") + "/" + str(len(files)), "pred:", label_pred, "true:", label_true , "Acc :", tmp_accuracy, end="\r", flush=True)
-          
-            
-
-
-        pdf.close()
-        os.rename("./_Artifacts/tmp", "./_Artifacts/eval.pdf")
-
-
-        self.CTX["LABEL_NAMES"] = np.array(self.CTX["LABEL_NAMES"])
-        Metrics.plotConusionMatrix("./_Artifacts/confusion_matrix.png", global_confusion_matrix, self.CTX["LABEL_NAMES"][self.dl.yScaler.classes_])
-        Metrics.plotConusionMatrix("./_Artifacts/ts_confusion_matrix.png", global_ts_confusion_matrix, self.CTX["LABEL_NAMES"][self.dl.yScaler.classes_])
-
-
-        accuracy_per_class = np.diag(global_confusion_matrix) / np.sum(global_confusion_matrix, axis=1)
-        accuracy_per_class = np.nan_to_num(accuracy_per_class, nan=0)
-        nbSample = np.sum(global_confusion_matrix, axis=1)
-        accuracy = np.sum(np.diag(global_confusion_matrix)) / np.sum(global_confusion_matrix)
-
-        print("class              : ", "|".join([str(a).rjust(6, " ") for a in self.dl.yScaler.classes_]))
-        print("accuracy per class : ", "|".join([str(round(a * 100)).rjust(6, " ") for a in accuracy_per_class]))
-        print("nbSample per class : ", "|".join([str(a).rjust(6, " ") for a in nbSample]))
-        print("accuracy : ", accuracy)
-
-        print("global accuracy mean : ", round(global_correct_mean / global_nb*100.0, 1), "(", global_correct_mean, "/", global_nb, ")")
-        print("global accuracy count : ", round(global_correct_count / global_nb*100.0, 1), "(", global_correct_count, "/", global_nb, ")")
-        print("global accuracy max : ", round(global_correct_max / global_nb*100.0, 1), "(", global_correct_max, "/", global_nb, ")")
-
-        # print files of failed predictions
-        print("failed files : ")
-        for i in range(len(failed_files)):
-            print("\t-",failed_files[i][0], "\tY : ", failed_files[i][1], " Ŷ : ", failed_files[i][2], sep="", flush=True)
-
-        # fail counter
-        if os.path.exists("./_Artifacts/"+self.model.name+".fails.json"):
-            file = open("./_Artifacts/"+self.model.name+".fails.json", "r")
-            json_ = file.read()
-            file.close()
-            fails = json.loads(json_)
-            # print(fails)
-        else:
-            fails = {}
-
-        for i in range(len(failed_files)):
-            if (failed_files[i][0] not in fails):
-                fails[failed_files[i][0]] = {"Y":failed_files[i][1]}
-            if (failed_files[i][2] not in fails[failed_files[i][0]]):
-                fails[failed_files[i][0]][failed_files[i][2]] = 1
-            else:
-                fails[failed_files[i][0]][failed_files[i][2]] += 1
-        # sort by nb of fails
-        fails_counts = {}
-        for file in fails:
-            fails_counts[file] = 0
-            for pred in fails[file]:
-                if (pred != "Y"):
-                    fails_counts[file] += fails[file][pred]
-        fails = {k: v for k, v in sorted(fails.items(), key=lambda item: fails_counts[item[0]], reverse=True)}
-        json_ = json.dumps(fails)
-        
-
-        file = open("./_Artifacts/"+self.model.name+".fails.json", "w")
-        file.write(formatJson(json_))
-
-
-        print("", flush=True)
-
-
-        # self.eval_alterated()
-
-        return {
-            "accuracy": accuracy, 
-            "mean accuracy":global_correct_mean / global_nb,
-            "count accuracy":global_correct_count / global_nb,
-            "max accuracy":global_correct_max / global_nb,
-        }
+        prntC(C.INFO, "Failed files : ")
+        for f in range(len(EVAL_FILES)):
+            true = np.argmax(y[f])
+            pred = np.argmax(prediction_methods[best_method][f])
+            if (true != pred):
+                prntC(" -", C.CYAN, EVAL_FILES[f], C.RESET,
+                      " - True label :", self.CTX["LABEL_NAMES"][self.CTX["USED_LABELS"][true]],
+                      " - Predicted :",  self.CTX["LABEL_NAMES"][self.CTX["USED_LABELS"][pred]])
 

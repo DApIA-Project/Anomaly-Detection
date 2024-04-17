@@ -21,7 +21,7 @@ class Model():
     ------------
 
     name: str (MENDATORY)
-        The name of the model for mlflow logs
+        The name of the model
     
     Methods:
     ---------

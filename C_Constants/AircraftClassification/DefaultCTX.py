@@ -1,11 +1,11 @@
-TEST_RATIO = 0.08
+TEST_RATIO = 1.0/8.0
 
 RELATIVE_POSITION = False
 RELATIVE_TRACK = False
 RANDOM_TRACK = False
 TRAINING_NOISE = 0.0
 
-
+MAX_BATCH_SIZE = 1024
 
 
 LABEL_NAMES = [
@@ -24,7 +24,8 @@ LABEL_NAMES = [
     "SAMU"
 ]
 
-MERGE_LABELS = { # no merge by default
+# by default labels are not merged
+MERGE_LABELS = { 
     1: [1],
     2: [2],
     # 3: [3], # remove JET not enought data

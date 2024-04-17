@@ -28,40 +28,6 @@ def transformer_encoder(inputs, head_size, num_heads, ff_dim, dropout=0):
 
 
 class Model(AbstactModel):
-    """
-    Convolutional neural network model for 
-    aircraft classification based on 
-    recordings of ADS-B data fragment.
-
-    Parameters:
-    ------------
-
-    CTX: dict
-        The hyperparameters context
-
-
-    Attributes:
-    ------------
-
-    name: str (MENDATORY)
-        The name of the model for mlflow logs
-    
-    Methods:
-    ---------
-
-    predict(x): (MENDATORY)
-        return the prediction of the model
-
-    compute_loss(x, y): (MENDATORY)
-        return the loss and the prediction associated to x, y and y_
-
-    training_step(x, y): (MENDATORY)
-        do one training step.
-        return the loss and the prediction of the model for this batch
-
-    visualize(save_path):
-        Generate a visualization of the model's architecture
-    """
 
     name = "Transformer"
 

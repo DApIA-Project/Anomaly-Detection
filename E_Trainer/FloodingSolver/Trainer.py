@@ -1,14 +1,13 @@
 
 # MDSM : Mean Dense Simple Model
 
-import _Utils.mlflow as mlflow
 import _Utils.Metrics as Metrics
 from _Utils.save import write, load
 import _Utils.Color as C
 from _Utils.Color import prntC
-from _Utils.plotADSB import plotADSB
+# from _Utils.plotADSB import plotADSB
 
-from D_DataLoader.FloodingSolver.Utils import distance
+from D_DataLoader.FloodingSolver.Utils import distance, undo_batchPreProcess
 
 
 from B_Model.AbstractModel import Model as _Model_
@@ -44,7 +43,15 @@ def reshape(x):
     return x_reshaped
 
 
-
+def pad_pred(ts, df_ts_map, pred, CTX):
+    """
+    Pad the prediction with nan values
+    """
+    
+    pred_pad = np.full(len(df_ts_map), np.nan, dtype=np.float32)
+    for i in range(len(ts)):
+        pred_pad[df_ts_map[ts[i]]] = pred[i]
+    return pred_pad
 
 class Trainer(AbstractTrainer):
     """"
@@ -94,17 +101,19 @@ class Trainer(AbstractTrainer):
         self.model:_Model_ = Model(CTX)
         
         try:
-            self.model.visualize()
-        except:
+            self.model.visualize("./")
+        except Exception as e:
             print("WARNING : visualization of the model failed")
+            print(e)
+
+
+        raise Exception("Stop here")
 
         self.dl = DataLoader(CTX, "./A_Dataset/AircraftClassification/Train")
         
         # If "_Artifactss/" folder doesn't exist, create it.
         if not os.path.exists("./_Artifacts"):
             os.makedirs("./_Artifacts")
-
-
 
 
 
@@ -186,11 +195,6 @@ class Trainer(AbstractTrainer):
             history[2].append(train_distance)
             history[3].append(test_distance)
             
-            # Log metrics to mlflow
-            mlflow.log_metric("train_loss", train_loss, step=ep)
-            mlflow.log_metric("test_loss", test_loss, step=ep)
-            mlflow.log_metric("epoch", ep, step=ep)
-
             # Save the model weights
             write("./_Artifacts/modelsW/"+self.model.name+"_"+str(ep)+".w", self.model.getVariables())
 
@@ -237,6 +241,19 @@ class Trainer(AbstractTrainer):
         self.dl.FEATURES_MIN_VALUES = load("./_Artifacts/"+self.model.name+".min")
 
 
+
+    def un_transform(self, lats, lons, lats_preds, lons_preds):
+        CTX = self.CTX
+        for t in range(CTX["HORIZON"], len(lats)):
+            o_lat = lats[t - CTX["HORIZON"]]
+            o_lon = lons[t - CTX["HORIZON"]]
+            track = 0
+
+            lats_preds[t], lons_preds[t] = undo_batchPreProcess(CTX, o_lat, o_lon, track, lats_preds[t], lons_preds[t], CTX["RELATIVE_POSITION"], CTX["RELATIVE_TRACK"], CTX["RANDOM_TRACK"])
+
+        return lats_preds, lons_preds
+
+
     def eval(self):
         """
         Evaluate the model and return metrics
@@ -254,7 +271,9 @@ class Trainer(AbstractTrainer):
         CTX = self.CTX
         FOLDER = "./A_Dataset/FloodingSolver/Eval"
         PRED_FEATURES = CTX["PRED_FEATURES"]
-        PRED_FEATURES = [CTX["FEATURE_MAP"][f] for f in PRED_FEATURES]
+        PRED_LAT = CTX["PRED_FEATURE_MAP"]["latitude"]
+        PRED_LON = CTX["PRED_FEATURE_MAP"]["longitude"]
+
 
 
         # clear Outputs/path folder
@@ -284,9 +303,14 @@ class Trainer(AbstractTrainer):
                 # nb = int((i+1)/len(files)*LEN)
                 # print("EVAL : |", "-"*(nb)+" "*(LEN-nb)+"| "+str(i + 1).rjust(len(str(len(files))), " ") + "/" + str(len(files)), end="\r", flush=True)
 
-
                 file = files[i]
-                x_inputs, y_batches, ts = self.dl.genEval(os.path.join(path, file))
+                file_path = os.path.join(path, file)
+                df = pd.read_csv(file_path, sep=",",dtype={"callsign":str, "icao24":str})
+                df_timestamp = df["timestamp"] - df["timestamp"][0]
+                df_ts_map = dict([[df_timestamp[i], i] for i in range(len(df))])
+                x_inputs, y_batches, ts = self.dl.genEval(file_path)
+                
+
                 if (len(x_inputs) == 0): # skip empty file (no label)
                     continue
 
@@ -304,26 +328,44 @@ class Trainer(AbstractTrainer):
                 d = distance(CTX, y_batches_, y_batches)
                 mean_distances.append(d)
 
+                # analyse outputs and give the ghost aircraft
+
+                pred_lat = y_batches_[:,PRED_LAT]
+                pred_lon = y_batches_[:,PRED_LON]
+                true_lat = y_batches[:,PRED_LAT]
+                true_lon = y_batches[:,PRED_LON]
 
 
-                cols = []
-                for f in CTX["PRED_FEATURES"]:
-                    cols.append("pred_"+f)
-                    cols.append("true_"+f)
-                cols.append("timestamp")
-                out_df = pd.DataFrame(columns=cols)
+                pred_lat = pad_pred(ts, df_ts_map, pred_lat, CTX)
+                pred_lon = pad_pred(ts, df_ts_map, pred_lon, CTX)
+                true_lat = pad_pred(ts, df_ts_map, true_lat, CTX)
+                true_lon = pad_pred(ts, df_ts_map, true_lon, CTX)
 
-                for fi in range(len(CTX["PRED_FEATURES"])):
-                    f = CTX["PRED_FEATURES"][fi]
-                    out_df["pred_"+f] = y_batches_[:,fi]
-                    out_df["true_"+f] = y_batches[:,fi]
-                out_df["timestamp"] = ts
+
+
+                traj_lat = df["latitude"].values
+                traj_lon = df["longitude"].values
+                    
+                pred_lat, pred_lon = self.un_transform(traj_lat, traj_lon, pred_lat, pred_lon)
+                true_lat, true_lon = self.un_transform(traj_lat, traj_lon, true_lat, true_lon)
+
+
+                out_df = pd.DataFrame()
+                out_df["timestamp"] = df["timestamp"].values
+                out_df["df_latitude"] = df["latitude"].values
+                out_df["df_longitude"] = df["longitude"].values
+                out_df["true_latitude"] = true_lat
+                out_df["true_longitude"] = true_lon
+                out_df["pred_latitude"] = pred_lat
+                out_df["pred_longitude"] = pred_lon
+
                 out_df.to_csv("./A_Dataset/FloodingSolver/Outputs/"+folder+"/"+file, index=False)
 
 
             print("Mean distance : ", np.mean(mean_distances), flush=True)
 
 
+            # analyse outputs and give the ghost aircraft
 
         return {}
 

@@ -1,20 +1,29 @@
 import numpy as np
-import math
 import pandas as pd
+import math
 import os
 from PIL import Image
-from _Utils import Color  
+
+import _Utils.Color as C
+from _Utils.Color import prntC
+import _Utils.FeatureGetter as FG
+
+import D_DataLoader.Utils as U
+
 np.set_printoptions(suppress=True, formatter={'float_kind':'{:f}'.format})
 
-
-
-
+###################################################
+# LABEL MANAGEMENT
+###################################################
 
 __icao_db__ = None
-def getLabel(CTX, icao, callsign):
+def getLabel(CTX, df):
     """
     Give the label of an aircraft based on his icao imatriculation
     """
+    icao = FG.df_icao(df)
+    callsign = FG.df_callsign(df)
+
     global __icao_db__
     if __icao_db__ is None:
         labels_file = os.path.join("./A_Dataset/AircraftClassification/labels.csv")
@@ -35,33 +44,21 @@ def getLabel(CTX, icao, callsign):
 
     if (icao in __icao_db__):
         return __icao_db__[icao]
-    
-    print("[Warning]", icao, "not found in labels.csv\n\n")
-    
+
+    prntC(C.WARNING, icao, "not found in labels.csv")
+
     return 0
 
-
-__airport_db__ = None
-__airport_id__ = None
-def getAirport(lat, lon):
-    """
-    give the nearest airport from a lat lon
-    """
-    global __airport_db__, __airport_id__
-    if __airport_db__ is None:
-        __airport_db__ = pd.read_csv("./A_Dataset/AircraftClassification/airports.csv", sep=",")
-        __airport_id__ = {}
-
-    
-
-    
 
 def resetICAOdb():
     global __icao_db__
     __icao_db__ = None
 
+###################################################
+# TRAJECTORY PROCESSING
+###################################################
 
-def getAircraftPosition(CTX, flight):
+def getAircraftLastMessage(CTX, flight):
     # get the aircraft last non zero latitudes and longitudes
     lat = flight[:, CTX["FEATURE_MAP"]["latitude"]]
     lon = flight[:, CTX["FEATURE_MAP"]["longitude"]]
@@ -69,172 +66,46 @@ def getAircraftPosition(CTX, flight):
     while (i >= 0 and (lat[i] == 0 and lon[i] == 0)):
         i -= 1
     if (i == -1):
-        return 0, 0
-    return lat[i], lon[i]
+        return None
+    return flight[i]
 
+def getAircraftPosition(CTX, flight):
+    # get the aircraft last non zero latitudes and longitudes
+    pos = getAircraftLastMessage(CTX, flight)
+    return FG.lat(pos), FG.lon(pos)
 
+def batchPreProcess(CTX, flight, PAD, relative_position=False, relative_track=False, random_track=False):
+    pos = getAircraftLastMessage(CTX, flight)
+    nan_value = np.logical_and(FG.lat(flight) == FG.lat(PAD), FG.lon(flight) == FG.lon(PAD))
+    lat, lon, track = U.normalize_trajectory(CTX,
+                                             FG.lat(flight), FG.lon(flight), FG.track(flight),
+                                             FG.lat(pos), FG.lon(pos), FG.track(pos),
+                                             relative_position, relative_track, random_track)
+    # only apply normalization on non zero lat/lon
+    flight[~nan_value, FG.lat()] = lat[~nan_value]
+    flight[~nan_value, FG.lon()] = lon[~nan_value]
+    flight[~nan_value, FG.track()] = track[~nan_value]
 
-def batchPreProcess(CTX, flight, relative_position=False, relative_track=False, random_track=False):
-    """
-    Additional method of preprocessing after
-    batch generation.
+    # fill nan lat/lon with the first non zero lat lon
+    first_non_zero_ts = np.argmax(~nan_value)     # (argmax return the first max value)
+    start_lat, start_lon = lat[first_non_zero_ts], lon[first_non_zero_ts]
+    flight[nan_value, FG.lat()] = start_lat
+    flight[nan_value, FG.lon()] = start_lon
 
-    Normalize lat, lon of a flight fragment to 0, 0.
-    Rotate the fragment with a random angle to avoid
-    biais of the model.
- 
-    Parameters:
-    -----------
-
-    flight: np.array
-        A batch of flight fragment
-
-    Returns:
-    --------
-
-    flight: np.array
-        Same batch but preprocessed
-
-
-    """
-    # Get the index of each feature by name for readability
-    FEATURE_MAP = CTX["FEATURE_MAP"]
-    lat = flight[:, FEATURE_MAP["latitude"]]
-    lon = flight[:, FEATURE_MAP["longitude"]]
-    track = flight[:, FEATURE_MAP["track"]]
-    groundspeed = flight[:, FEATURE_MAP["groundspeed"]]
-
-    i = 0
-    while i < len(lat) and (round(lat[i],  7) == 0 or round(lon[i], 7) == 0):
-        i += 1
-    if (i == len(lat)):
-        return flight
-    i -= 1
-    while (i >= 0):
-        lat[i] = lat[i+1]
-        lon[i] = lon[i+1]
-        i -= 1
-
-    flight[:, FEATURE_MAP["latitude"]] = lat[:]
-    flight[:, FEATURE_MAP["longitude"]] = lon[:]
-
-    last_lat, last_lon = getAircraftPosition(CTX, flight)
-    non_zeros_lat_lon = np.logical_or(lat != 0, lon != 0)
-
-
-
-
-
-
-    # do not change angle, and rotate the whole bounding box to 0, 0 (not relative just normalizing)
-    R = 0
-    Y = CTX["BOX_CENTER"][0]
-    Z = -CTX["BOX_CENTER"][1]
-
-
-
-    if relative_position:
-        # R = track[-1]
-        Y = last_lat
-        Z = -last_lon
-
-    
-    if relative_track:
-        R = track[-1]
-
-    if random_track:
-        R = np.random.uniform(0, 360)
-
-    # Normalize lat lon to 0, 0
-    # Convert lat lon to cartesian coordinates
-    x = np.cos(np.radians(lon)) * np.cos(np.radians(lat))
-    y = np.sin(np.radians(lon)) * np.cos(np.radians(lat))
-    z =                           np.sin(np.radians(lat))
-
-    # Normalize longitude with Z rotation
-    r = np.radians(Z)
-    xz = x * np.cos(r) - y * np.sin(r)
-    yz = x * np.sin(r) + y * np.cos(r)
-    zz = z
-
-    # Normalize latitude with Y rotation
-    r = np.radians(Y)
-    xy = xz * np.cos(r) + zz * np.sin(r)
-    yy = yz
-    zy = -xz * np.sin(r) + zz * np.cos(r)
-
-    # Rotate the fragment with the random angle along X axis
-    r = np.radians(R)
-    xx = xy
-    yx = yy * np.cos(r) - zy * np.sin(r)
-    zx = yy * np.sin(r) + zy * np.cos(r)
-
-    # convert back cartesian to lat lon
-    lat = np.degrees(np.arcsin(zx))
-    lon = np.degrees(np.arctan2(yx, xx))
-
-    # rotate track as well
-    track = track - R
-    track = np.remainder(track, 360)
-
-
-
-    flight[non_zeros_lat_lon, FEATURE_MAP["latitude"]] = lat[non_zeros_lat_lon]
-    flight[non_zeros_lat_lon, FEATURE_MAP["longitude"]] = lon[non_zeros_lat_lon]
-
-    # fill empty lat lon with the first non zero lat lon
-    first_non_zero_ts = np.argmax(non_zeros_lat_lon)     # (argmax return the first max value)
-    first_lat = lat[first_non_zero_ts]
-    first_lon = lon[first_non_zero_ts]
-    flight[~non_zeros_lat_lon, FEATURE_MAP["latitude"]] = first_lat
-    flight[~non_zeros_lat_lon, FEATURE_MAP["longitude"]] = first_lon
-
-    flight[:, FEATURE_MAP["track"]] = track
-
-
-    if ("timestamp" in FEATURE_MAP):
-        timestamp = flight[:, FEATURE_MAP["timestamp"]]
-        timestamp = timestamp - timestamp[-1]
-        flight[:, FEATURE_MAP["timestamp"]] = timestamp
-
-
+    # if there is timestamp in the features, we normalize it
+    if (FG.has("timestamp")):
+        flight[:, FG.timestamp()] = flight[:, FG.timestamp()] - flight[-1, FG.timestamp()]
+        flight[nan_value, FG.timestamp()] = flight[0, FG.timestamp()]
 
     return flight
-    
 
-
-
-def add_noise(flight, label, noise, noised_label_min=0.5):
-    """Add same noise to the x and y to reduce bias but 
-    mostly to have a more linear output probabilites meaning :
-    - avoid to have 1 or 0 prediction but more something
-    like 0.3 or 0.7.
-    """
-
-    if (noise > 1.0):
-        print("ERROR: noise must be between 0 and 1")
-        # throw error
-        raise ValueError
-    if (noise <= 0.0):
-        return flight, label
-
-    noise_strength = np.random.normal(0, noise)
-    # noise_strength = np.random.uniform(0, noise)
-
-    flight_noise = np.random.uniform(-noise_strength, noise_strength, size=flight.shape)
-    flight = flight + flight_noise
-
-
-    # effective_strength = noise_strength / noise
-    # label = label * (1 - effective_strength * (1-noised_label_min))
-
-    return flight, label
-
+###################################################
+# OSM MAP TILES GENERATION
+###################################################
 
 
 """
 UTILITARY FUNCTION FOR MAP PROJECTION
-Compute the pixel coordinates of a given lat lon into map.png
 """
 def deg2num_int(lat_deg, lon_deg, zoom):
     lat_rad = math.radians(lat_deg)
@@ -258,8 +129,6 @@ def num2deg(xtile, ytile, zoom):
     return (lat_deg, lon_deg)
 
 
-
-
 # load image as numpy array
 path = "A_Dataset/AircraftClassification/map.png"
 img = Image.open(path)
@@ -273,7 +142,7 @@ def genMap(lat, lon, size):
 
     #######################################################
     # Convert lat, lon to px
-    # thoses param are constants used to generate the map 
+    # thoses param are constants used to generate the map
     zoom = 13
     min_lat, min_lon, max_lat, max_lon = 43.01581, 0.62561,  44.17449, 2.26344
     # conversion
@@ -312,154 +181,213 @@ def genMap(lat, lon, size):
     elif (y_max >= MAP.shape[0]):
         y_max = MAP.shape[0] -1
         y_min = MAP.shape[0] - size -1
-    
-    
+
+
     img = MAP[
         y_min:y_max,
         x_min:x_max, :]
-    
+
     if (img.shape[0] != size or img.shape[1] != size):
-        print("ERROR: map size is not correct")
-        print(MAP.shape)
-        print(size)
-        print(d_x_min, d_x_max, d_y_min, d_y_max)
-        print(x_min, x_max, y_min, y_max)
-        print(img.shape)
-    
+        prntC(C.ERROR, "map size is not correct")
+
+
     return img
 
 
-
+###################################################
+# CHECKING CLEANESS FOR TRAINING DATA
+###################################################
 
 def inBB(lat, lon, CTX):
     return  lat >= CTX["BOUNDING_BOX"][0][0] \
         and lat <= CTX["BOUNDING_BOX"][1][0] \
         and lon >= CTX["BOUNDING_BOX"][0][1] \
         and lon <= CTX["BOUNDING_BOX"][1][1] \
-        
+
 
 def check_batch(CTX, x, i, t):
-    lats = x[i][:, CTX["FEATURE_MAP"]["latitude"]]
-    lons = x[i][:, CTX["FEATURE_MAP"]["longitude"]]
+    lats = FG.lat(x[i])
+    lons = FG.lon(x[i])
+
 
     lat = lats[t]
     lon = lons[t]
 
+
     if (lat == 0 and lon == 0):
         return False
-    
-
 
     if (t>0 and lats[t-1] == lats[t] and lons[t-1] == lons[t]):
         return False
-    
+
     if (not inBB(lat, lon, CTX)):
         return False
-    
+
     return True
 
+###################################################
+# BATCH GENERATION
+###################################################
+def allocSample(CTX):
+    x_batch = np.zeros((CTX["INPUT_LEN"],CTX["FEATURES_IN"]))
+    x_batch_takeoff, x_batch_map, x_batch_airport = None, None, None
+    if (CTX["ADD_TAKE_OFF_CONTEXT"]): x_batch_takeoff = np.zeros((CTX["INPUT_LEN"],CTX["FEATURES_IN"]))
+    if (CTX["ADD_MAP_CONTEXT"]): x_batch_map = np.zeros((CTX["IMG_SIZE"], CTX["IMG_SIZE"],3), dtype=np.float32)
+    if (CTX["ADD_AIRPORT_CONTEXT"]): x_batch_airport = np.zeros((CTX["AIRPORT_CONTEXT_IN"]))
+    return x_batch, x_batch_takeoff, x_batch_map, x_batch_airport
 
-def pick_an_interesting_aircraft(CTX, x, y, label, n=1, filenames=[]):
+def allocBatch(CTX, size):
+    x_batch = np.zeros((size, CTX["INPUT_LEN"],CTX["FEATURES_IN"]))
+    y_batch = np.zeros((size, CTX["FEATURES_OUT"]))
+    x_batch_takeoff, x_batch_map, x_batch_airport = None, None, None
+    if (CTX["ADD_TAKE_OFF_CONTEXT"]): x_batch_takeoff = np.zeros((size, CTX["INPUT_LEN"],CTX["FEATURES_IN"]))
+    if (CTX["ADD_MAP_CONTEXT"]): x_batch_map = np.zeros((size, CTX["IMG_SIZE"], CTX["IMG_SIZE"],3), dtype=np.float32)
+    if (CTX["ADD_AIRPORT_CONTEXT"]): x_batch_airport = np.zeros((size, CTX["AIRPORT_CONTEXT_IN"]))
+    return x_batch, y_batch, x_batch_takeoff, x_batch_map, x_batch_airport
 
 
+def genRandomBatch(CTX, x, y, PAD, size, filenames=[]):
+    i, ts = getRandomLoc(CTX, x, y, size, filenames)
+    batches = ([], [], [], [], [])
+    for t in ts:
+        x_batch, x_batch_takeoff, x_batch_map, x_batch_airport, valid = genSample(CTX, x, PAD, i, t, valid=True)
+        batches[0].append(x_batch)
+        batches[1].append(y[i])
+        batches[2].append(x_batch_takeoff)
+        batches[3].append(x_batch_map)
+        batches[4].append(x_batch_airport)
+    filenames = [filenames[i]] * size
+    return tuple((np.array(b) for b in batches)) + (filenames,)
+
+
+def getRandomLoc(CTX, x, y, size=1, filenames=[]):
+    ON_TAKE_OFF = 5.0/100.0#%
+    # pick a label
+    label = np.random.randint(0, CTX["FEATURES_OUT"])
+
+    # pick a flight
     i = -1
     while i == -1 or y[i, label] != 1:
         i = np.random.randint(0, len(x))
 
-    t = None
-    tries = 0
+    # pick a timestamp
+    t, tries = None, 0
     while t == None or not(check_batch(CTX, x, i, t)):
 
-        negative = np.random.randint(0, 100) <= 5
-        if (negative):
-            t = np.random.randint(CTX["HISTORY"]//2, CTX["HISTORY"]-1)
-        else:
-            t = np.random.randint(CTX["HISTORY"]-1, len(x[i])-(n-1))
-        
+        if (np.random.uniform(0, 1) < ON_TAKE_OFF):
+            t = np.random.randint(CTX["HISTORY"]//4, CTX["HISTORY"]-1)
+        else: t = np.random.randint(CTX["HISTORY"]-1, len(x[i])-(size-1))
+
         tries += 1
         if (tries > 1000):
-            print("Warning: pick_an_interesting_aircraft() failed to find an interesting aircraft in ", filenames[i])
-            return pick_an_interesting_aircraft(CTX, x, y, label, n, filenames)
+            prntC(C.WARNING, "Failed to a clean window aircraft in", filenames[i])
+            return getRandomLoc(CTX, x, y, label, size, filenames)
+
+    return i, np.arange(t, t+size)
+
+
+def genSample(CTX, x, PAD, i, t, valid=None):
+    if (valid is None): valid = check_batch(CTX, x, i, t)
+    x_batch, x_batch_takeoff, x_batch_map, x_batch_airport = allocSample(CTX)
+    if (not valid):
+        return x_batch, x_batch_takeoff, x_batch_map, x_batch_airport, valid
+
+
+    # Trajectory
+    start, end, length, pad_lenght, shift = U.windowBounds(CTX, t)
+    x_batch[pad_lenght:] = x[i][start+shift:end:CTX["DILATION_RATE"]]
+    x_batch[:pad_lenght] = PAD
+    lat, lon = getAircraftPosition(CTX, x_batch)
+    if (lat == FG.lat(PAD) or lon == FG.lon(PAD)):
+        prntC(C.ERROR, "ERROR: lat or lon is 0")
+        prntC(list(range(start, end, CTX["DILATION_RATE"])))
+        prntC(FG.lat(x[i][start:end]))
+        prntC(i, t, start, end, length, pad_lenght, shift)
+        prntC(C.ERROR, "ERROR: lat or lon is 0")
+
+
+    # Take-Off
+    if CTX["ADD_TAKE_OFF_CONTEXT"]:
+        start, end, length, pad_lenght, shift = U.windowBounds(CTX, length-1)
+
+        # if onground => valid takeoff
+        if(FG.baroAlt(x[i][0]) > 2000 or FG.geoAlt(x[i][0]) > 2000):
+            pass
+            # takeoff = np.full((len(x_batch), CTX["FEATURES_IN"]), pad)
+        x_batch_takeoff[pad_lenght:] = x[i][start+shift:end:CTX["DILATION_RATE"]]
+        x_batch_takeoff[:pad_lenght] = PAD
+
+    # Map
+    if CTX["ADD_MAP_CONTEXT"]:
+        x_batch_map = genMap(lat, lon, CTX["IMG_SIZE"])
+
+    # Airport Distance
+    if (CTX["ADD_AIRPORT_CONTEXT"]):
+        dists = U.toulouse_airportDistance(lat, lon)[0]
+        if (CTX["ADD_TAKE_OFF_CONTEXT"]):
+            # reverse the trajectory to get the first position (not the last as default)
+            to_lat, to_lon = getAircraftPosition(CTX, x_batch_takeoff[::-1])
+            airport = U.toulouse_airportDistance(to_lat, to_lon)
+            dists = np.concatenate([dists, airport[0]])
+        x_batch_airport = dists
+
+    x_batch = batchPreProcess(CTX, x_batch, PAD, CTX["RELATIVE_POSITION"], CTX["RELATIVE_TRACK"], CTX["RANDOM_TRACK"])
+    if CTX["ADD_TAKE_OFF_CONTEXT"]:
+        x_batch_takeoff = batchPreProcess(CTX, x_batch_takeoff, PAD, relative_position=False)
+
+    return x_batch, x_batch_takeoff, x_batch_map, x_batch_airport, valid
 
 
 
-    return i, np.arange(t, t+n)
 
-def to_scientific_notation(number):
-    """"
-    compute n the value and e the exponent
-    """
-    if (np.isnan(number)):
-        return np.nan, 0
-    e = 0
-    if (number != 0):
-        e = math.floor(math.log10(abs(number)))
-        n = number / (10**e)
-    else:
-        n = 0
-    return n, e
-
-def round_to_first_non_zero(number):
-    if (number == 0):
-        return 0
-    n, e = to_scientific_notation(number)
-    if (e >= 0):
-        return round(number, 1)
-    if (e <= -10):
-        return round(number, 0)
-    
-    return round(number, -e)
-
-def round_to_first_non_zero_array(array):
-    for i in range(len(array)):
-        for j in range(len(array[i])):
-            array[i][j] = round_to_first_non_zero(array[i][j])
-    return array
-
-def print_2D_timeserie(CTX, array, max_len=10):
-    """
-    shape : [time_step, feature]
-    """
-    # round numbers to the first non zero decimal
-    array = round_to_first_non_zero_array(array)
-    array = array.astype(str)
-    # remove ending .0
-    for i in range(len(array)):
-        for j in range(len(array[i])):
-            while ("." in array[i][j] and array[i][j].endswith("0")):
-                array[i][j] = array[i][j][:-1]
-            if (array[i][j].endswith(".")):
-                array[i][j] = array[i][j][:-1]
-            if (array[i][j].startswith("-0.") or array[i][j] == "-0"):
-                array[i][j] = array[i][j][1:]
-
-    max_length = []
-
-    # header
-    for i in range(CTX["FEATURES_IN"]):
-        # length
-        max_feature_length = max([len(array[t][i]) for t in range(len(array))])
-        max_length.append(max(max_feature_length, len(CTX["USED_FEATURES"][i])))
-
-    # print header
-    for i in range(CTX["FEATURES_IN"]):
-        print(Color.GREEN + CTX["USED_FEATURES"][i].ljust(max_length[i]) + Color.RESET, end="|" if i < CTX["FEATURES_IN"]-1 else "\n")
-
-
-    indexs = np.arange(0, len(array))
-    if (len(array) > max_len):
-        half = (max_len + 1) // 2
-        indexs = np.concatenate([indexs[:half], [-1], indexs[-half:]])
-
-    for t in indexs:
-        if (t == -1):
-            print("...".rjust(max_length[0]), end="|" if i < CTX["FEATURES_IN"]-1 else "\n")
-            continue
-        for i in range(CTX["FEATURES_IN"]):
-            print(array[t][i].rjust(max_length[i]), end="|" if i < CTX["FEATURES_IN"]-1 else "\n")
-    print()
+###################################################
+# STATISTICS
+###################################################
 
 
 
-def compute_confidence(y_:np.ndarray):
-    return np.max(y_, axis=1) - (np.sum(y_, axis=1) - np.max(y_, axis=1)) / (y_.shape[1]-1)
+
+
+
+def debugTraining():
+    pass
+        # print("toff_nb ratio : ", stat_takeoff_count, "/", len(x_batches))
+
+        # # plot some trajectories
+        # c = math.sqrt(16)
+        # fig, axs = plt.subplots(3, 3, figsize=(10, 10))
+        # for i in range(9):
+        #     lat = x_batches[i, :, LAT_I]
+        #     lon = x_batches[i, :, LON_I]
+        #     x, y = i//3, i%3
+        #     if (lon[0] == 0):
+        #         print("ERROR lon 0 = 0")
+        #     axs[x, y].plot(lon, lat)
+        #     axs[x, y].scatter(lon[-1], lat[-1], color="green")
+        #     axs[x, y].scatter(lon[0], lat[0], color="red")
+        #     for i in range(3):
+        #         axs[x, y].scatter(lon[i+1], lat[i+1], color="orange")
+
+        #     for i in range(3):
+        #         axs[x, y].scatter(lon[-(i+2)], lat[-(i+2)], color="blue")
+
+        # fig.savefig('_Artifacts/trajectory.png')
+        # plt.close(fig)
+
+        # MIN_VALUES, MAX_VALUES = U.analysis(self.x)
+
+        #     print("DEBUG SCALLERS : ")
+        #     prntC("feature:","|".join(self.CTX["USED_FEATURES"]), start=C.BRIGHT_BLUE)
+        #     print("mean   :","|".join([str(round(v, 1)).ljust(len(self.CTX["USED_FEATURES"][i])) for i, v in enumerate(self.xScaler.means)]))
+        #     print("std dev:","|".join([str(round(v, 1)).ljust(len(self.CTX["USED_FEATURES"][i])) for i, v in enumerate(self.xScaler.stds)]))
+        #     print("mean TO:","|".join([str(round(v, 1)).ljust(len(self.CTX["USED_FEATURES"][i])) for i, v in enumerate(self.xTakeOffScaler.means)]))
+        #     print("std  TO:","|".join([str(round(v, 1)).ljust(len(self.CTX["USED_FEATURES"][i])) for i, v in enumerate(self.xTakeOffScaler.stds)]))
+        #     print("nan pad:","|".join([str(round(v, 1)).ljust(len(self.CTX["USED_FEATURES"][i])) for i, v in enumerate(self.PAD)]))
+        #     print("min    :","|".join([str(round(v, 1)).ljust(len(self.CTX["USED_FEATURES"][i])) for i, v in enumerate(MIN_VALUES)]))
+        #     print("max    :","|".join([str(round(v, 1)).ljust(len(self.CTX["USED_FEATURES"][i])) for i, v in enumerate(MAX_VALUES)]))
+
+        #     if (CTX["ADD_AIRPORT_CONTEXT"]):
+        #         print("DEBUG TO SCALLERS : ")
+        #         prntC("feature:","|".join([str(i).ljust(5) for i in range(len(self.xAirportScaler.mins))]), start=C.BRIGHT_BLUE)
+        #         print("min    :","|".join([str(round(v, 1)).ljust(5) for i, v in enumerate(self.xAirportScaler.mins)]))
+        #         print("max    :","|".join([str(round(v, 1)).ljust(5) for i, v in enumerate(self.xAirportScaler.maxs)]))

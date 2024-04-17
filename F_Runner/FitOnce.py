@@ -1,8 +1,9 @@
-# Mlflow log-in
-import _Utils.mlflow as mlflow
+
+from _Utils.DebugGui import launch_gui
+import _Utils.FeatureGetter as FG
 
 # Convert CTX to dict for logging hyperparameters
-from _Utils.module import module_to_dict 
+from _Utils.module import module_to_dict
 import numpy as np
 
 # For auto-completion, we use Abstract class as virtual type
@@ -20,18 +21,13 @@ def fitOnce(Model:"type[_Model_]", Trainer:"type[_Trainer_]", CTX, default_CTX=N
         Model used for training
 
     trainer: type[Trainer]
-        Trainer class, managing the training loop, testing and evaluation, for a specific task 
+        Trainer class, managing the training loop, testing and evaluation, for a specific task
         (eg. spoofing detection)
 
-    CTX: Module 
+    CTX: Module
         Python module containing the set of hyperparameters
     """
 
-    # Init mlflow (can be ignored if mlflow is not used)
-    run_number = mlflow.init_ml_flow(experiment_name)
-    run_name = str(run_number) + " - " + Model.name
-    print("Run name : ", run_name)
-    
     # Convert CTX to dict and merge it with default_CTX
     CTX = module_to_dict(CTX)
     if (default_CTX != None):
@@ -40,20 +36,11 @@ def fitOnce(Model:"type[_Model_]", Trainer:"type[_Trainer_]", CTX, default_CTX=N
             if (param not in CTX):
                 CTX[param] = default_CTX[param]
 
-    print(CTX["USED_FEATURES"])
+    FG.init(CTX)
 
-    with mlflow.start_run(run_name=run_name) as run:
-        for param in CTX:
-            if (type(CTX[param]) == bool): # Convert bool to int the make boolean hyperparameters visualisable in mlflow
-                mlflow.log_param(param, int(CTX[param]))
-            else:
-                mlflow.log_param(param, CTX[param])
+    # Create a new training environment and run it
+    launch_gui(CTX)
+    trainer = Trainer(CTX, Model)
+    metrics = trainer.run()
 
-        # Create a new training environment and run it
-        trainer = Trainer(CTX, Model)
-        metrics = trainer.run()
 
-        # Log the result metrics to mlflow
-        for metric_label in metrics:
-            value = metrics[metric_label]
-            mlflow.log_metric(metric_label, value)

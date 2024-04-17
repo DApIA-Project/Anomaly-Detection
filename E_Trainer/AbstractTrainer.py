@@ -7,6 +7,10 @@ import matplotlib.pyplot as plt
 
 from B_Model.AbstractModel import Model
 
+import _Utils.Color as C
+from _Utils.Color import prntC
+import _Utils.FeatureGetter as FG
+
 
 
 class Trainer:
@@ -19,7 +23,7 @@ class Trainer:
 
     CTX : dict
         The hyperparameters context
-    
+
     model : type[Model]
 
     Methods :
@@ -34,11 +38,29 @@ class Trainer:
 
     eval(): Abstract
         Evaluate the model and return metrics
-    
+
     """
 
+
+    ###################################################
+    # Initialization
+    ###################################################
+
     def __init__(self, CTX:dict, model:"type[Model]"):
+
         pass
+
+    def viz_model(self, filename:str):
+        try:
+            self.model.visualize(filename)
+        except Exception as e:
+
+            prntC(C.WARNING, "Visualization of the model failed")
+            prntC(e)
+
+    ###################################################
+    # Traier main loop
+    ###################################################
 
     def run(self):
         """
@@ -56,26 +78,38 @@ class Trainer:
         else:
             self.load()
 
-        # return {} # leave early for testing
         return self.eval()
+
+
+    ###################################################
+    # Save and load model
+    ###################################################
+
+    def save(self):
+        """
+        Save the model's weights in the _Artifacts folder
+        """
+        raise NotImplementedError
+
+    def load(self):
+        """
+        Load the model's weights from the _Artifacts folder
+        """
+        raise NotImplementedError
+
 
 
     def train(self):
         """
-        Manage the training loop.        
+        Manage the training loop.
         Testing is also done here.
         At the end, you can save your best model.
         """
         raise NotImplementedError
 
-        # train you'r model as you want here
-
-    def load(self):
-        """
-        Implement the loading of trained model.
-        Used when EPOCHS = 0 to directly test the model.
-        """
-        raise NotImplementedError
+    ###################################################
+    # Evaluation
+    ###################################################
 
     def eval(self):
         """
@@ -89,29 +123,27 @@ class Trainer:
         """
         raise NotImplementedError
 
-        # evaluate you're model as you want here
-
         # example of return metrics:
         return {
-            "Accuracy": 0.5, 
-            "False-Positive": 0.5, 
+            "Accuracy": 0.5,
+            "False-Positive": 0.5,
             "False-Negative": 0.5
         }
 
 
-    
-    
 
 
 
 
 
 
-    
 
 
 
 
 
-            
-            
+
+
+
+
+

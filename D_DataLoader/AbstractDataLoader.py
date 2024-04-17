@@ -91,7 +91,7 @@ class DataLoader:
     # saves of the dataset for caching (see __get_dataset__ method)
     __dataset__ = None
 
-    @staticmethod
+
     def __load_dataset__(CTX, path):
         """
         Process a dataset to generate x and y vectors

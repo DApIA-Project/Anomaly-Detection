@@ -1,9 +1,11 @@
 
 import numpy as np
+import os
+
+# TODO Some of these function sould be in a specialized Metrics.py file
 
 
-
-def accuracy(y, y_):
+def accuracy(y:np.ndarray, y_:np.ndarray) -> float:
 
     # y [0, 0, 1] with shape (batch_size, nb_class)
     # y_[0.2, 0.1, 0.7] with shape (batch_size, nb_class)
@@ -13,17 +15,29 @@ def accuracy(y, y_):
 
     return np.sum(y == y_) / len(y) * 100
 
-def confusionMatrix(y, y_):
+def mse(y:np.ndarray, y_:np.ndarray) -> float:
+    return np.mean((y - y_)**2)
+
+def confidence(y_:np.ndarray):
+    return np.max(y_, axis=1)
+
+
+# TODO put this function in a specialized Metrics.py file
+def spoofing_training_statistics(y:np.ndarray, y_:np.ndarray) -> "tuple[float, float]":
+    acc = accuracy(y, y_)
+    loss = mse(y, y_)
+    return acc, loss
+
+
+def confusionMatrix(y:np.ndarray, y_:np.ndarray) -> np.ndarray:
     """
     y : [0, 0, 1] with shape (batch_size, nb_class)
     y_ : [0.2, 0.1, 0.7] with shape (batch_size, nb_class)
     """
 
-    nb_class = len(y[0])
-
-    y = np.argmax(y, axis=1)
-    y_ = np.argmax(y_, axis=1)
-
+    nb_class = y.shape[-1]
+    y = np.argmax(y, axis=-1)
+    y_ = np.argmax(y_, axis=-1)
 
     matrix = np.zeros((nb_class, nb_class), dtype=int)
 
@@ -33,43 +47,8 @@ def confusionMatrix(y, y_):
     return matrix
 
 
-def nbSamplePerClass(y):
-    """
-    y_ : [0.2, 0.1, 0.7] with shape (batch_size, nb_class)
-    """
 
-    nb_class = len(y[0])
-
-    y = np.argmax(y, axis=1)
-
-    matrix = np.zeros(nb_class)
-
-    for i in range(len(y)):
-        matrix[y[i]] += 1
-
-    return matrix
-
-def perClassAccuracy(y, y_):
-    mat = confusionMatrix(y, y_)
-    # get diagonal
-    diag = np.diag(mat)
-    diag = diag / np.sum(mat, axis=1)
-    return diag * 100
-
-
-def computeTimeserieVarienceRate(x):
-
-    # x : [len]
-
-    if (len(x) == 0):
-        return 0
-    if (len(x) == 1):
-        return 0
-
-    return np.mean(np.abs(np.diff(x)))
-
-
-def plotConusionMatrix(png, confusion_matrix, SCALER_LABELS):
+def plotConfusionMatrix(confusion_matrix, png, SCALER_LABELS=None):
     # plot confusion matrix
     import matplotlib.pyplot as plt
 
@@ -87,7 +66,10 @@ def plotConusionMatrix(png, confusion_matrix, SCALER_LABELS):
             ax.text(x=j, y=i,s=s_rep, va='center', ha='center', size='xx-large')
 
     acc = np.sum(np.diag(confusion_matrix)) / np.sum(confusion_matrix)
-    
+
+    if (SCALER_LABELS is None):
+        SCALER_LABELS = [str(i) for i in range(confusion_matrix.shape[0])]
+
     plt.xlabel('Predictions', fontsize=18)
     plt.ylabel('Actuals', fontsize=18)
     plt.xticks(range(len(SCALER_LABELS)), SCALER_LABELS, fontsize=14)
@@ -99,29 +81,41 @@ def plotConusionMatrix(png, confusion_matrix, SCALER_LABELS):
 
 
 
-def plotLoss(train, test, train_avg, test_avg, TYPE="loss", filename="loss.png"):
+def perClassAccuracy(y:np.ndarray, y_:np.ndarray) -> np.ndarray:
+    mat = confusionMatrix(y, y_)
+    # get diagonal
+    diag = np.diag(mat)
+    diag = diag / np.sum(mat, axis=1)
+    return diag * 100
+
+
+
+def plotLoss(train:np.ndarray, test:np.ndarray,
+             train_avg:np.ndarray, test_avg:np.ndarray,
+             type:str="loss", path:str=""):
+
     # Plot the loss curves
     import matplotlib.pyplot as plt
     fig, ax = plt.subplots(1, 1, figsize=(10, 6))
     ax.grid()
-    if (TYPE == "loss"):
-        ax.plot(np.array(train), c="tab:blue", linewidth=0.5)
-        ax.plot(np.array(test), c="tab:orange", linewidth=0.5)
-        ax.plot(np.array(train_avg), c="tab:blue", ls="--", label="train loss")
-        ax.plot(np.array(test_avg), c="tab:orange", ls="--", label="test loss")
-        ax.set_ylabel("loss")
 
-    elif (TYPE == "accuracy"):
-        ax.plot(np.array(train)*100, c="tab:blue", linewidth=0.5)
-        ax.plot(np.array(test)*100, c="tab:orange", linewidth=0.5)
-        ax.plot(np.array(train_avg)*100, c="tab:blue", ls="--", label="train accuracy")
-        ax.plot(np.array(test_avg)*100, c="tab:orange", ls="--", label="test accuracy")
-        ax.set_ylabel("accuracy")
+    ax.plot(np.array(train), c="tab:blue", linewidth=0.5)
+    ax.plot(np.array(test), c="tab:orange", linewidth=0.5)
 
-    ax.set_xlabel("epoch")
-    
+    label = "loss"
+    if (type != None):
+        label = type
+
+    ax.plot(np.array(train_avg), c="tab:blue", ls="--", label=f"train {label}")
+    ax.plot(np.array(test_avg), c="tab:orange", ls="--", label=f"test {label}")
+    ax.set_ylabel(label)
+
+
+    ax.set_xlabel("Epoch number")
+    # x start at 1 to len(train)
+    ax.set_xlim(1, len(train))
     ax.legend()
-    fig.savefig("./_Artifacts/"+filename)
+    fig.savefig(path)
 
 
 
@@ -130,3 +124,14 @@ def sigmoid(x):
 
 def inv_sigmoid(x):
     return np.log(x / (1 - x))
+
+
+
+def moving_average_at(x, i, w):
+    return np.mean(x[max(0, i-w):i+1])
+
+def moving_average(x, w):
+    r = np.zeros(len(x))
+    for i in range(len(x)):
+        r[i] = moving_average_at(x, i, w)
+    return r

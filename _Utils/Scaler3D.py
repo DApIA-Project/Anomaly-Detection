@@ -290,7 +290,15 @@ def fillNaN3D(x:"list[np.array]", values):
     for i in range(len(x)):
         for f in range(len(values)):
             x[i][:, f] = np.nan_to_num(x[i][:, f], nan=values[f])
+    return x
 
+def fillNaN2D(x:"np.array", values):
+    """
+    Fill NaN values in a 2D array with the given values
+    """
+    # remplace nan by min values
+    for f in range(len(values)):
+        x[:, f] = np.nan_to_num(x[:, f], nan=values[f])
     return x
 
 import math

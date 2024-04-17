@@ -1,5 +1,5 @@
 import os
-os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3' 
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
 from . import CTX
 from . import DefaultCTX as default_CTX
@@ -12,7 +12,7 @@ from .save import load
 
 from .model import Model
 from .DataLoader import DataLoader
-from .Scaler3D import StandardScaler3D, fillNaN3D
+from .Scaler3D import StandardScaler3D, fillNaN3D, MinMaxScaler2D
 from .SparceLabelBinarizer import SparceLabelBinarizer
 from . import Utils_1 as SU
 from . import Utils as U
@@ -41,17 +41,21 @@ CTX["EPOCHS"] = 0
 model = Model(CTX)
 xScaler = StandardScaler3D()
 xScalerTakeoff = StandardScaler3D()
+xScalerAirports = MinMaxScaler2D()
 
 dataloader = DataLoader(CTX)
 
 w = load(__HERE__ + "/w")
 xs = load(__HERE__ + "/xs")
 xts = load(__HERE__ + "/xts")
+xas = load(__HERE__ + "/xas")
 
 
 model.setVariables(w)
 xScaler.setVariables(xs)
 xScalerTakeoff.setVariables(xts)
+xScalerAirports.setVariables(xas)
+
 
 def cast_msg(col, msg):
     if (msg == np.nan or msg == None or msg == ""):
@@ -71,7 +75,7 @@ class sortedMap:
     def __init__(self):
         self._keys = []
         self._values = []
-    
+
     def add(self, key, value):
         left = 0
         right = len(self._keys)
@@ -102,8 +106,8 @@ class sortedMap:
         if (self._keys[mid] == key):
             return self._values[mid]
         return None
-        
-        
+
+
     def __str__(self):
         str_rp = "{"
         for i in range(len(self._keys)):
@@ -113,10 +117,10 @@ class sortedMap:
         str_rp += "}"
         return str_rp
 
-    
+
     def clear(self):
         del self.map
-        self.map = []  
+        self.map = []
 
     def keys(self):
         return self._keys
@@ -146,7 +150,7 @@ class TrajectoryBuffer:
         if (icao24 not in self.chache_predictions):
             self.chache_predictions[icao24] = {}
 
-        
+
         for k in __FEATURES__:
             if (k not in message):
                 print(f"Warning : unknown column {k} in message of aircraft {icao24}")
@@ -169,7 +173,7 @@ class TrajectoryBuffer:
                     pad = np.full((diff-1, len(__FEATURES__)), self.trajectories[icao24][-1])
                     pad[:, TIMESTAMP_I] = np.arange(last_timestamp+1, msg[TIMESTAMP_I])
                     self.trajectories[icao24].__append__(pad)
-        
+
         if not(self.trajectories[icao24].add(msg)):
             print(f"Warning : duplicate message for aircraft {icao24} at timestamp {msg[TIMESTAMP_I]}")
         self.last_update[icao24] = time.time()
@@ -186,6 +190,7 @@ class TrajectoryBuffer:
         x_batches = np.zeros((len(icao24s), CTX["INPUT_LEN"], CTX["FEATURES_IN"]))
         if (CTX["ADD_TAKE_OFF_CONTEXT"]): x_batches_takeoff = np.zeros((len(icao24s), CTX["INPUT_LEN"], CTX["FEATURES_IN"]))
         if (CTX["ADD_MAP_CONTEXT"]): x_batches_map = np.zeros((len(icao24s), CTX["IMG_SIZE"], CTX["IMG_SIZE"],3), dtype=np.float32)
+        if (CTX["ADD_AIRPORT_CONTEXT"]): x_batches_airport = np.zeros((len(icao24s), CTX["AIRPORT_CONTEXT_IN"]), dtype=np.float32)
 
         for i in range(len(icao24s)):
             icao24 = icao24s[i]["icao24"]
@@ -195,9 +200,9 @@ class TrajectoryBuffer:
             df = df.subset(end_timestamp)
             if (df == None):
                 raise Exception(f"ANOMALY : aircraft {icao24} has no data for timestamp {end_timestamp}")
-            
+
             array = U.dfToFeatures(df, CTX, __LIB__=True)
-            array = fillNaN3D([array], dataloader.FEATURES_PAD_VALUES)[0]
+            array = fillNaN3D([array], dataloader.PAD)[0]
 
             # preprocess
             t = len(df)-1
@@ -209,7 +214,7 @@ class TrajectoryBuffer:
 
             x_batch = array[start+shift:end:CTX["DILATION_RATE"]]
 
-            x_batches[i, :pad_lenght] = dataloader.FEATURES_PAD_VALUES
+            x_batches[i, :pad_lenght] = dataloader.PAD
             x_batches[i, pad_lenght:] = x_batch
 
             if CTX["ADD_TAKE_OFF_CONTEXT"]:
@@ -219,31 +224,56 @@ class TrajectoryBuffer:
                 shift = U.compute_shift(start, end, CTX["DILATION_RATE"])
 
                 # build the batch
-                if(array[0,ALT_I] > 2000 or array[0,GEO_I] > 2000):
-                    takeoff = np.full((len(x_batch), CTX["FEATURES_IN"]), dataloader.FEATURES_PAD_VALUES)
-                else:
-                    takeoff = array[start+shift:end:CTX["DILATION_RATE"]]
-                
+                # if(array[0,ALT_I] > 2000 or array[0,GEO_I] > 2000):
+                #     takeoff = np.full((len(x_batch), CTX["FEATURES_IN"]), dataloader.PAD)
+                # else:
+                takeoff = array[start+shift:end:CTX["DILATION_RATE"]]
+
                 # add padding and add to the batch
-                x_batches_takeoff[i, :pad_lenght] = dataloader.FEATURES_PAD_VALUES
+                x_batches_takeoff[i, :pad_lenght] = dataloader.PAD
                 x_batches_takeoff[i, pad_lenght:] = takeoff
-                
+
+
+            if (CTX["ADD_AIRPORT_CONTEXT"]):
+                lat, lon = SU.getAircraftPosition(CTX, x_batches[i])
+                dists = SU.airportDistance([lat], [lon])[0]
+                if (CTX["ADD_TAKE_OFF_CONTEXT"]):
+                    lat, lon = SU.getAircraftPosition(CTX, x_batches_takeoff[i])
+                    if (lat == 0 or lon == 0):
+                        dists = np.concatenate([dists, np.zeros((len(dists),))])
+                    else:
+                        dists = np.concatenate([dists, SU.airportDistance([lat], [lon])[0]])
+                x_batches_airport[i] = dists
+
+
             if CTX["ADD_MAP_CONTEXT"]:
                 lat, lon = SU.getAircraftPosition(CTX, x_batches[i])
                 x_batches_map[i] = SU.genMap(lat, lon, CTX["IMG_SIZE"])
-            
+
             x_batches[i, pad_lenght:] = SU.batchPreProcess(CTX, x_batches[i, pad_lenght:], CTX["RELATIVE_POSITION"], CTX["RELATIVE_TRACK"], CTX["RANDOM_TRACK"])
             if CTX["ADD_TAKE_OFF_CONTEXT"]:
                 x_batches_takeoff[i, pad_lenght:] = SU.batchPreProcess(CTX, x_batches_takeoff[i, pad_lenght:])
 
         x_batches = xScaler.transform(x_batches)
         if (CTX["ADD_TAKE_OFF_CONTEXT"]): x_batches_takeoff = xScalerTakeoff.transform(x_batches_takeoff)
+        if (CTX["ADD_MAP_CONTEXT"]): x_batches_airport = xScalerAirports.transform(x_batches_airport)
+
+        # check nan in x_batches
+        if (np.isnan(x_batches).any()):
+            raise Exception("ANOMALY : nan in x_batches")
+        if (CTX["ADD_TAKE_OFF_CONTEXT"] and np.isnan(x_batches_takeoff).any()):
+            raise Exception("ANOMALY : nan in x_batches_takeoff")
+        if (CTX["ADD_MAP_CONTEXT"] and np.isnan(x_batches_airport).any()):
+            raise Exception("ANOMALY : nan in x_batches_airport")
+        if (CTX["ADD_AIRPORT_CONTEXT"] and np.isnan(x_batches_airport).any()):
+            raise Exception("ANOMALY : nan in x_batches_airport")
 
         x_inputs = []
         for i in range(len(x_batches)):
             x_input = [x_batches[i]]
             if CTX["ADD_TAKE_OFF_CONTEXT"]: x_input.append(x_batches_takeoff[i])
             if CTX["ADD_MAP_CONTEXT"]: x_input.append(x_batches_map[i])
+            if CTX["ADD_AIRPORT_CONTEXT"]: x_input.append(x_batches_airport[i])
             x_inputs.append(x_input)
 
         self.update()
@@ -271,7 +301,7 @@ class TrajectoryBuffer:
 
 buffer = TrajectoryBuffer()
 
-    
+
 
 
 
@@ -304,7 +334,6 @@ def predictAircraftType(messages: "list[dict[str, str]]"):
 
     return : probability array of shape [?, FEATURES_OUT]
     """
-    # print("yeah !")
 
     # sort message by timestamp
     messages.sort(key=lambda x: int(x["timestamp"]))
@@ -313,7 +342,7 @@ def predictAircraftType(messages: "list[dict[str, str]]"):
         if (messages[i]["icao24"] in buffer.chache_predictions):
             if (messages[i]["timestamp"] in buffer.chache_predictions[messages[i]["icao24"]]):
                 exist[i] = True
-    
+
     messages_exists = [messages[i] for i in range(len(messages)) if exist[i]]
     messages = [messages[i] for i in range(len(messages)) if not exist[i]]
 
@@ -334,14 +363,14 @@ def predictAircraftType(messages: "list[dict[str, str]]"):
         for i in range(len(messages)):
             buffer.chache_predictions[messages[i]["icao24"]][messages[i]["timestamp"]] = proba[i].numpy()
 
-    
+
     # format the result as a dict of icao24 -> proba array
     res = {}
     for i in range(len(messages)):
         if (messages[i]["icao24"] not in res):
             res[messages[i]["icao24"]] = {}
         res[messages[i]["icao24"]][messages[i]["timestamp"]] = buffer.chache_predictions[messages[i]["icao24"]][messages[i]["timestamp"]]
-    
+
     for i in range(len(messages_exists)):
         if (messages_exists[i]["icao24"] not in res):
             res[messages_exists[i]["icao24"]] = {}
@@ -364,7 +393,7 @@ def probabilityToLabel(proba):
 
 def labelToName(label) -> "list[str]" :
     """
-    Give the label name (easily readable for humman) 
+    Give the label name (easily readable for humman)
     according to the label id.
 
     label : label id, array of int, shape : [?]
@@ -399,6 +428,6 @@ def getTruthLabelFromIcao(icao24):
         return __icao_db__[icao24]
     else:
         return 0
-    
+
 def __clearBuffer__():
     buffer.clear()

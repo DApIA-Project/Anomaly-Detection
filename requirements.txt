@@ -1,7 +1,17 @@
+# ML
 pip install tensorflow
 pip install keras
 pip install pytorch
+
+# Data processing
 pip install pandas
-pip install matplotlib
-pip install pydot
 pip install scikit-learn
+
+# Visualization
+pip install matplotlib
+
+# Geospatial
+sudo apt -y install libgeos-dev
+pip uninstall shapely
+pip install --no-binary :all: shapely
+pip install cartopy # needs sudo apt -y install libgeos-dev

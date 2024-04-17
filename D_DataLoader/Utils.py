@@ -1,28 +1,221 @@
-
 import numpy as np
-import math
 import pandas as pd
 import os
-from PIL import Image
-from _Utils import Color  
-from _Utils.DataFrame import DataFrame  
+import math
+
+import _Utils.Color as C
+from _Utils.Color import prntC
+from _Utils.DataFrame import DataFrame
+from _Utils.Limits import *
+
 from D_DataLoader.Airports import TOULOUSE
 
+###################################################
+# MATHS
+###################################################
+
+def Xrotation(x, y, z, t):
+    return x, y * np.cos(-t) - z * np.sin(-t), y * np.sin(-t) + z * np.cos(-t)
+
+def Yrotation(x, y, z, t):
+    return x * np.cos(-t) + z * np.sin(-t), y, -x * np.sin(-t) + z * np.cos(-t)
+
+def Zrotation(x, y, z, t):
+    return x * np.cos(t) - y * np.sin(t), x * np.sin(t) + y * np.cos(t), z
+
+def spherical_to_cartesian(lat, lon):
+    x = np.cos(np.radians(lon)) * np.cos(np.radians(lat))
+    y = np.sin(np.radians(lon)) * np.cos(np.radians(lat))
+    z =                           np.sin(np.radians(lat))
+    return x, y, z
+
+def cartesian_to_spherical(x, y, z):
+    lat = np.degrees(np.arcsin(z))
+    lon = np.degrees(np.arctan2(y, x))
+    return lat, lon
+
 def latlondistance(lat1, lon1, lat2, lon2):
-    """
-    Compute the distance between two points on earth
-    """
-    R = 6371e3
+    """Return the distance in meters between two points"""
+    R = 6371e3 # metres
     phi1 = np.radians(lat1)
     phi2 = np.radians(lat2)
     delta_phi = np.radians(lat2-lat1)
     delta_lambda = np.radians(lon2-lon1)
 
-    a = np.sin(delta_phi/2) * np.sin(delta_phi/2) + np.cos(phi1) * np.cos(phi2) * np.sin(delta_lambda/2) * np.sin(delta_lambda/2)
+    a = np.sin(delta_phi/2) * np.sin(delta_phi/2) + \
+        np.cos(phi1) * np.cos(phi2) * \
+        np.sin(delta_lambda/2) * np.sin(delta_lambda/2)
     c = 2 * np.arctan2(np.sqrt(a), np.sqrt(1-a))
 
     d = R * c
     return d
+
+def angle_diff(a, b):
+    a = a % 360
+    b = b % 360
+
+    # compute relative angle
+    diff = b - a
+
+    if (diff > 180):
+        diff -= 360
+    elif (diff < -180):
+        diff += 360
+    return diff
+
+
+###################################################
+# TRAJECTORY PREPROCESSING
+###################################################
+
+def compute_shift(start, end, dilatation):
+    """
+    compute needed shift to have the last timesteps at the end of the array
+    """
+
+    d = end - start
+    shift = (d - (d // dilatation) * dilatation - 1) % dilatation
+    return shift
+
+def windowBounds(CTX, t):
+    """
+    Compute the bounds of the window that should end at t (included)
+
+    Returns:
+    --------
+
+    start: int
+    end: int
+        The [start:end] slice of the window
+
+    length: int
+        The length of the window
+
+    pad_lenght: int
+        The number of padding to add to the window
+
+    shift: int
+        The shift to apply to the window to have the last timestep at the end even with dilatation
+    """
+    start = max(0, t+1-CTX["HISTORY"])
+    end = t+1
+    length = end - start
+    pad_lenght = (CTX["HISTORY"] - length)//CTX["DILATION_RATE"]
+    shift = compute_shift(start, end, CTX["DILATION_RATE"])
+
+    return start, end, length, pad_lenght, shift
+
+
+def listFlight(path, limit=INT_MAX):
+    filenames = os.listdir(path)
+    filenames = [f for f in filenames if f.endswith(".csv")]
+    filenames.sort()
+    return filenames[:limit]
+
+
+def read_trajectory(path, file=None) -> pd.DataFrame:
+    """
+    Read a trajectory from a csv or other file
+    """
+    if (file != None):
+        path = os.path.join(path, file)
+    return pd.read_csv(path, sep=",",dtype={"callsign":str, "icao24":str})
+
+
+def dfToFeatures(df:DataFrame, CTX, __LIB__=False, __EVAL__=False):
+    """
+    Convert a complete ADS-B trajectory dataframe into a numpy array
+    with the right features and preprocessing
+    """
+    if isinstance(df, pd.DataFrame):
+        df = DataFrame(df)
+    if not(__LIB__):
+        df = pad(df, CTX)
+
+    # if no padding check there is no nan in latitude
+    if (CTX["INPUT_PADDING"] == "valid"):
+        if (np.isnan(df["latitude"]).any()):
+            prntC(C.WARNING, "[dfToFeatures]:", "NaN in latitude")
+            return []
+        if (np.isnan(df["longitude"]).any()):
+            prntC(C.WARNING, "[dfToFeatures]:", "NaN in longitude")
+            return []
+
+    # add sec (60), min (60), hour (24) and day_of_week (7) features
+    timestamp = pd.to_datetime(df["timestamp"], unit="s")
+    df.add_column("sec", timestamp.second)
+    df.add_column("min", timestamp.minute)
+    df.add_column("hour", timestamp.hour)
+    df.add_column("day", timestamp.dayofweek)
+
+    # cap altitude to min = 0
+    # df["altitude"] = df["altitude"].clip(lower=0)
+    # df["geoaltitude"] = df["geoaltitude"].clip(lower=0)
+    df.setColumValue("altitude", slice(0, len(df)), np.clip(df["altitude"], 0, None))
+    df.setColumValue("geoaltitude", slice(0, len(df)), np.clip(df["geoaltitude"], 0, None))
+
+    # add relative track
+    track = df["track"]
+    relative_track = track.copy()
+    for i in range(1, len(relative_track)):
+        relative_track[i] = angle_diff(track[i-1], track[i])
+    relative_track[0] = 0
+    df.add_column("relative_track", relative_track)
+    df.setColumValue("timestamp", slice(0, len(df)), df["timestamp"] - df["timestamp"][0])
+
+
+    if ("toulouse_0" in CTX["USED_FEATURES"]):
+        dists = toulouse_airportDistance(df["latitude"], df["longitude"])
+
+        for i in range(len(TOULOUSE)):
+            df.add_column("toulouse_"+str(i), dists[:, i])
+
+
+
+    # remove too short flights
+    if (not(__LIB__) and not(__EVAL__) and len(df) < CTX["HISTORY"]):
+        prntC(C.WARNING, "[dfToFeatures]: flight too short")
+        return []
+
+    # Cast booleans into numeric
+    for col in df.columns:
+        if (df[col].dtype == bool):
+            df[col] = df[col].astype(int)
+
+
+    # Remove useless columns
+    df = df.getColumns(CTX["USED_FEATURES"])
+
+
+    array = df.astype(np.float32)
+
+    if (len(array) == 0): return None
+    return array
+
+
+def toulouse_airportDistance(lats, lons):
+    """
+    Compute the distance to the nearest airport
+    """
+    if (isinstance(lats, (float, int))):
+        lats = [lats]
+        lons = [lons]
+
+    dists = np.zeros((len(lats), len(TOULOUSE)), dtype=np.float64)
+    lats = np.array(lats)
+    lons = np.array(lons)
+
+    for airport in range(len(TOULOUSE)):
+        dists[:, airport] = latlondistance(lats, lons, TOULOUSE[airport]['lat'], TOULOUSE[airport]['long'])
+
+    # cap distance to 50km max
+    dists = dists / 1000
+    dists = np.clip(dists, 0, 50)
+    for i in range(len(dists)):
+        for j in range(len(dists[i])):
+            if (lats[i] == 0 and lons[i] == 0):
+                dists[i][j] = 0
+    return dists
 
 def pad(df:DataFrame, CTX):
     """
@@ -52,100 +245,94 @@ def pad(df:DataFrame, CTX):
     return df
 
 
-def dfToFeatures(df:DataFrame, CTX, __LIB__=False, __EVAL__=False):
+def analysis(CTX, dataframe):
+    """ dataframe : (sample, timestep, feature)"""
+    minValues = np.full(CTX["FEATURES_IN"], np.nan)
+    maxValues = np.full(CTX["FEATURES_IN"], np.nan)
+
+    for i in range(len(dataframe)):
+        minValues = np.nanmin([minValues, np.nanmin(dataframe[i], axis=0)], axis=0)
+        maxValues = np.nanmax([maxValues, np.nanmax(dataframe[i], axis=0)], axis=0)
+
+    return minValues, maxValues
+
+def genPadValues(CTX, dataframe):
+    minValues = analysis(CTX, dataframe)[0]
+    padValues = minValues
+
+    for f in range(len(CTX["USED_FEATURES"])):
+        feature = CTX["USED_FEATURES"][f]
+
+        if (feature == "latitude"
+                or feature == "longitude"):
+
+            padValues[f] = 0
+
+        elif (feature == "altitude"
+                or feature == "geoaltitude"
+                or feature == "vertical_rate"
+                or feature == "groundspeed"
+                or feature == "track"
+                or feature == "relative_track"
+                or feature == "timestamp"):
+
+            padValues[f] = 0
+
+        elif (feature.startswith("toulouse")):
+            padValues[f] = 0
+
+        else: # default
+            padValues[f] = 0
+    return padValues
+
+def splitDataset(data, ratio):
     """
-    Convert a complete ADS-B trajectory dataframe into a numpy array
-    with the right features and preprocessing
+    Split data into train, test and validation set
     """
+    train = []
+    test = []
+    for i in range(len(data)):
+        split_index = int(len(data[i]) * (1 - ratio))
+        train.append(data[i][:split_index])
+        test.append(data[i][split_index:])
+    return train, test
 
-    if not(__LIB__):
-        df = pad(df, CTX)
+def normalize_trajectory(CTX, lat, lon, track, Olat, Olon, Otrack, relative_position, relative_track, random_track):
+    ROT = 0
+    LAT = -CTX["BOX_CENTER"][0]
+    LON = -CTX["BOX_CENTER"][1]
+    if relative_position:
+        LAT = -Olat
+        LON = -Olon
+    if relative_track:
+        ROT = -Otrack
+    if random_track:
+        ROT = np.random.randint(0, 360)
 
-    # if nan in latitude
-    if (CTX["INPUT_PADDING"] == "valid"):
-        if (np.isnan(df["latitude"]).any()):
-            print("NaN in latitude")
-            return []
-        if (np.isnan(df["longitude"]).any()):
-            print("NaN in longitude")
-            return []
+    x, y, z = spherical_to_cartesian(lat, lon)
+    x, y, z = Zrotation(x, y, z, np.radians(LON)) # Normalize longitude with Z rotation
+    x, y, z = Yrotation(x, y, z, np.radians(LAT)) # Normalize latitude with Y rotation
+    x, y, z = Xrotation(x, y, z, np.radians(ROT)) # Rotate the fragment with the random angle along X axis
+    lat, lon = cartesian_to_spherical(x, y, z)
+    track = np.remainder(track + ROT, 360)
 
-    # add sec (60), min (60), hour (24) and day_of_week (7) features
-    timestamp = pd.to_datetime(df["timestamp"], unit="s")
-    df.add_column("sec", timestamp.second)
-    df.add_column("min", timestamp.minute)
-    df.add_column("hour", timestamp.hour)
-    df.add_column("day", timestamp.dayofweek)
-
-    # cap altitude to min = 0
-    # df["altitude"] = df["altitude"].clip(lower=0)
-    # df["geoaltitude"] = df["geoaltitude"].clip(lower=0)
-    df.set("altitude", slice(0, len(df)), np.clip(df["altitude"], 0, None))
-    df.set("geoaltitude", slice(0, len(df)), np.clip(df["geoaltitude"], 0, None))
-
-    # add relative track
-    track = df["track"]
-    relative_track = track.copy()
-    for i in range(1, len(relative_track)):
-        relative_track[i] = angle_diff(track[i-1], track[i])
-    relative_track[0] = 0
-    df.add_column("relative_track", relative_track)
-    df.set("timestamp", slice(0, len(df)), df["timestamp"] - df["timestamp"][0])
+    return lat, lon, track
 
 
-    if ("toulouse_0" in CTX["USED_FEATURES"]):
-        dists = np.zeros((len(df), len(TOULOUSE)), dtype=np.float64)
-        for airport in range(len(TOULOUSE)):
-            lats, lons = df["latitude"], df["longitude"]
-            dists[:, airport] = latlondistance(lats, lons, TOULOUSE[airport]['lat'], TOULOUSE[airport]['long']) / 1000
+def undo_normalize_trajectory(CTX, lat, lon, Olat, Olon, Otrack, relative_position, relative_track):
+    ROT = 0
+    LAT = -CTX["BOX_CENTER"][0]
+    LON = -CTX["BOX_CENTER"][1]
+    if relative_position:
+        LAT = -Olat
+        LON = -Olon
+    if relative_track:
+        ROT = -Otrack
 
-        # cap distance to 50km max
-        dists = np.clip(dists, 0, 50)
+    x, y, z = spherical_to_cartesian(lat, lon)
+    x, y, z = Xrotation(x, y, z, np.radians(-ROT)) # Rotate the fragment with the random angle along X axis
+    x, y, z = Yrotation(x, y, z, np.radians(-LAT)) # Normalize latitude with Y rotation
+    x, y, z = Zrotation(x, y, z, np.radians(-LON)) # Normalize longitude with Z rotation
+    lat, lon = cartesian_to_spherical(x, y, z)
 
-        for i in range(len(TOULOUSE)):
-            df.add_column("toulouse_"+str(i), dists[:, i])
-
-
-
-    # remove too short flights
-    if (not(__LIB__) and not(__EVAL__) and len(df) < CTX["HISTORY"]):
-        print("too short")
-        return []
-
-    # Cast booleans into numeric
-    for col in df.columns:
-        if (df[col].dtype == bool):
-            df[col] = df[col].astype(int)
-
-    
-    # Remove useless columns
-    df = df.getColumns(CTX["USED_FEATURES"])
-
-        
-    np_array = df.astype(np.float32)
-    return np_array
-
-
-
-def compute_shift(start, end, dilatation):
-    """
-    compute needed shift to have the last timesteps at the end of the array
-    """
-
-    d = end - start
-    shift = (d - (d // dilatation) * dilatation - 1) % dilatation
-    return shift
-
-
-def angle_diff(a, b):
-    a = a % 360
-    b = b % 360
-
-    # compute relative angle
-    diff = b - a
-
-    if (diff > 180):
-        diff -= 360
-    elif (diff < -180):
-        diff += 360
-    return diff
+    return lat, lon

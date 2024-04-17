@@ -11,40 +11,6 @@ import os
 
 
 class Model(AbstactModel):
-    """
-    Convolutional neural network model for 
-    aircraft classification based on 
-    recordings of ADS-B data fragment.
-
-    Parameters:
-    ------------
-
-    CTX: dict
-        The hyperparameters context
-
-
-    Attributes:
-    ------------
-
-    name: str (MENDATORY)
-        The name of the model for mlflow logs
-    
-    Methods:
-    ---------
-
-    predict(x): (MENDATORY)
-        return the prediction of the model
-
-    compute_loss(x, y): (MENDATORY)
-        return the loss and the prediction associated to x, y and y_
-
-    training_step(x, y): (MENDATORY)
-        do one training step.
-        return the loss and the prediction of the model for this batch
-
-    visualize(save_path):
-        Generate a visualization of the model's architecture
-    """
 
     name = "CNN"
 
@@ -73,10 +39,10 @@ class Model(AbstactModel):
 
         n = self.CTX["LAYERS"]
         for i in range(n):
-            dilatation = int(self.CTX["DILATION_RATE"] ** i)
-            z = Conv1D(64, 3, dilation_rate=dilatation)(z)
+            # dilatation = int(self.CTX["DILATION_RATE"] ** i)
+            z = Conv1D(128, 3, padding="same")(z)
             z = BatchNormalization()(z)
-            z = Activation("relu")(z)
+            z = LeakyReLU()(z)
 
         z = Flatten()(z)
         # z = DenseModule(256, dropout=self.dropout)(z)

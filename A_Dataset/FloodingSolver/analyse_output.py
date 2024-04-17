@@ -93,7 +93,7 @@ def latlon_distance(lat1, lon1, lat2, lon2):
 
 
 
-FOLDER = "takeoff"
+FOLDER = "my_one"
 
 ref_files = os.listdir("./Eval/"+FOLDER)
 pred_files = os.listdir("./Outputs/"+FOLDER)
@@ -119,77 +119,77 @@ print(len(pred0), "/", len(ref0))
 
 
 # from_to = [30, 80]
-from_to = [2, 50]
-# from_to = [320, 350]
-s = 4
-horizon = 4
+# # from_to = [2, 0]
+# # from_to = [320, 350]
+# s = 4
+# horizon = 4
 
-pred_traj = []
-verif_true = []
+# pred_traj = []
+# verif_true = []
 
 
-traj_lat = ref0["latitude"][from_to[0]-s+3:from_to[1]+s+3].values
-traj_lon = ref0["longitude"][from_to[0]-s+3:from_to[1]+s+3].values
-traj_ts = ref0["timestamp"][from_to[0]-s+3:from_to[1]+s+3].values
+# traj_lat = ref0["latitude"][from_to[0]-s+3:from_to[1]+s+3].values
+# traj_lon = ref0["longitude"][from_to[0]-s+3:from_to[1]+s+3].values
+# traj_ts = ref0["timestamp"][from_to[0]-s+3:from_to[1]+s+3].values
 
-for t in range(from_to[0], from_to[1]):
+# for t in range(from_to[0], from_to[1]):
 
-    timestamp = ref0["timestamp"][t]
+#     timestamp = ref0["timestamp"][t]
 
-    pred = pred0[pred0["timestamp"] == timestamp].reset_index(drop=True)
-    if len(pred) == 0:
-        continue
+#     pred = pred0[pred0["timestamp"] == timestamp].reset_index(drop=True)
+#     if len(pred) == 0:
+#         continue
 
-    o_lat = ref0["latitude"][t-horizon-1]
-    o_lon = ref0["longitude"][t-horizon-1]
-    track = ref0["track"][t-horizon-1]
-    track = 0
+#     o_lat = ref0["latitude"][t-horizon-1]
+#     o_lon = ref0["longitude"][t-horizon-1]
+#     track = ref0["track"][t-horizon-1]
+#     track = 0
 
-    t_lat = ref0["latitude"][t]
-    t_lon = ref0["longitude"][t]
+#     t_lat = ref0["latitude"][t]
+#     t_lon = ref0["longitude"][t]
 
-    pred_p_lat_ = pred["pred_latitude"].values[0]
-    pred_p_lon_ = pred["pred_longitude"].values[0]
-    pred_t_lat_ = pred["true_latitude"].values[0]
-    pred_t_lon_ = pred["true_longitude"].values[0]
+#     pred_p_lat_ = pred["pred_latitude"].values[0]
+#     pred_p_lon_ = pred["pred_longitude"].values[0]
+#     pred_t_lat_ = pred["true_latitude"].values[0]
+#     pred_t_lon_ = pred["true_longitude"].values[0]
 
     
-    pred_p_lat, pred_p_lon = un_rotate(o_lat, o_lon, track, pred_p_lat_, pred_p_lon_)
-    pred_t_lat, pred_t_lon = un_rotate(o_lat, o_lon, track, pred_t_lat_, pred_t_lon_)
+#     pred_p_lat, pred_p_lon = un_rotate(o_lat, o_lon, track, pred_p_lat_, pred_p_lon_)
+#     pred_t_lat, pred_t_lon = un_rotate(o_lat, o_lon, track, pred_t_lat_, pred_t_lon_)
 
-    pred_traj.append([pred_p_lat, pred_p_lon])
-    verif_true.append([pred_t_lat, pred_t_lon])
+#     pred_traj.append([pred_p_lat, pred_p_lon])
+#     verif_true.append([pred_t_lat, pred_t_lon])
 
-pred_traj_lat, pred_traj_lon = np.array(pred_traj).T
-verif_true_lat, verif_true_lon = np.array(verif_true).T
+# pred_traj_lat, pred_traj_lon = np.array(pred_traj).T
+# verif_true_lat, verif_true_lon = np.array(verif_true).T
 
 
-plt.plot(traj_lat, traj_lon, 
-         linestyle='-', marker='+', markersize=6,
-         color="tab:blue", linewidth=2, 
-         label="traj")
+# plt.plot(traj_lat, traj_lon, 
+#          linestyle='-', marker='+', markersize=6,
+#          color="tab:blue", linewidth=2, 
+#          label="traj")
 
-plt.plot(traj_lat[0], traj_lon[0], "o", markersize=7, label="A", color="tab:purple")
-plt.plot(traj_lat[-1], traj_lon[-1], "o", markersize=7, label="B", color="tab:orange")
+# plt.plot(traj_lat[0], traj_lon[0], "o", markersize=7, label="A", color="tab:purple")
+# plt.plot(traj_lat[-1], traj_lon[-1], "o", markersize=7, label="B", color="tab:orange")
 
-plt.plot(pred_traj_lat, pred_traj_lon,
-            linestyle='', marker='x', markersize=6,
-            color="tab:orange", linewidth=2, 
-            label="pred")
+# plt.plot(pred_traj_lat, pred_traj_lon,
+#             linestyle='', marker='x', markersize=6,
+#             color="tab:orange", linewidth=2, 
+#             label="pred")
 
-plt.plot(verif_true_lat, verif_true_lon,
-            linestyle='', marker='x', markersize=6,
-            color="tab:green", linewidth=1, 
-            label="true")
+# plt.plot(verif_true_lat, verif_true_lon,
+#             linestyle='', marker='x', markersize=6,
+#             color="tab:green", linewidth=1, 
+#             label="true")
 
          
-# draw dashed seg  between pred and true
-for i in range(len(pred_traj_lat)):
-    plt.plot([pred_traj_lat[i], verif_true_lat[i]], [pred_traj_lon[i], verif_true_lon[i]], "k--")
+# # draw dashed seg  between pred and true
+# for i in range(len(pred_traj_lat)):
+#     plt.plot([pred_traj_lat[i], verif_true_lat[i]], [pred_traj_lon[i], verif_true_lon[i]], "k--")
 
 
-plt.legend(bbox_to_anchor=(1.04, 1), loc="center left")
-plt.show()
+# plt.legend(bbox_to_anchor=(1.04, 1), loc="center left")
+# plt.show()
 
 
 
@@ -251,7 +251,7 @@ plt.show()
 
 # plot distances[:, 61] in bar and sorted
 
-ts = [8, 30]
+ts = [50, 90]
 dist = np.array([np.mean(distances[i][ts[0]:ts[1]]) for i in range(len(distances))])
 order = np.argsort(dist)
 # bar plot
