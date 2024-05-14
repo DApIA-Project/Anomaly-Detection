@@ -91,7 +91,7 @@ class Model():
         Return the variables of the model
         """
         raise NotImplementedError
-    def setVariables(self, variables):
+    def set_variables(self, variables):
         """
         Set the variables of the model
         """

@@ -1,6 +1,5 @@
 
 import numpy as np
-import matplotlib.pyplot as plt
 import os
 
 import _Utils.FeatureGetter as FG
@@ -23,6 +22,7 @@ from D_DataLoader.AbstractDataLoader import DataLoader as AbstractDataLoader
 # |====================================================================================================================
 
 BAR = ProgressBar()
+STREAMER = Streamer()
 
 
 # |====================================================================================================================
@@ -57,7 +57,7 @@ class DataLoader(AbstractDataLoader):
 
 
 
-    def __load_dataset__(self, CTX:dict, path:str):
+    def __load_dataset__(self, CTX:dict, path:str) -> "tuple[np.ndarray, np.ndarray, list[str]]":
         is_folder = os.path.isdir(path)
         if (is_folder):
             filenames = U.listFlight(path, limit=Limits.INT_MAX)
@@ -75,7 +75,7 @@ class DataLoader(AbstractDataLoader):
         for f in range(len(filenames)):
             df = U.read_trajectory(path, filenames[f])
 
-            label = SU.getLabel(CTX, df)
+            label = SU.getLabel(CTX, df["icao24", 0])
             if (label == 0):
                 continue
 
@@ -276,12 +276,13 @@ class StreamerInterface:
         self.dl = dl
         self.CTX = dl.CTX
 
-    def stream(self, x:dict):
-        icao24 = x['icao24']
-        raw_df = Streamer.add(x)
-        cache = Streamer.cache("AircraftClassification", icao24)
+    def stream(self, x:"dict[str, object]"):
+        tag = x.get("tag", x['icao24'])
 
-        array = U.dfToFeatures(raw_df[-2:], self.CTX, __LIB__=True)
+        raw_df = STREAMER.add(x, tag=tag)
+        cache = STREAMER.cache("AircraftClassification", tag)
+
+        array = U.dfToFeatures(raw_df[-2:], self.CTX, check_length=False)
         array = fillNaN2D(array, self.dl.PAD)
 
         # concatenate the new array to the cache
@@ -291,7 +292,7 @@ class StreamerInterface:
             cache = np.concatenate([cache, array[1:]], axis=0)
         else:
             cache = array
-        Streamer.cache("AircraftClassification", icao24, cache)
+        STREAMER.cache("AircraftClassification", tag, cache)
 
         # batch assembly
         x_batch, _, x_batch_takeoff, x_batch_map, x_batch_airport =\

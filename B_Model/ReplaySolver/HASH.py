@@ -341,7 +341,7 @@ class Model(AbstactModel):
         return self.hashes, self.ts
 
 
-    def setVariables(self, variables):
+    def set_variables(self, variables):
         """
         Set the variables of the model
         """

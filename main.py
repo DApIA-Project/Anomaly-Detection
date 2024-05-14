@@ -2,7 +2,6 @@ import warnings
 warnings.filterwarnings("ignore")
 import tensorflow as tf
 import sys
-from _Utils.DebugGui import activate
 
 
 
@@ -26,6 +25,7 @@ model = "CNN2"
 ###################################
 argv = sys.argv
 if ("-ui" in argv):
+    from _Utils.DebugGui import activate
     activate()
     argv.remove("-ui")
 

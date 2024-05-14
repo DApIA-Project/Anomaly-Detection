@@ -196,6 +196,11 @@ class DataFrame:
         self.len = len(array)
         self.array[:len(array)] = array
 
+    def clear(self):
+        self.len = 0
+        self.array = np.zeros((16, self.array.shape[1]), dtype=np.float64)
+        
+
 
     def __str__(self) -> str:
         return str(self.array[:self.len])

@@ -62,7 +62,7 @@ def save(icao2aircraft):
     for icao in icao2aircraft:
         file.write(icao + "," + icao2aircraft[icao] + "\n")
     file.close()
-    
+
 
 def load():
     _icao2aircraft = {}

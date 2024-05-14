@@ -17,12 +17,13 @@ np.set_printoptions(suppress=True, formatter={'float_kind':'{:f}'.format})
 ###################################################
 
 __icao_db__ = None
-def getLabel(CTX, df):
+def getLabel(CTX, icao):
     """
     Give the label of an aircraft based on his icao imatriculation
     """
-    icao = FG.df_icao(df)
-    callsign = FG.df_callsign(df)
+    if ("_" in icao):
+        icao = icao.split("_")[0]
+        
 
     global __icao_db__
     if __icao_db__ is None:
@@ -39,8 +40,6 @@ def getLabel(CTX, df):
         # to dict
         __icao_db__ = __icao_db__.set_index("icao24").to_dict()["label"]
 
-    if (12 in CTX["MERGE_LABELS"] and callsign.startswith("SAMU")):
-        return 12
 
     if (icao in __icao_db__):
         return __icao_db__[icao]
@@ -297,7 +296,8 @@ def genSample(CTX, x, PAD, i, t, valid=None):
     start, end, length, pad_lenght, shift = U.windowBounds(CTX, t)
     x_batch[pad_lenght:] = x[i][start+shift:end:CTX["DILATION_RATE"]]
     x_batch[:pad_lenght] = PAD
-    lat, lon = getAircraftPosition(CTX, x_batch)
+    last_message = getAircraftLastMessage(CTX, x_batch)
+    lat, lon = FG.lat(last_message), FG.lon(last_message)
     if (lat == FG.lat(PAD) or lon == FG.lon(PAD)):
         prntC(C.ERROR, "ERROR: lat or lon is 0")
         prntC(list(range(start, end, CTX["DILATION_RATE"])))
@@ -323,12 +323,12 @@ def genSample(CTX, x, PAD, i, t, valid=None):
 
     # Airport Distance
     if (CTX["ADD_AIRPORT_CONTEXT"]):
-        dists = U.toulouse_airportDistance(lat, lon)[0]
+        dists = U.toulouse_airportDistance(lat, lon)
         if (CTX["ADD_TAKE_OFF_CONTEXT"]):
             # reverse the trajectory to get the first position (not the last as default)
             to_lat, to_lon = getAircraftPosition(CTX, x_batch_takeoff[::-1])
             airport = U.toulouse_airportDistance(to_lat, to_lon)
-            dists = np.concatenate([dists, airport[0]])
+            dists = np.concatenate([dists, airport])
         x_batch_airport = dists
 
     x_batch = batchPreProcess(CTX, x_batch, PAD, CTX["RELATIVE_POSITION"], CTX["RELATIVE_TRACK"], CTX["RANDOM_TRACK"])

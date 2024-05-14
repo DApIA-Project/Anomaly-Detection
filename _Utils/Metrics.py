@@ -1,54 +1,73 @@
-
 import numpy as np
 import os
 
-# TODO Some of these function sould be in a specialized Metrics.py file
-
+# |====================================================================================================================
+# | Accuracy
+# |====================================================================================================================
 
 def accuracy(y:np.ndarray, y_:np.ndarray) -> float:
 
     # y [0, 0, 1] with shape (batch_size, nb_class)
     # y_[0.2, 0.1, 0.7] with shape (batch_size, nb_class)
 
-    y = np.argmax(y, axis=1)
-    y_ = np.argmax(y_, axis=1)
+    yi = np.argmax(y, axis=1)
+    y_i = np.argmax(y_, axis=1)
 
-    return np.sum(y == y_) / len(y) * 100
+    acc = 0
+    nb = 0
+    for i in range(len(y)):
+        if (y_[i, y_i[i]] > 0):
+            if (yi[i] == y_i[i]):
+                acc += 1
+            nb += 1
+    return acc / nb
+
+def per_class_accuracy(y:np.ndarray, y_:np.ndarray) -> np.ndarray:
+    mat = confusion_matrix(y, y_)
+    # get diagonal
+    diag = np.diag(mat)
+    diag = diag / np.sum(mat, axis=1)
+    return diag * 100
+
+
+def confidence(y_:np.ndarray)->np.ndarray:
+    return np.max(y_, axis=1)
+
+
+# |====================================================================================================================
+# | Losses
+# |====================================================================================================================
 
 def mse(y:np.ndarray, y_:np.ndarray) -> float:
     return np.mean((y - y_)**2)
 
-def confidence(y_:np.ndarray):
-    return np.max(y_, axis=1)
 
 
-# TODO put this function in a specialized Metrics.py file
-def spoofing_training_statistics(y:np.ndarray, y_:np.ndarray) -> "tuple[float, float]":
-    acc = accuracy(y, y_)
-    loss = mse(y, y_)
-    return acc, loss
+# |====================================================================================================================
+# | Confusion matrix
+# |====================================================================================================================
 
-
-def confusionMatrix(y:np.ndarray, y_:np.ndarray) -> np.ndarray:
+def confusion_matrix(y:np.ndarray, y_:np.ndarray) -> np.ndarray:
     """
     y : [0, 0, 1] with shape (batch_size, nb_class)
     y_ : [0.2, 0.1, 0.7] with shape (batch_size, nb_class)
     """
 
     nb_class = y.shape[-1]
-    y = np.argmax(y, axis=-1)
-    y_ = np.argmax(y_, axis=-1)
+    yi = np.argmax(y, axis=1)
+    y_i = np.argmax(y_, axis=1)
 
     matrix = np.zeros((nb_class, nb_class), dtype=int)
 
     for i in range(len(y)):
-        matrix[y[i], y_[i]] += 1
+        if (y_[i, y_i[i]] > 0):
+            matrix[yi[i], y_i[i]] += 1
 
     return matrix
 
 
 
-def plotConfusionMatrix(confusion_matrix, png, SCALER_LABELS=None):
+def plot_confusion_matrix(confusion_matrix:np.ndarray, path:str, label_names:"list[str]"=None)->None:
     # plot confusion matrix
     import matplotlib.pyplot as plt
 
@@ -67,26 +86,21 @@ def plotConfusionMatrix(confusion_matrix, png, SCALER_LABELS=None):
 
     acc = np.sum(np.diag(confusion_matrix)) / np.sum(confusion_matrix)
 
-    if (SCALER_LABELS is None):
-        SCALER_LABELS = [str(i) for i in range(confusion_matrix.shape[0])]
+    if (label_names is None):
+        label_names = [str(i) for i in range(confusion_matrix.shape[0])]
 
     plt.xlabel('Predictions', fontsize=18)
     plt.ylabel('Actuals', fontsize=18)
-    plt.xticks(range(len(SCALER_LABELS)), SCALER_LABELS, fontsize=14)
-    plt.yticks(range(len(SCALER_LABELS)), SCALER_LABELS, fontsize=14)
+    plt.xticks(range(len(label_names)), label_names, fontsize=14)
+    plt.yticks(range(len(label_names)), label_names, fontsize=14)
     plt.gca().xaxis.tick_bottom()
     plt.title('Accuracy ' + str(round(acc*100, 1))+"%", fontsize=18)
-    plt.savefig(png)
+    plt.savefig(path)
     plt.close()
 
 
 
-def perClassAccuracy(y:np.ndarray, y_:np.ndarray) -> np.ndarray:
-    mat = confusionMatrix(y, y_)
-    # get diagonal
-    diag = np.diag(mat)
-    diag = diag / np.sum(mat, axis=1)
-    return diag * 100
+
 
 
 

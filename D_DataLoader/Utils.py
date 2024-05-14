@@ -122,15 +122,14 @@ def read_trajectory(path, file=None) -> pd.DataFrame:
     return pd.read_csv(path, sep=",",dtype={"callsign":str, "icao24":str})
 
 
-def dfToFeatures(df:DataFrame, CTX, __LIB__=False, __EVAL__=False):
+def dfToFeatures(df:DataFrame, CTX, check_length=True):
     """
     Convert a complete ADS-B trajectory dataframe into a numpy array
     with the right features and preprocessing
     """
     if isinstance(df, pd.DataFrame):
         df = DataFrame(df)
-    if not(__LIB__):
-        df = pad(df, CTX)
+    df = pad(df, CTX)
 
     # if no padding check there is no nan in latitude
     if (CTX["INPUT_PADDING"] == "valid"):
@@ -142,11 +141,12 @@ def dfToFeatures(df:DataFrame, CTX, __LIB__=False, __EVAL__=False):
             return []
 
     # add sec (60), min (60), hour (24) and day_of_week (7) features
-    timestamp = pd.to_datetime(df["timestamp"], unit="s")
-    df.add_column("sec", timestamp.second)
-    df.add_column("min", timestamp.minute)
-    df.add_column("hour", timestamp.hour)
-    df.add_column("day", timestamp.dayofweek)
+    timestamp = df["timestamp"]
+    df.add_column("day", (timestamp//86400 + 4) % 7)
+    df.add_column("hour", (timestamp//3600 + 1) % 24)
+    df.add_column("min", (timestamp//60) % 60)
+    df.add_column("sec", timestamp % 60)
+
 
     # cap altitude to min = 0
     # df["altitude"] = df["altitude"].clip(lower=0)
@@ -173,7 +173,7 @@ def dfToFeatures(df:DataFrame, CTX, __LIB__=False, __EVAL__=False):
 
 
     # remove too short flights
-    if (not(__LIB__) and not(__EVAL__) and len(df) < CTX["HISTORY"]):
+    if (check_length and len(df) < CTX["HISTORY"]):
         prntC(C.WARNING, "[dfToFeatures]: flight too short")
         return []
 
@@ -192,21 +192,23 @@ def dfToFeatures(df:DataFrame, CTX, __LIB__=False, __EVAL__=False):
     if (len(array) == 0): return None
     return array
 
+TOULOUSE_LATS = np.array([TOULOUSE[i]['lat'] for i in range(len(TOULOUSE))], dtype=np.float64)
+TOULOUSE_LONS = np.array([TOULOUSE[i]['long'] for i in range(len(TOULOUSE))], dtype=np.float64)
 
 def toulouse_airportDistance(lats, lons):
     """
     Compute the distance to the nearest airport
     """
-    if (isinstance(lats, (float, int))):
+    dtype_number = False
+    if (isinstance(lats, int) or isinstance(lats, float)):
         lats = [lats]
         lons = [lons]
+        dtype_number = True
 
     dists = np.zeros((len(lats), len(TOULOUSE)), dtype=np.float64)
-    lats = np.array(lats)
-    lons = np.array(lons)
+    for i in range(len(lats)):
+        dists[i] = latlondistance(lats[i], lons[i], TOULOUSE_LATS, TOULOUSE_LONS)
 
-    for airport in range(len(TOULOUSE)):
-        dists[:, airport] = latlondistance(lats, lons, TOULOUSE[airport]['lat'], TOULOUSE[airport]['long'])
 
     # cap distance to 50km max
     dists = dists / 1000
@@ -215,6 +217,9 @@ def toulouse_airportDistance(lats, lons):
         for j in range(len(dists[i])):
             if (lats[i] == 0 and lons[i] == 0):
                 dists[i][j] = 0
+
+    if (dtype_number):
+        return dists[0]
     return dists
 
 def pad(df:DataFrame, CTX):

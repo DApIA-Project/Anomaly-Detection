@@ -8,7 +8,7 @@ import C_Constants.ReplaySolver.HASH as CTX
 import C_Constants.ReplaySolver.DefaultCTX as DefaultCTX
 
 # Import the training loop adapted to the model
-from E_Trainer.ReplaySolver.HashTrainer import Trainer as HashTrainer
+from E_Trainer.ReplaySolver.Trainer import Trainer as HashTrainer
 
 # Choose the training method
 from F_Runner.FitOnce import *

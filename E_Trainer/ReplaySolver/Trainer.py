@@ -56,7 +56,7 @@ class Trainer(AbstractTrainer):
         write(self.ARTIFACTS+"/w", self.model.getVariables())
 
     def load(self):
-        self.model.setVariables(load(self.ARTIFACTS+"/w"))
+        self.model.set_variables(load(self.ARTIFACTS+"/w"))
 
 
 

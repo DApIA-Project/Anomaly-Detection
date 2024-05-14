@@ -221,7 +221,7 @@ class Trainer(AbstractTrainer):
             print("load best model, epoch : ", best_i+1, " with distance : ", history[3][best_i], flush=True)
             
             best_variables = load("./_Artifacts/modelsW/"+self.model.name+"_"+str(best_i+1)+".w")
-            self.model.setVariables(best_variables)
+            self.model.set_variables(best_variables)
         else:
             print("WARNING : no history of training has been saved")
 
@@ -235,9 +235,9 @@ class Trainer(AbstractTrainer):
         """
         Load the model's weights from the _Artifacts folder
         """
-        self.model.setVariables(load("./_Artifacts/"+self.model.name+".w"))
-        self.dl.xScaler.setVariables(load("./_Artifacts/"+self.model.name+".xs"))
-        self.dl.yScaler.setVariables(load("./_Artifacts/"+self.model.name+".ys"))
+        self.model.set_variables(load("./_Artifacts/"+self.model.name+".w"))
+        self.dl.xScaler.set_variables(load("./_Artifacts/"+self.model.name+".xs"))
+        self.dl.yScaler.set_variables(load("./_Artifacts/"+self.model.name+".ys"))
         self.dl.FEATURES_MIN_VALUES = load("./_Artifacts/"+self.model.name+".min")
 
 

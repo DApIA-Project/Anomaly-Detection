@@ -27,8 +27,9 @@ __FEATURE_MAP__ = dict([[__FEATURES__[i], i] for i in range(len(__FEATURES__))])
 # |====================================================================================================================
 
 
-def cast_msg(col, msg):
-    if (msg == np.nan or msg == None or msg == ""):
+def cast_msg(col:str, msg:object) -> float:
+    
+    if (msg is np.nan or msg == None or msg == ""):
         return np.nan
     elif (col == "icao24" or col == "callsign"):
         return msg
@@ -42,41 +43,66 @@ def cast_msg(col, msg):
 # |====================================================================================================================
 # | ADSBStreamer : Replay ADS-B messages and store trajectories
 # |====================================================================================================================
-class _ADSBStreamer:
-    def __init__(self):
+class Streamer:
+    def __init__(self) -> None:
         self.trajectories:dict[str, DataFrame] = {}
-        self.__cache__:dict[str, dict[str, np.ndarray]] = {}
+        self.__cache__:dict[str, dict[str, object]] = {}
+        self.__icao_to_tag__:dict[str, set] = {}
+        self.__tag_to_icao__:dict[str, str] = {}
 
-    def add(self, x:dict) -> DataFrame:
-        icao24 = x['icao24']
-        if icao24 not in self.trajectories:
-            self.trajectories[icao24] = DataFrame(len(__FEATURES__))
-            self.trajectories[icao24].setColums(__FEATURES__)
+    def add(self, x:"dict[str, object]", tag:str=None) -> DataFrame:
+        if (tag == None):
+            tag = x['icao24']
+
+        if (x['icao24'] not in self.__icao_to_tag__):
+            self.__icao_to_tag__[x['icao24']] = set()
+        self.__icao_to_tag__[x['icao24']].add(tag)
+        self.__tag_to_icao__[tag] = x["icao24"]
+
+
+        if tag not in self.trajectories:
+            self.trajectories[tag] = DataFrame(len(__FEATURES__))
+            self.trajectories[tag].setColums(__FEATURES__)
 
         x = [cast_msg(col, x.get(col, np.nan)) for col in __FEATURES__]
 
-        if(not(self.trajectories[icao24].set(x))):
-            prntC(C.WARNING, f"Duplicate message for {icao24} at timestamp {x[__FEATURE_MAP__['timestamp']]}")
+        last_timestamp = self.trajectories[tag].array[-1][__FEATURE_MAP__['timestamp']]
+        timestamp = x[__FEATURE_MAP__['timestamp']]
+        MAX_GAP = 30 * 60
+        if (last_timestamp > 0 and timestamp - last_timestamp > MAX_GAP):
+            prntC(C.WARNING, f"Gap of {timestamp - last_timestamp} seconds for {tag} at timestamp {x[__FEATURE_MAP__['timestamp']]}.")
+            self.trajectories[tag].clear()
 
-        return self.trajectories[icao24]
+        if(not(self.trajectories[tag].set(x))):
+            prntC(C.WARNING, f"Duplicate message for {tag} at timestamp {x[__FEATURE_MAP__['timestamp']]}")
 
-    def get(self, icao24:str) -> DataFrame:
-        return self.trajectories.get(icao24, None)
+        return self.trajectories[tag]
 
-    def cache(self, tag:str, icao24:str, data:np.ndarray=None)->"np.ndarray|None":
+    def remove(self, tag:str) -> DataFrame:
+        if (tag in self.trajectories):
+            self.trajectories.pop(tag)
+            self.__icao_to_tag__[self.__tag_to_icao__[tag]].remove(tag)
+            self.__tag_to_icao__.pop(tag)
+
+    def get(self, tag:str) -> DataFrame:
+        return self.trajectories.get(tag, None)
+
+    def cache(self, tag:str, label:str, data:object=None)->"object|None":
         if (data is None):
-            return self.__get_cache__(tag, icao24)
+            return self.__get_cache__(tag, label)
 
         if (tag not in self.__cache__):
             self.__cache__[tag] = {}
 
-        self.__cache__[tag][icao24] = data
+        self.__cache__[tag][label] = data
 
-    def __get_cache__(self, tag, icao24):
-        emp = self.__cache__.get(tag, None)
-        if (emp == None):
+    def __get_cache__(self, tag:str, label:str) -> "object|None":
+        tmp = self.__cache__.get(tag, None)
+        if (tmp == None):
             return None
-        return emp.get(icao24, None)
+        return tmp.get(label, None)
 
-
-Streamer = _ADSBStreamer()
+    def get_tags_for_icao(self, icao:str) -> "set[str]":
+        return self.__icao_to_tag__.get(icao, set())
+    def get_icao_for_tag(self, tag:str) -> str:
+        return self.__tag_to_icao__.get(tag, None)

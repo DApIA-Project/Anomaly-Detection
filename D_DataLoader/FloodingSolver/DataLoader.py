@@ -456,7 +456,7 @@ class DataLoader(AbstractDataLoader):
             df.drop(["y_"], axis=1, inplace=True)
 
         
-        array = U.dfToFeatures(df, CTX, __EVAL__=True)
+        array = U.dfToFeatures(df, CTX, check_length=False)
         
         array = fillNaN3D([array], self.PAD)[0]
 

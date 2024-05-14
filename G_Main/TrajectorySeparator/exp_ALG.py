@@ -8,7 +8,7 @@ import C_Constants.TrajectorySeparator.Model as CTX
 import C_Constants.TrajectorySeparator.DefaultCTX as DefaultCTX
 
 # Import the training loop adapted to the model
-from E_Trainer.TrajectorySeparator.AlgoTrainer import Trainer
+from E_Trainer.TrajectorySeparator.Trainer import Trainer
 
 # Choose the training method
 from F_Runner.FitOnce import *

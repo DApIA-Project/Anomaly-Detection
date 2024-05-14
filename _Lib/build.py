@@ -1,7 +1,6 @@
 import os
 import subprocess
 
-used_model = "CNN2"
 
 ALL_PY = []
 for root, dirs, files in os.walk(f"../"):
@@ -15,8 +14,6 @@ for root, dirs, files in os.walk(f"../"):
 
 
 
-already_copied = {}
-will_be_copied = {}
 
 def list_imports(py_lines):
 
@@ -38,96 +35,71 @@ def list_imports(py_lines):
             locs.append(i)
     return imports, locs
 
-
-def copy_past_py(file, dest, level = 0):
-    global already_copied, will_be_copied
-
-    # get file register
-    if (file in already_copied):
-        print("\t"*level + f"{file} already copied")
-        return
-    already_copied[file] = dest
-    will_be_copied[file] = dest
-    os.system(f"cp {file} {dest}")
-    print("\t"*level + f"copy {file} to {dest} : ")
-
-    flux = open(f"{dest}", "r")
+def read_lines(file):
+    flux = open(file, "r")
     content = flux.read()
     flux.close()
+    return content.split("\n")
 
-    lines = content.split("\n")
+def compute_trg_name(file:str):
+    if (file.startswith("../")):
+        file = file[2:]
+    if (file.endswith(".py")):
+        file = file[:-3]
+
+    file = file.strip("/")
+    file = file.replace("/", "_")
+
+    return file
+
+
+files_map = {}
+def add_file_to_lib(file, level = 0):
+    global files_map
+
+    # get file register
+    if (file in files_map):
+        print("\t"*level + f"{file} already copied")
+        return
+
+    # the target file name
+    trg_name = compute_trg_name(file)
+
+    os.system(f"cp {file} ./AdsbAnomalyDetector/{trg_name}.py")
+    files_map[file] = trg_name
+    print("\t"*level + f"> cp {file} ./AdsbAnomalyDetector/{trg_name}")
+
+    lines = read_lines(file)
     imports, locs = list_imports(lines)
-    
-    
+
     # print all imports
     print("\t"*(level) + f"{file.split('/')[-1]} imports :")
-    for import_ in imports:
-        print("\t"*(level+1) + f"{import_}")
+    for i, imp in zip(locs, imports):
+        if imp in ALL_PY:
+            print("\t"*(level+1) + f"{imp}")
 
+            filename = "../"+imp.replace(".", "/")+ ".py"
+            add_file_to_lib(filename, level = level + 1)
 
-    import_final_name = []
-    do_not_copy = []
-    for import_ in imports:
+            imp_new_name = files_map[filename]
 
-        if import_ in ALL_PY:
+            print(lines[i])
+            if lines[i].startswith("from"):
 
-            file = import_.split(".")[-1]
-            # is this file is already copied 
-            do_not_copy.append((f"../{import_.replace('.', '/')}.py" in will_be_copied))
-            # do_not_copy.append(False)
-            if not(do_not_copy[-1]):
-                n = 1
-                # check if file name already exist
-                print()
-                print("!", f"./AdsbAnomalyDetector/{file}.py")
-                print("!", will_be_copied.values())
-                print("!", f"./AdsbAnomalyDetector/{file}.py" in will_be_copied.values())
-                while f"./AdsbAnomalyDetector/{file}.py" in will_be_copied.values():
-                    file = import_.split(".")[-1] + f"_{n}"
-                    n += 1
-                print("!", file)
-                print()
-            else:
-                print("!", f"../{import_.replace('.', '/')}.py", "already copied")
-                file = will_be_copied[f"../{import_.replace('.', '/')}.py"].split("/")[-1].replace(".py", "")
-
-            import_final_name.append(f"{file}")
-            will_be_copied[f"../{import_.replace('.', '/')}.py"] = f"./AdsbAnomalyDetector/{file}.py"
-        else:
-            import_final_name.append("None")
-            do_not_copy.append(True)
-
-
-    print("\t"*(level) + f"flattening file tree : ")
-    for i in range(len(imports)):
-        import_, file, loc = imports[i], import_final_name[i], locs[i]
-
-        if import_ in ALL_PY:
-            # rename import in dest
-            print("\t"*(level+1) + f"{import_} renamed to {file}")
-
-            if (lines[loc].startswith("from")):
-                # check that in "from [file] ...", file exist
-                f = lines[loc].split(" ")[1]
-                if (f in ALL_PY): 
-                    lines[loc] = lines[loc].replace(import_, f".{file}")
+                lines[i] = f"from .{imp_new_name} import {lines[i].split('import')[1].strip()}"
+            if (lines[i].startswith("import")):
+                if (" as " in lines[i]):
+                    lines[i] = f"from . import {imp_new_name} as {lines[i].split(' as ')[1].strip()}"
                 else:
-                    lines[loc] = "from . import " + file
-            else:
-                print("\t"*(level+1) + f"{import_} renamed to {file}")
-                lines[loc] = lines[loc].replace(import_, f"{file}")
-                lines[loc] = "from . " + lines[loc]
+                    lines[i] = f"from .  import {imp_new_name}"
+            print(lines[i])
 
-    content = "\n".join(lines)
-    file = open(f"{dest}", "w")
-    file.write(content)
-    file.close()
+    # write the file
+    flux = open(f"./AdsbAnomalyDetector/{trg_name}.py", "w")
+    flux.write("\n".join(lines))
+    flux.close()
 
-    print("\t"*(level) + f"copying files : ")
-    for import_, file, n_copy in zip(imports, import_final_name, do_not_copy):
-        if import_ in ALL_PY and not(n_copy):
-            copy_past_py(f"../{import_.replace('.', '/')}.py", f"./AdsbAnomalyDetector/{file}.py", level = level + 1)
-        
+
 def file_content_remplace(_file, find, remplace):
     file = open(_file, "r")
     content = file.read()
@@ -139,26 +111,49 @@ def file_content_remplace(_file, find, remplace):
     file.write(content)
     file.close()
 
-# file = f"../B_Model/AircraftClassification/{used_model}.py"
-# dest = f"./AdsbAnomalyDetector/model.py"
+
+
+
+
+# |====================================================================================================================
+# | LIB BUILDING
+# |====================================================================================================================
+
+
+
+
+# clean lib before build
 to_reomve = []
 for root, dirs, files in os.walk(f"./AdsbAnomalyDetector/"):
     for file in files:
         if file != "AdsbAnomalyDetector.py" and file != "__init__.py":
             to_reomve.append(os.path.join(root, file))
-
 for file in to_reomve:
     os.system(f"rm {file}")
 
 
 
 
-# take main, and list all it's imports
-file = open(f"../G_Main/AircraftClassification/exp_{used_model}.py", "r")
-content = file.read()
-file.close()
-lines = content.split("\n")
-imports, _ = list_imports(lines)
+# list required imports
+files = [
+    "../G_Main/AircraftClassification/exp_CNN2.py",
+    "../G_Main/TrajectorySeparator/exp_ALG.py"
+]
+MODELS = [
+    "CNN2",
+    "ALG"
+]
+
+imports = set()
+for path in files:
+    file = open(path, "r")
+    content = file.read()
+    file.close()
+    lines = content.split("\n")
+    imp, _ = list_imports(lines)
+    imports = imports.union(set(imp))
+imports = list(imports)
+
 
 to_reomve = []
 for i in range(len(imports)):
@@ -175,6 +170,15 @@ for i in to_reomve[::-1]:
 
 imports.append("_Utils.module")
 
+
+
+
+
+
+
+
+
+
 # copy all imports
 for import_ in imports:
     f =  f"../{import_.replace('.', '/')}.py"
@@ -185,36 +189,38 @@ for import_ in imports:
     if ("C_Constant" in f and not("Default" in f)):
         to = f"./AdsbAnomalyDetector/CTX.py"
 
-    copy_past_py(f, to)
+    add_file_to_lib(f)
 
 
 
-# copy weights
-os.system(f"cp ../_Artifacts/{used_model}.w ./AdsbAnomalyDetector/w")
-os.system(f"cp ../_Artifacts/{used_model}.xs ./AdsbAnomalyDetector/xs")
-os.system(f"cp ../_Artifacts/{used_model}.xts ./AdsbAnomalyDetector/xts")
-os.system(f"cp ../_Artifacts/{used_model}.xas ./AdsbAnomalyDetector/xas")
-# copy geo map
-os.system(f"cp ../A_Dataset/AircraftClassification/map.png ./AdsbAnomalyDetector/map.png")
-os.system(f"cp ../A_Dataset/AircraftClassification/labels.csv ./AdsbAnomalyDetector/labels.csv")
+# # copy weights
+os.system(f"cp ../_Artifacts/AircraftClassification/{MODELS[0]}/w ./AdsbAnomalyDetector/w")
+os.system(f"cp ../_Artifacts/AircraftClassification/{MODELS[0]}/xs ./AdsbAnomalyDetector/xs")
+os.system(f"cp ../_Artifacts/AircraftClassification/{MODELS[0]}/xts ./AdsbAnomalyDetector/xts")
+os.system(f"cp ../_Artifacts/AircraftClassification/{MODELS[0]}/xas ./AdsbAnomalyDetector/xas")
+os.system(f"cp ../_Artifacts/AircraftClassification/{MODELS[0]}/pad ./AdsbAnomalyDetector/pad")
+# # copy geo map
+os.system("cp ../A_Dataset/AircraftClassification/map.png ./AdsbAnomalyDetector/map.png")
+os.system("cp ../A_Dataset/AircraftClassification/labels.csv ./AdsbAnomalyDetector/labels.csv")
 
 
-# os.system(f"cp ../_Utils/module.py ./AdsbAnomalyDetector/module.py")
-
-file = will_be_copied['../D_DataLoader/AircraftClassification/Utils.py']
-file_content_remplace(file, 
-                      "import os", 
+file_content_remplace("./AdsbAnomalyDetector/D_DataLoader_AircraftClassification_Utils.py",
+                      "import os",
                       "import os\nHERE = os.path.abspath(os.path.dirname(__file__))")
 
-file_content_remplace(file, 
-                      "\"A_Dataset/AircraftClassification/map.png\"", 
+file_content_remplace("./AdsbAnomalyDetector/D_DataLoader_AircraftClassification_Utils.py",
+                      "\"A_Dataset/AircraftClassification/map.png\"",
                       "HERE+\"/map.png\"")
 
+file_content_remplace("./AdsbAnomalyDetector/D_DataLoader_AircraftClassification_Utils.py",
+                      "\"./A_Dataset/AircraftClassification/labels.csv\"",
+                      "HERE+\"/labels.csv\"")
 
 
-if (os.path.exists("./dist")):
-    os.system("rm -r ./dist/*")
+
+# if (os.path.exists("./dist")):
+#     os.system("rm -r ./dist/*")
 
 
 # run setup.py
-os.system("python ./setup.py sdist")
+# os.system("python ./setup.py sdist")

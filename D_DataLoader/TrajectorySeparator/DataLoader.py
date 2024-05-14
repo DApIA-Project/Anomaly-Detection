@@ -1,65 +1,119 @@
+import pandas as pd
+import numpy as np
 
 import _Utils.Color as C
 from _Utils.Color import prntC
 import _Utils.FeatureGetter as FG
+import _Utils.Limits as Limits
+from _Utils.ADSB_Streamer import Streamer
+from _Utils.ProgressBar import ProgressBar
 
 import D_DataLoader.Utils as U
 import D_DataLoader.TrajectorySeparator.Utils as SU
 from D_DataLoader.AbstractDataLoader import DataLoader as AbstractDataLoader
 
-import os
-import pandas as pd
+
+# |====================================================================================================================
+# | GLOBAL VARIABLES
+# |====================================================================================================================
+
+BAR = ProgressBar()
+STREAMER = Streamer()
+
+
+# |====================================================================================================================
+# | DATA LOADER
+# |====================================================================================================================
 
 
 class DataLoader(AbstractDataLoader):
 
-    def __init__(self, CTX) -> None:    
-        self.CTX = CTX 
+# |====================================================================================================================
+# |     INITIALISATION : LOADING RAW DATASET FROM DISK (NOT USED BECAUSE THERE IS NO TRAINING)
+# |====================================================================================================================
+
+    def __init__(self, CTX:dict) -> None:
+        self.CTX = CTX
+        self.streamer:StreamerInterface = StreamerInterface(self)
 
 
-    def __load_dataset__(self, CTX, path):
-        filenames = os.listdir(path)
-        filenames = [f for f in filenames if f.endswith(".csv")]
 
+    def __load_dataset__(self, CTX:dict, path:str) -> "tuple[np.ndarray, np.ndarray, pd.DataFrame]":
+        filenames = U.listFlight(path, limit=Limits.INT_MAX)
+
+        # merge all files into one dataframe (unsplit flights)
         df = pd.DataFrame()
+        icao_codes = set()
         for f in range(len(filenames)):
             messages = U.read_trajectory(path, filenames[f])
+            # check if the icao24 is already in the set
+            icao = messages.iloc[0]['icao24']
+            if (icao in icao_codes):
+                if ("_" in icao): icao = icao.split("_")[0]
+                icao = icao + "_" + str(len(icao_codes))
 
+            messages['y'] = icao
+            icao_codes.add(icao)
             df = pd.concat([df, messages], ignore_index=True)
 
         df = df.sort_values(by=['timestamp'])
         df = df.reset_index(drop=True)
+        y = df['y'].to_numpy()
+        df.drop(columns=['y'], inplace=True)
+        x = U.dfToFeatures(df, CTX, check_length=False)
 
-
-        x, y = [], []
-        base_icao = df['icao24'].iloc[0]
-        if ("_" in base_icao): base_icao = base_icao.split("_")[0]
-        icaos_tab = {}
-        icaos = df['icao24'].unique()
-        for icao in icaos:
-            icaos_tab[icao] = base_icao + "_" + str(len(icaos_tab))
-
-        for i in range(len(df)):
-            y.append(icaos_tab[df['icao24'].iloc[i]])
-
-        df.drop(columns=['icao24'], inplace=True)
-            
-        x = U.dfToFeatures(df, CTX, __EVAL__=True)
-        
         return x, y, df
 
-            
 
-
-
-
-
-
-
-
-    def genEpochTrain(self):
+    def genEpochTrain(self) -> None:
         prntC(C.WARNING, "No training needed for TrajectorySeparator")
 
-    def genEval(self, path):
-        x, y, df = self.__load_dataset__(self.CTX, path)
-        return x, y, df
+
+
+
+# |====================================================================================================================
+# | STREAMING ADS-B MESSAGE FOR EVAL UNDER REAL CONDITIONS
+# |====================================================================================================================
+
+
+class StreamerInterface:
+    def __init__(self, dl:DataLoader) -> None:
+        self.dl = dl
+        self.CTX = dl.CTX
+
+    def stream(self, x:"dict[str, object]") -> "list[np.ndarray]":
+        # in this problem, tag corresponds to the icao24 + a number to differentiate multiple aircrafts
+        # with the same icao24
+        # tag is icao if the message hasn't been associated to any aircraft yet
+
+        tag = x.get("tag", x['icao24'])
+        icao = x.get("icao24", tag)
+
+        if (tag != icao):
+            STREAMER.add(x, tag=tag)
+        else:
+            prntC(C.WARNING, "No tag provided for message : ", x['icao24'])
+
+
+    def get_flights_with_icao(self, icao:str, timestamp:int) -> "tuple[list[np.ndarray], list[int], list[str]]":
+
+        tags = STREAMER.get_tags_for_icao(icao)
+        if (len(tags) == 0):
+            return [], []
+
+        COL = self.CTX["USED_FEATURES"]
+        x, tags = zip(*[[STREAMER.get(tag).getColumns(COL), tag] for tag in tags])
+
+
+        # remove trajectory witch already has a message at this timestamp
+        x_tag = [(x[i], tags[i]) for i in range(len(x))
+                        if len(x[i]) <= 1 or int(x[i][-1, -1]) < timestamp]
+        if (len(x_tag) > 0):
+            x, tags = zip(*x_tag)
+            x, tags = list(x), list(tags)
+
+        return list(x), list(tags)
+
+
+
+

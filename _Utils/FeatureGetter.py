@@ -24,7 +24,7 @@ def init(CTX):
     __BARO_ALT__  = __FEATURE_MAP__.get("altitude", None)
     __GEO_ALT__   = __FEATURE_MAP__.get("geoaltitude", None)
     __VELOCITY__  = __FEATURE_MAP__.get("groundspeed", None)
-    
+
 def __axis_i__(arr, ind, axis):
     # return (:, :, ..., axis, :, :,)
     if (axis == -1): return tuple([slice(None) for _ in range(arr.ndim-1)] + [ind])
@@ -37,6 +37,9 @@ def lat(slf:np.ndarray = None, axis=-1):
 def lon(slf:np.ndarray = None, axis=-1):
     if not(isinstance(slf, np.ndarray)): return __LON__
     return slf.take(__LON__, axis)
+def lat_lon(slf:np.ndarray = None, axis=-1):
+    if not(isinstance(slf, np.ndarray)): return (__LAT__, __LON__)
+    return slf.take([__LAT__, __LON__], axis)
 def track(slf:np.ndarray = None, axis=-1):
     if not(isinstance(slf, np.ndarray)): return __TRACK__
     return slf.take(__TRACK__, axis)

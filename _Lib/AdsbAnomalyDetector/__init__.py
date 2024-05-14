@@ -1,2 +1,2 @@
-from .AdsbAnomalyDetector import predictAircraftType, probabilityToLabel, labelToName, getTruthLabelFromIcao, __clearBuffer__
+from .AdsbAnomalyDetector import predict
 

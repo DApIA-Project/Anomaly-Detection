@@ -107,7 +107,7 @@ class Model(AbstactModel):
         """
         return self.model.trainable_variables
 
-    def setVariables(self, variables):
+    def set_variables(self, variables):
         """
         Set the variables of the model
         """
