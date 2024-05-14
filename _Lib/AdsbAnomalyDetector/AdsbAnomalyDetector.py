@@ -50,15 +50,37 @@ def predict(messages: "list[dict[str, str]]"):
 
 
     FG.init(CTX_AC)
-    label_proba = aircraftClassification.predict(messages)
-    icaos = [messages[i]["icao24"] for i in range(len(messages))]
-    icaos = [icaos[i].split("_")[0] if ("_" in icaos[i]) else icaos[i] for i in range(len(icaos))]
-
-
-    preds_labels = [CTX_AC["USED_LABELS"][np.argmax(label_proba[i])] for i in range(len(label_proba))]
-    labels = [getLabel(CTX_AC, icaos[i]) for i in range(len(icaos))]
-
+    _, label_proba = aircraftClassification.predict(messages)
+    spoofing = is_spoofing(messages, label_proba)
     for i in range(len(messages)):
-        messages[i]["spoofing"] = preds_labels[i] != labels[i]
+        messages[i]["spoofing"] = spoofing[i]
 
     return messages
+
+
+# |====================================================================================================================
+# | UTILS
+# |====================================================================================================================
+
+
+def get_base_icaos(messages: "list[dict[str, str]]") -> "list[str]":
+    icaos = [messages[i]["icao24"] for i in range(len(messages))]
+    return [icaos[i].split("_")[0] if ("_" in icaos[i]) else icaos[i] for i in range(len(icaos))]
+
+def get_true_aircraft_type(messages: "list[dict[str, str]]") -> "list[int]":
+    icaos = get_base_icaos(messages)
+    return [getLabel(CTX_AC, icaos[i]) for i in range(len(icaos))]
+
+
+def get_pred_aircraft_type(proba: "np.ndarray") -> "list[int]":
+    argmax = np.argmax(proba, axis=1)
+    confidence = np.nan_to_num([proba[i][argmax[i]] for i in range(len(argmax))])
+    return [0 if confidence[i] <= 0.5 else CTX_AC["USED_LABELS"][argmax[i]] for i in range(len(argmax))]
+
+def is_spoofing(messages: "list[dict[str, str]]", predictions: "np.ndarray") -> "list[bool]":
+    true_labels = get_true_aircraft_type(messages)
+    pred_labels = get_pred_aircraft_type(predictions)
+
+    return [pred_labels[i] != 0
+        and pred_labels[i] != true_labels[i]
+        for i in range(len(true_labels))]

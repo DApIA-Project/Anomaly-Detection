@@ -212,11 +212,13 @@ def check_batch(CTX, x, i, t):
     lat = lats[t]
     lon = lons[t]
 
+    if (t < CTX["HISTORY"]//4):
+        return False
 
     if (lat == 0 and lon == 0):
         return False
 
-    if (t>0 and lats[t-1] == lats[t] and lons[t-1] == lons[t]):
+    if (lats[t-1] == lats[t] and lons[t-1] == lons[t]):
         return False
 
     if (not inBB(lat, lon, CTX)):

@@ -28,7 +28,7 @@ __FEATURE_MAP__ = dict([[__FEATURES__[i], i] for i in range(len(__FEATURES__))])
 
 
 def cast_msg(col:str, msg:object) -> float:
-    
+
     if (msg is np.nan or msg == None or msg == ""):
         return np.nan
     elif (col == "icao24" or col == "callsign"):
@@ -72,22 +72,30 @@ class Streamer:
         if (last_timestamp > 0 and timestamp - last_timestamp > MAX_GAP):
             prntC(C.WARNING, f"Gap of {timestamp - last_timestamp} seconds for {tag} at timestamp {x[__FEATURE_MAP__['timestamp']]}.")
             self.trajectories[tag].clear()
+            self.__cache__[tag] = {}
 
         if(not(self.trajectories[tag].set(x))):
             prntC(C.WARNING, f"Duplicate message for {tag} at timestamp {x[__FEATURE_MAP__['timestamp']]}")
 
         return self.trajectories[tag]
 
-    def remove(self, tag:str) -> DataFrame:
-        if (tag in self.trajectories):
-            self.trajectories.pop(tag)
-            self.__icao_to_tag__[self.__tag_to_icao__[tag]].remove(tag)
-            self.__tag_to_icao__.pop(tag)
+    def set(self, x:"dict[str, object]", tag:str) -> DataFrame:
+        if (tag not in self.trajectories):
+            self.add(x, tag)
+
+        x = [cast_msg(col, x.get(col, np.nan)) for col in __FEATURES__]
+
+
+    # def remove(self, tag:str) -> DataFrame:
+    #     if (tag in self.trajectories):
+    #         self.trajectories.pop(tag)
+    #         self.__icao_to_tag__[self.__tag_to_icao__[tag]].remove(tag)
+            # self.__tag_to_icao__.pop(tag)
 
     def get(self, tag:str) -> DataFrame:
         return self.trajectories.get(tag, None)
 
-    def cache(self, tag:str, label:str, data:object=None)->"object|None":
+    def cache(self, label:str, tag:str, data:object=None)->"object|None":
         if (data is None):
             return self.__get_cache__(tag, label)
 

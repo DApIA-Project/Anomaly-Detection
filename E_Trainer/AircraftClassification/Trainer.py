@@ -313,7 +313,17 @@ class Trainer(AbstractTrainer):
 # |     MAKING PREDICTIONS FROM RAW ADSB MESSAGES
 # |====================================================================================================================
 
-    def predict(self, x:"list[dict[str,object]]") -> np.ndarray:
+    def __compute_prediction__(self, y_:np.ndarray) -> "tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]":
+        confidence = Metrics.confidence(y_)
+        agg_mean = np.mean(y_, axis=0)
+        agg_max = y_[np.argmax(confidence)]
+        agg_count = np.bincount(np.argmax(y_, axis=1), minlength=self.CTX["FEATURES_OUT"])
+        agg_count = agg_count / np.sum(agg_count)
+        agg_nth_max = np.mean(y_[np.argsort(confidence)[-20:]])
+        return agg_mean, agg_max, agg_count, agg_nth_max
+
+
+    def predict(self, x:"list[dict[str,object]]") -> "tuple[np.ndarray, np.ndarray]":
 
         x_inputs, is_interesting = None, []
 
@@ -331,10 +341,16 @@ class Trainer(AbstractTrainer):
         # add if interesting flag
         i_loc = np.arange(0, len(is_interesting), dtype=int)[is_interesting]
         x_batch =  [x_inputs[d][i_loc] for d in range(len(x_inputs))]
-        y_ = np.zeros((len(x_inputs[0]), self.CTX["FEATURES_OUT"]), dtype=np.float32)
+        y_ = np.full((len(x_inputs[0]), self.CTX["FEATURES_OUT"]), np.nan, dtype=np.float32)
         # exit(0)
         y_[i_loc] = self.model.predict(x_batch)
-        return y_
+        y_agg = np.zeros((len(y_), self.CTX["FEATURES_OUT"]), dtype=np.float32)
+        for i in range(len(y_)):
+            all_y_ = self.dl.streamer.predicted(x[i], y_[i])
+            # use mean method for now
+            y_agg[i] = np.nanmean(all_y_, axis=0)
+
+        return y_, y_agg
 
 
 # |====================================================================================================================
@@ -412,7 +428,7 @@ class Trainer(AbstractTrainer):
 
             for t in range(max_len):
                 x, files = self.__next_msgs__(dfs, y[BATCH_I], t)
-                yt_ = self.predict(x)
+                yt_, _ = self.predict(x)
                 for i in range(len(files)):
                     y_[BATCH_I][files[i]][t] = yt_[i]
 
@@ -435,13 +451,7 @@ class Trainer(AbstractTrainer):
         agg_mean, agg_max, agg_count, agg_nth_max = OUT.copy(), OUT.copy(), OUT.copy(), OUT.copy()
 
         for f in range(len(EVAL_FILES)):
-            confidence = Metrics.confidence(y_[f])
-            agg_mean[f] = np.mean(y_[f], axis=0)
-            agg_max[f] = y_[f][np.argmax(confidence)]
-            agg_count[f] = np.bincount(np.argmax(y_[f], axis=1), minlength=self.CTX["FEATURES_OUT"])
-            agg_count[f] = agg_count[f] / np.sum(agg_count[f])
-            # 20 most confident prediction
-            agg_nth_max[f] = np.mean(y_[f][np.argsort(confidence)[-20:]])
+            agg_mean[f], agg_max[f], agg_count[f], agg_nth_max[f] = self.__compute_prediction__(y_[f])
 
         methods = ["mean", "max", "count", "nth_max"]
         prediction_methods = [agg_mean, agg_max, agg_count, agg_nth_max]
@@ -454,7 +464,6 @@ class Trainer(AbstractTrainer):
             prntC(C.INFO, "with", methods[i], " aggregation, accuracy : ", accuracy_per_method[i])
         prntC(C.INFO, "Best method is :", methods[best_method])
 
-        print(y.shape, prediction_methods[best_method].shape)
         confusion_matrix = Metrics.confusion_matrix(y, prediction_methods[best_method])
         prntC(confusion_matrix)
 

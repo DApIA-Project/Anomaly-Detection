@@ -11,8 +11,8 @@ import sys
 # python main.py <model>         #
 # python main.py <algo> <model>  #
 ##################################
-algo = "AircraftClassification"
-model = "CNN2"
+# algo = "AircraftClassification"
+# model = "CNN2"
 
 # algo = "FloodingSolver"
 # model = "LSTM"
@@ -20,8 +20,8 @@ model = "CNN2"
 # algo = "ReplaySolver"
 # model = "HASH"
 
-# algo = "TrajectorySeparator"
-# model = "ALG"
+algo = "TrajectorySeparator"
+model = "ALG"
 ###################################
 argv = sys.argv
 if ("-ui" in argv):

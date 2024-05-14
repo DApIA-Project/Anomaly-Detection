@@ -305,5 +305,16 @@ class StreamerInterface:
                     1, 1)
         return x_batches[0], valid
 
+    def predicted(self, x:"dict[str, object]", y_:np.ndarray) -> np.ndarray:
+        tag = x.get("tag", x['icao24'])
+        preds = STREAMER.cache("AircraftClassification_Pred", tag)
+
+        if (preds is None):
+            STREAMER.cache("AircraftClassification_Pred", tag, [y_])
+            return np.array([y_])
+
+        preds.append(y_)
+        return np.array(preds)
+
 
 

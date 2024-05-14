@@ -6,7 +6,7 @@ import numpy as np
 flight_1 = pd.read_csv("./2022-01-12_13-19-13_SAMU31_39ac45.csv", dtype=str)
 flight_2 = pd.read_csv("./2022-04-04_16-37-21_FJDGY_3a2cbc.csv", dtype=str)
 
-# enregistrement des prédictions dans un dictionnaire qui associe 
+# enregistrement des prédictions dans un dictionnaire qui associe
 # l'icao à la liste des prédictions de l'avion
 predictions = {}
 predictions[flight_1["icao24"][0]] = []
@@ -27,4 +27,8 @@ for t in range(0, max_lenght):
 
     # réalisation de la prédiction pour ces nouveaux messages
     # retourne une prédiction pour chaque avion dans un dictionnaire icao -> proba_array
-    a = predict(messages)
+    messages = predict(messages)
+
+    prnt = [(messages[i]["icao24"] + " - Spoofing: " + str(messages[i]["spoofing"])) for i in range(len(messages))]
+    
+    print(prnt)
