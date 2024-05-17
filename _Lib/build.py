@@ -218,9 +218,9 @@ file_content_remplace("./AdsbAnomalyDetector/D_DataLoader_AircraftClassification
 
 
 
-# if (os.path.exists("./dist")):
-#     os.system("rm -r ./dist/*")
+if (os.path.exists("./dist")):
+    os.system("rm -r ./dist/*")
 
 
 # run setup.py
-# os.system("python ./setup.py sdist")
+os.system("python ./setup.py sdist")

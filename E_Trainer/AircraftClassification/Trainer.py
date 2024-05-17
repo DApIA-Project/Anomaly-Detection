@@ -10,24 +10,23 @@ import time
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
-from matplotlib.backends.backend_pdf import PdfPages
+from   matplotlib.backends.backend_pdf import PdfPages
 
-from B_Model.AbstractModel import Model as _Model_
-from D_DataLoader.AircraftClassification.DataLoader import DataLoader
+from   B_Model.AbstractModel import Model as _Model_
+from   D_DataLoader.AircraftClassification.DataLoader import DataLoader
 import D_DataLoader.Utils as U
 import D_DataLoader.AircraftClassification.Utils as SU
-from E_Trainer.AbstractTrainer import Trainer as AbstractTrainer
+from   E_Trainer.AbstractTrainer import Trainer as AbstractTrainer
 
 import _Utils.Metrics as Metrics
-from _Utils.save import write, load
+from   _Utils.save import write, load
 import _Utils.Color as C
-from _Utils.Color import prntC
-# TODO from _Utils.plotADSB import plotADSB improve output from training, and visualization of the prediction
-from _Utils.ProgressBar import ProgressBar
-from _Utils.DebugGui import GUI
+from   _Utils.Color import prntC
+from   _Utils.ProgressBar import ProgressBar
+from   _Utils.Chrono import Chrono
+from   _Utils.DebugGui import GUI
 import _Utils.plotADSB as PLT
-
-
+from   _Utils.Typing import NP, AX
 
 
 # |====================================================================================================================
@@ -38,8 +37,8 @@ import _Utils.plotADSB as PLT
 PBM_NAME = os.path.dirname(os.path.abspath(__file__)).split("/")[-1]+"/"
 ARTIFACTS = "./_Artifacts/"
 
+TRAIN_FOLDER = "./A_Dataset/AircraftClassification/Train/"
 EVAL_FOLDER = "./A_Dataset/AircraftClassification/Eval/"
-EVAL_FILES = None #U.listFlight(EVAL_FOLDER)[0:]
 
 H_TRAIN_LOSS = 0
 H_TEST_LOSS = 1
@@ -48,6 +47,7 @@ H_TEST_ACC = 3
 
 
 BAR = ProgressBar(max = 100)
+CHRONO = Chrono()
 
 
 # |====================================================================================================================
@@ -56,8 +56,10 @@ BAR = ProgressBar(max = 100)
 
 
 def __alloc_pred_batches__(CTX:dict, train_batches:int, train_size:int,
-                                     test_batches :int, test_size :int) \
-        ->"tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]":
+                                     test_batches :int, test_size :int) ->"""tuple[
+        NP.float32_3d[AX.batch, AX.sample, AX.feature],
+        NP.float32_3d[AX.batch, AX.sample, AX.feature],
+        NP.float32_1d, NP.float32_1d]""":
 
     return np.zeros((train_batches, train_size, CTX["FEATURES_OUT"]), dtype=np.float32), \
            np.zeros((test_batches,  test_size,  CTX["FEATURES_OUT"]), dtype=np.float32), \
@@ -85,15 +87,14 @@ class Trainer(AbstractTrainer):
         self.viz_model(self.ARTIFACTS)
         GUI.visualize("/Model/Achitecture", GUI.IMAGE, self.ARTIFACTS+f"/{self.model.name}.png")
 
-        self.dl = DataLoader(CTX, "./A_Dataset/AircraftClassification/Train")
+        self.dl = DataLoader(CTX, TRAIN_FOLDER)
 
         # Private attributes
         self.__ep__ = -1
         self.__history__ = None
         self.__history_mov_avg__ = None
-
-
-
+        # __eval_files__ is initialized only if eval is called (as there is no eval file in production)
+        self.__eval_files__ = None
 
 
     def __makes_artifacts__(self) -> None:
@@ -107,6 +108,15 @@ class Trainer(AbstractTrainer):
             os.makedirs(self.ARTIFACTS)
         if not os.path.exists(self.ARTIFACTS+"/weights"):
             os.makedirs(self.ARTIFACTS+"/weights")
+
+
+    def __init_GUI__(self) -> None:
+        GUI.visualize("/Model", GUI.COLAPSIING_HEADER)
+        GUI.visualize("/Training/TableTitle", GUI.TEXT, "Training curves", opened=True)
+        GUI.visualize("/Training/Table", GUI.TABLE, 2, opened=True)
+        GUI.visualize("/Training/Table/0/0/loss", GUI.TEXT, "Loading...")
+        GUI.visualize("/Training/PredTitle", GUI.TEXT, "Example of prediction :")
+        GUI.visualize("/Training/PredPlot", GUI.TEXT, "Loading...")
 
 
 # |====================================================================================================================
@@ -133,7 +143,6 @@ class Trainer(AbstractTrainer):
 
         self.model.set_variables(load(path+"/w"))
         self.dl.xScaler.set_variables(load(path+"/xs"))
-
         self.dl.yScaler.set_variables(self.CTX["USED_LABELS"])
 
         if (self.CTX["ADD_TAKE_OFF_CONTEXT"]):
@@ -148,19 +157,20 @@ class Trainer(AbstractTrainer):
 # |     TRAINING FUNCTIONS
 # |====================================================================================================================
 
-    def train(self) -> dict:
+    def train(self) -> None:
         CTX = self.CTX
 
         for ep in range(1, CTX["EPOCHS"] + 1):
 
-            # Data allocation
-            elapsed = time.time()
+            # Allocate variables
             x_train, y_train = self.dl.genEpochTrain()
-            x_test, y_test = self.dl.genEpochTest()
+            x_test,  y_test  = self.dl.genEpochTest()
 
             _y_train, _y_test, loss_train, loss_test = __alloc_pred_batches__(
                 CTX, len(x_train), len(x_train[0][0]), len(x_test),  len(x_test[0][0]))
 
+
+            CHRONO.start()
             BAR.reset(max=len(x_train) + len(x_test))
 
 
@@ -181,8 +191,7 @@ class Trainer(AbstractTrainer):
 
 
             # Statistics
-            elapsed = time.time() - elapsed
-            self.__epoch_stats__(ep, elapsed, y_train, _y_train, y_test, _y_test)
+            self.__epoch_stats__(ep, y_train, _y_train, y_test, _y_test)
 
         self.__load_best_model__()
 
@@ -190,20 +199,20 @@ class Trainer(AbstractTrainer):
 # |--------------------------------------------------------------------------------------------------------------------
 # |    STATISTICS FOR TRAINING
 # |--------------------------------------------------------------------------------------------------------------------
+    
     @staticmethod
     def __prediction_statistics__(y:np.ndarray, y_:np.ndarray) -> "tuple[float, float]":
         acc  = Metrics.accuracy(y, y_)
         loss = Metrics.mse(y, y_)
         return acc, loss
 
-    def __epoch_stats__(self, ep:int, elapsed:float,
+    def __epoch_stats__(self, ep:int,
                         y_train:np.ndarray, _y_train:np.ndarray,
                         y_test :np.ndarray, _y_test :np.ndarray) -> None:
 
 
         train_acc, train_loss = Trainer.__prediction_statistics__(y_train, _y_train)
         test_acc,  test_loss  = Trainer.__prediction_statistics__(y_test,  _y_test )
-
 
         # On first epoch, initialize history
         if (self.__ep__ == -1 or self.__ep__ > ep):
@@ -221,19 +230,19 @@ class Trainer(AbstractTrainer):
         per_class_acc = Metrics.per_class_accuracy(y_test, _y_test)
 
         # Print & Display statistics !
-        self.__print_epoch_stats__(ep, elapsed, train_loss, test_loss, train_acc, test_acc, per_class_acc)
+        self.__print_epoch_stats__(ep, train_loss, test_loss, train_acc, test_acc, per_class_acc)
         self.__plot_epoch_stats__()
         self.__plot_train_exemple__(y_train, _y_train)
 
 
 
-    def __print_epoch_stats__(self, ep:int, elapsed:float,
+    def __print_epoch_stats__(self, ep:int,
                               train_loss:float, test_loss:float,
                               train_acc:float, test_acc:float,
                               per_class_acc:np.ndarray) -> None:
 
         prntC(C.INFO,  "Epoch :", C.BLUE, ep, C.RESET, "/", C.BLUE, self.CTX["EPOCHS"], C.RESET,
-                     "- Takes :",      C.BLUE, round(elapsed, 2), "s")
+                     "- Takes :",      C.BLUE, CHRONO, "s")
         prntC(C.INFO_, "Train Loss :", C.BLUE, round(train_loss, 4), C.RESET,
                      "- Test  Loss :", C.BLUE, round(test_loss,  4))
         prntC(C.INFO_, "Train Acc  :", C.BLUE, round(train_acc,  4), C.RESET,
@@ -246,15 +255,6 @@ class Trainer(AbstractTrainer):
                   C.BLUE, round(per_class_acc[i],2))
         prntC()
 
-
-
-    def __init_GUI__(self) -> None:
-        GUI.visualize("/Model", GUI.COLAPSIING_HEADER)
-        GUI.visualize("/Training/TableTitle", GUI.TEXT, "Training curves", opened=True)
-        GUI.visualize("/Training/Table", GUI.TABLE, 2, opened=True)
-        GUI.visualize("/Training/Table/0/0/loss", GUI.TEXT, "Loading...")
-        GUI.visualize("/Training/PredTitle", GUI.TEXT, "Example of prediction :")
-        GUI.visualize("/Training/PredPlot", GUI.TEXT, "Loading...")
 
 
 
@@ -338,6 +338,7 @@ class Trainer(AbstractTrainer):
             for input in range(len(x_inputs)):
                 x_inputs[input][i] = sample[input][0]
 
+        # TODO check that batch size < MAX_BATCH_SIZE -> if not : split !
         # add if interesting flag
         i_loc = np.arange(0, len(is_interesting), dtype=int)[is_interesting]
         x_batch =  [x_inputs[d][i_loc] for d in range(len(x_inputs))]
@@ -407,23 +408,22 @@ class Trainer(AbstractTrainer):
 
 
     def eval(self)->dict:
-        global EVAL_FILES
         CTX = self.CTX
-        if (EVAL_FILES is None):
-            EVAL_FILES = U.listFlight(EVAL_FOLDER)[0:]
+        if (self.__eval_files__ is None):
+            self.__eval_files__ = U.list_flights(EVAL_FOLDER)[0:]
 
-        NB_BATCH = (len(EVAL_FILES)-1) // CTX["MAX_BATCH_SIZE"] + 1
-        BAR.reset(max=len(EVAL_FILES))
+        NB_BATCH = (len(self.__eval_files__)-1) // CTX["MAX_BATCH_SIZE"] + 1
+        BAR.reset(max=len(self.__eval_files__))
         file_i = 0
 
-        y = np.zeros((len(EVAL_FILES), self.CTX["FEATURES_OUT"]), dtype=np.float32)
-        y_ = [np.ndarray((0,)) for _ in range(len(EVAL_FILES))]
+        y = np.zeros((len(self.__eval_files__), self.CTX["FEATURES_OUT"]), dtype=np.float32)
+        y_ = [np.ndarray((0,)) for _ in range(len(self.__eval_files__))]
 
         for batch in range(NB_BATCH):
             BATCH_I = slice(file_i, file_i+CTX["MAX_BATCH_SIZE"], 1)
-            BATCH_SIZE = self.__batch_size__(batch, NB_BATCH, len(EVAL_FILES))
+            BATCH_SIZE = self.__batch_size__(batch, NB_BATCH, len(self.__eval_files__))
             prntC(C.INFO, "Starting batch", batch, "with", BATCH_SIZE, "files")
-            batch_files = EVAL_FILES[BATCH_I]
+            batch_files = self.__eval_files__[BATCH_I]
             dfs, max_len, y[BATCH_I], y_[BATCH_I] = self.__gen_eval_batch__(batch_files)
 
             for t in range(max_len):
@@ -434,7 +434,7 @@ class Trainer(AbstractTrainer):
 
                 # Show progression :
                 __batch_realized = (t+1) / max_len + batch
-                BAR.update(__batch_realized / NB_BATCH * len(EVAL_FILES), f"remaining files: {len(files)}")
+                BAR.update(__batch_realized / NB_BATCH * len(self.__eval_files__), f"remaining files: {len(files)}")
 
             file_i += BATCH_SIZE
 
@@ -450,7 +450,7 @@ class Trainer(AbstractTrainer):
         OUT = np.ndarray((len(y), self.CTX["FEATURES_OUT"]), dtype=np.float32)
         agg_mean, agg_max, agg_count, agg_nth_max = OUT.copy(), OUT.copy(), OUT.copy(), OUT.copy()
 
-        for f in range(len(EVAL_FILES)):
+        for f in range(len(self.__eval_files__)):
             agg_mean[f], agg_max[f], agg_count[f], agg_nth_max[f] = self.__compute_prediction__(y_[f])
 
         methods = ["mean", "max", "count", "nth_max"]
@@ -468,17 +468,16 @@ class Trainer(AbstractTrainer):
         prntC(confusion_matrix)
 
 
-        L = [self.CTX["LABEL_NAMES"][i] for i in self.CTX["USED_LABELS"]]
+        labels = [self.CTX["LABEL_NAMES"][i] for i in self.CTX["USED_LABELS"]]
         Metrics.plot_confusion_matrix(confusion_matrix,
-                                    self.ARTIFACTS+"/confusion_matrix.png",
-                                    L)
+                                    self.ARTIFACTS+"/confusion_matrix.png", labels)
 
         prntC(C.INFO, "Failed files : ")
-        for f in range(len(EVAL_FILES)):
+        for f in range(len(self.__eval_files__)):
             true = np.argmax(y[f])
             pred = np.argmax(prediction_methods[best_method][f])
             if (true != pred):
-                prntC(" -", C.CYAN, EVAL_FILES[f], C.RESET,
+                prntC(" -", C.CYAN, self.__eval_files__[f], C.RESET,
                       " - True label :", self.CTX["LABEL_NAMES"][self.CTX["USED_LABELS"][true]],
                       " - Predicted :",  self.CTX["LABEL_NAMES"][self.CTX["USED_LABELS"][pred]])
 

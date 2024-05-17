@@ -39,7 +39,7 @@ class DataLoader(AbstractDataLoader):
 
 
     def __load_dataset__(self, CTX:dict, path:str) -> "tuple[np.ndarray, np.ndarray, pd.DataFrame]":
-        filenames = U.listFlight(path, limit=Limits.INT_MAX)
+        filenames = U.list_flights(path, limit=Limits.INT_MAX)
 
         # merge all files into one dataframe (unsplit flights)
         df = pd.DataFrame()
@@ -60,7 +60,7 @@ class DataLoader(AbstractDataLoader):
         df = df.reset_index(drop=True)
         y = df['y'].to_numpy()
         df.drop(columns=['y'], inplace=True)
-        x = U.dfToFeatures(df, CTX, check_length=False)
+        x = U.df_to_feature_array(CTX, df, check_length=False)
 
         return x, y, df
 

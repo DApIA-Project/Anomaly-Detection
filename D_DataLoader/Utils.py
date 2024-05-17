@@ -1,56 +1,94 @@
 import numpy as np
 import pandas as pd
 import os
-import math
+from typing import overload
 
 import _Utils.Color as C
 from _Utils.Color import prntC
 from _Utils.DataFrame import DataFrame
-from _Utils.Limits import *
+import _Utils.FeatureGetter as FG
+from _Utils.Limits import INT_MAX
+from _Utils.Typing import NP, AX
 
 from D_DataLoader.Airports import TOULOUSE
 
-###################################################
-# MATHS
-###################################################
+# |====================================================================================================================
+# | OVERLOADS
+# |====================================================================================================================
 
-def Xrotation(x, y, z, t):
-    return x, y * np.cos(-t) - z * np.sin(-t), y * np.sin(-t) + z * np.cos(-t)
+@overload
+def x_rotation(x:float, y:float, z:float, a:float) -> "tuple[float, float, float]":...
+@overload
+def x_rotation(x:NP.float32_1d, y:NP.float32_1d, z:NP.float32_1d, a:float)\
+    -> "tuple[NP.float32_1d, NP.float32_1d, NP.float32_1d]":...
+@overload
+def y_rotation(x:float, y:float, z:float, a:float) -> "tuple[float, float, float]":...
+@overload
+def y_rotation(x:NP.float32_1d, y:NP.float32_1d, z:NP.float32_1d, a:float)\
+    -> "tuple[NP.float32_1d, NP.float32_1d, NP.float32_1d]":...
+@overload
+def z_rotation(x:float, y:float, z:float, a:float) -> "tuple[float, float, float]":...
+@overload
+def z_rotation(x:NP.float32_1d, y:NP.float32_1d, z:NP.float32_1d, a:float)\
+    -> "tuple[NP.float32_1d, NP.float32_1d, NP.float32_1d]":...
+@overload
+def spherical_to_cartesian(lat:float, lon:float) -> "tuple[float, float, float]":...
+@overload
+def spherical_to_cartesian(lat:NP.float32_1d, lon:NP.float32_1d)\
+    -> "tuple[NP.float32_1d, NP.float32_1d, NP.float32_1d]":...
+@overload
+def cartesian_to_spherical(x:float, y:float, z:float) -> "tuple[float, float]":...
+@overload
+def cartesian_to_spherical(x:NP.float32_1d, y:NP.float32_1d, z:NP.float32_1d)\
+    -> "tuple[NP.float32_1d, NP.float32_1d]":...
 
-def Yrotation(x, y, z, t):
-    return x * np.cos(-t) + z * np.sin(-t), y, -x * np.sin(-t) + z * np.cos(-t)
 
-def Zrotation(x, y, z, t):
-    return x * np.cos(t) - y * np.sin(t), x * np.sin(t) + y * np.cos(t), z
 
-def spherical_to_cartesian(lat, lon):
+# |====================================================================================================================
+# | LOADING FLIGHTS FROM DISK UTILS
+# |====================================================================================================================
+
+def list_flights(path:str, limit:int=INT_MAX) -> "list[str]":
+    filenames = os.listdir(path)
+    filenames = [f for f in filenames if f.endswith(".csv")]
+    filenames.sort()
+    return filenames[:limit]
+
+
+def read_trajectory(path:str, file:str=None) -> pd.DataFrame:
+    """
+    Read a trajectory from a csv or other file
+    """
+    if (file != None):
+        path = os.path.join(path, file)
+    return pd.read_csv(path, sep=",",dtype={"callsign":str, "icao24":str})
+
+
+# |====================================================================================================================
+# | FEW MATH UTILS FOR SPHERICAL CALCULATIONS
+# |====================================================================================================================
+
+def x_rotation(x:float, y:float, z:float, a:float) -> "tuple[float, float, float]":
+    return x, y * np.cos(-a) - z * np.sin(-a), y * np.sin(-a) + z * np.cos(-a)
+
+def y_rotation(x:float, y:float, z:float, a:float) -> "tuple[float, float, float]":
+    return x * np.cos(-a) + z * np.sin(-a), y, -x * np.sin(-a) + z * np.cos(-a)
+
+def z_rotation(x:float, y:float, z:float, a:float) -> "tuple[float, float, float]":
+    return x * np.cos(a) - y * np.sin(a), x * np.sin(a) + y * np.cos(a), z
+
+def spherical_to_cartesian(lat:float, lon:float) -> "tuple[float, float, float]":
     x = np.cos(np.radians(lon)) * np.cos(np.radians(lat))
     y = np.sin(np.radians(lon)) * np.cos(np.radians(lat))
     z =                           np.sin(np.radians(lat))
     return x, y, z
 
-def cartesian_to_spherical(x, y, z):
+def cartesian_to_spherical(x:float, y:float, z:float) -> "tuple[float, float]":
     lat = np.degrees(np.arcsin(z))
     lon = np.degrees(np.arctan2(y, x))
     return lat, lon
 
-def latlondistance(lat1, lon1, lat2, lon2):
-    """Return the distance in meters between two points"""
-    R = 6371e3 # metres
-    phi1 = np.radians(lat1)
-    phi2 = np.radians(lat2)
-    delta_phi = np.radians(lat2-lat1)
-    delta_lambda = np.radians(lon2-lon1)
-
-    a = np.sin(delta_phi/2) * np.sin(delta_phi/2) + \
-        np.cos(phi1) * np.cos(phi2) * \
-        np.sin(delta_lambda/2) * np.sin(delta_lambda/2)
-    c = 2 * np.arctan2(np.sqrt(a), np.sqrt(1-a))
-
-    d = R * c
-    return d
-
-def angle_diff(a, b):
+def angle_diff(a:float, b:float) -> float:
     a = a % 360
     b = b % 360
 
@@ -64,11 +102,15 @@ def angle_diff(a, b):
     return diff
 
 
-###################################################
-# TRAJECTORY PREPROCESSING
-###################################################
+# |====================================================================================================================
+# | TRAJECTORY PREPROCESSING
+# |====================================================================================================================
 
-def compute_shift(start, end, dilatation):
+# |--------------------------------------------------------------------------------------------------------------------
+# | WINDOW SLICING
+# |--------------------------------------------------------------------------------------------------------------------
+
+def compute_shift(start:int, end:int, dilatation:int) -> int:
     """
     compute needed shift to have the last timesteps at the end of the array
     """
@@ -77,26 +119,11 @@ def compute_shift(start, end, dilatation):
     shift = (d - (d // dilatation) * dilatation - 1) % dilatation
     return shift
 
-def windowBounds(CTX, t):
+def window_slice(CTX:dict, t:int) -> "tuple[int, int, int, int, int]":
     """
     Compute the bounds of the window that should end at t (included)
-
-    Returns:
-    --------
-
-    start: int
-    end: int
-        The [start:end] slice of the window
-
-    length: int
-        The length of the window
-
-    pad_lenght: int
-        The number of padding to add to the window
-
-    shift: int
-        The shift to apply to the window to have the last timestep at the end even with dilatation
     """
+
     start = max(0, t+1-CTX["HISTORY"])
     end = t+1
     length = end - start
@@ -106,23 +133,32 @@ def windowBounds(CTX, t):
     return start, end, length, pad_lenght, shift
 
 
-def listFlight(path, limit=INT_MAX):
-    filenames = os.listdir(path)
-    filenames = [f for f in filenames if f.endswith(".csv")]
-    filenames.sort()
-    return filenames[:limit]
+# |--------------------------------------------------------------------------------------------------------------------
+# | GET LAST MESSAGE FROM TRAJECTORY WITH NANs
+# |--------------------------------------------------------------------------------------------------------------------
+
+def get_aircraft_last_message(CTX:dict, flight:NP.float32_2d[AX.time, AX.feature]) -> NP.float32_1d:
+    # get the aircraft last non zero latitudes and longitudes
+    lat = flight[:, CTX["FEATURE_MAP"]["latitude"]]
+    lon = flight[:, CTX["FEATURE_MAP"]["longitude"]]
+    i = len(lat)-1
+    while (i >= 0 and (lat[i] == 0 and lon[i] == 0)):
+        i -= 1
+    if (i == -1):
+        return None
+    return flight[i]
+
+def get_aircraft_position(CTX:dict, flight:NP.float32_2d[AX.time, AX.feature]) -> "tuple[float, float]":
+    # get the aircraft last non zero latitudes and longitudes
+    pos = get_aircraft_last_message(CTX, flight)
+    return FG.lat(pos), FG.lon(pos)
 
 
-def read_trajectory(path, file=None) -> pd.DataFrame:
-    """
-    Read a trajectory from a csv or other file
-    """
-    if (file != None):
-        path = os.path.join(path, file)
-    return pd.read_csv(path, sep=",",dtype={"callsign":str, "icao24":str})
+# |--------------------------------------------------------------------------------------------------------------------
+# | Convert a CSV dataframe into a numerical array with the right features
+# |--------------------------------------------------------------------------------------------------------------------
 
-
-def dfToFeatures(df:DataFrame, CTX, check_length=True):
+def df_to_feature_array(CTX:dict, df:DataFrame, check_length:bool=True) -> NP.float32_2d[AX.time, AX.feature]:
     """
     Convert a complete ADS-B trajectory dataframe into a numpy array
     with the right features and preprocessing
@@ -134,10 +170,10 @@ def dfToFeatures(df:DataFrame, CTX, check_length=True):
     # if no padding check there is no nan in latitude
     if (CTX["INPUT_PADDING"] == "valid"):
         if (np.isnan(df["latitude"]).any()):
-            prntC(C.WARNING, "[dfToFeatures]:", "NaN in latitude")
+            prntC(C.WARNING, "[df_to_feature_array]:", "NaN in latitude")
             return []
         if (np.isnan(df["longitude"]).any()):
-            prntC(C.WARNING, "[dfToFeatures]:", "NaN in longitude")
+            prntC(C.WARNING, "[df_to_feature_array]:", "NaN in longitude")
             return []
 
     # add sec (60), min (60), hour (24) and day_of_week (7) features
@@ -149,8 +185,8 @@ def dfToFeatures(df:DataFrame, CTX, check_length=True):
 
 
     # cap altitude to min = 0
-    # df["altitude"] = df["altitude"].clip(lower=0)
-    # df["geoaltitude"] = df["geoaltitude"].clip(lower=0)
+    df["altitude"] = df["altitude"].clip(lower=0)
+    df["geoaltitude"] = df["geoaltitude"].clip(lower=0)
     df.setColumValue("altitude", slice(0, len(df)), np.clip(df["altitude"], 0, None))
     df.setColumValue("geoaltitude", slice(0, len(df)), np.clip(df["geoaltitude"], 0, None))
 
@@ -174,7 +210,7 @@ def dfToFeatures(df:DataFrame, CTX, check_length=True):
 
     # remove too short flights
     if (check_length and len(df) < CTX["HISTORY"]):
-        prntC(C.WARNING, "[dfToFeatures]: flight too short")
+        prntC(C.WARNING, "[df_to_feature_array]: flight too short")
         return []
 
     # Cast booleans into numeric
@@ -261,7 +297,7 @@ def analysis(CTX, dataframe):
 
     return minValues, maxValues
 
-def genPadValues(CTX, dataframe):
+def genPadValues(CTX:dict, dataframe) -> NP.float32_1d:
     minValues = analysis(CTX, dataframe)[0]
     padValues = minValues
 
@@ -302,7 +338,16 @@ def splitDataset(data, ratio):
         test.append(data[i][split_index:])
     return train, test
 
-def normalize_trajectory(CTX, lat, lon, track, Olat, Olon, Otrack, relative_position, relative_track, random_track):
+# |====================================================================================================================
+# | TRAJECTORY PRE PROCESS : SPHERICAL NORMALIZATION
+# |====================================================================================================================
+
+def normalize_trajectory(CTX:"dict[str, object]",
+                         lat:NP.float32_1d, lon:NP.float32_1d, track:NP.float32_1d,
+                         Olat:float, Olon:float, Otrack:float,
+                         relative_position:bool, relative_track:bool, random_track:bool)\
+        -> "tuple[NP.float32_1d, NP.float32_1d, NP.float32_1d]":
+
     ROT = 0
     LAT = -CTX["BOX_CENTER"][0]
     LON = -CTX["BOX_CENTER"][1]
@@ -315,16 +360,23 @@ def normalize_trajectory(CTX, lat, lon, track, Olat, Olon, Otrack, relative_posi
         ROT = np.random.randint(0, 360)
 
     x, y, z = spherical_to_cartesian(lat, lon)
-    x, y, z = Zrotation(x, y, z, np.radians(LON)) # Normalize longitude with Z rotation
-    x, y, z = Yrotation(x, y, z, np.radians(LAT)) # Normalize latitude with Y rotation
-    x, y, z = Xrotation(x, y, z, np.radians(ROT)) # Rotate the fragment with the random angle along X axis
+    # Normalize longitude with Z rotation
+    x, y, z = z_rotation(x, y, z, np.radians(LON))
+    # Normalize latitude with Y rotation
+    x, y, z = y_rotation(x, y, z, np.radians(LAT))
+    # Rotate the fragment with the random angle along X axis
+    x, y, z = x_rotation(x, y, z, np.radians(ROT))
+
     lat, lon = cartesian_to_spherical(x, y, z)
     track = np.remainder(track + ROT, 360)
 
     return lat, lon, track
 
 
-def undo_normalize_trajectory(CTX, lat, lon, Olat, Olon, Otrack, relative_position, relative_track):
+def undo_normalize_trajectory(CTX:dict, lat:"NP.float32_1d[AX.feature]", lon:"NP.float32_1d[AX.feature]",
+                              Olat:float, Olon:float, Otrack:float,
+                              relative_position:bool, relative_track:bool)\
+        -> "tuple[NP.float32_1d[AX.feature], NP.float32_1d[AX.feature]]":
     ROT = 0
     LAT = -CTX["BOX_CENTER"][0]
     LON = -CTX["BOX_CENTER"][1]
@@ -335,9 +387,52 @@ def undo_normalize_trajectory(CTX, lat, lon, Olat, Olon, Otrack, relative_positi
         ROT = -Otrack
 
     x, y, z = spherical_to_cartesian(lat, lon)
-    x, y, z = Xrotation(x, y, z, np.radians(-ROT)) # Rotate the fragment with the random angle along X axis
-    x, y, z = Yrotation(x, y, z, np.radians(-LAT)) # Normalize latitude with Y rotation
-    x, y, z = Zrotation(x, y, z, np.radians(-LON)) # Normalize longitude with Z rotation
+    # UN- the fragment with the random angle along X axis
+    x, y, z = x_rotation(x, y, z, np.radians(-ROT))
+    # UN-Normalize latitude with Y rotation
+    x, y, z = y_rotation(x, y, z, np.radians(-LAT))
+    # UN-Normalize longitude with Z rotation
+    x, y, z = z_rotation(x, y, z, np.radians(-LON))
     lat, lon = cartesian_to_spherical(x, y, z)
 
     return lat, lon
+
+
+def batch_preprocess(CTX:dict, flight:"NP.float32_2d[AX.time, AX.feature]",
+                          PAD:"NP.float32_1d[AX.feature]",
+                          relative_position:bool=False, relative_track:bool=False, random_track:bool=False,
+                          post_flight:"NP.float32_2d[AX.time, AX.feature]"=None)\
+        -> """NP.float32_2d[AX.time, AX.feature]
+            | tuple[NP.float32_2d[AX.time, AX.feature], NP.float32_2d[AX.time, AX.feature]]""":
+
+    # calculate normalized trajectory
+    pos = get_aircraft_last_message(CTX, flight)
+    x = flight
+    if (post_flight is not None):
+        x = np.concatenate([flight, post_flight], axis=0)
+
+    nan_value = np.logical_and(FG.lat(x) == FG.lat(PAD), FG.lon(x) == FG.lon(PAD))
+    lat, lon, track = normalize_trajectory(CTX,
+                                             FG.lat(x), FG.lon(x), FG.track(x),
+                                             FG.lat(pos), FG.lon(pos), FG.track(pos),
+                                             relative_position, relative_track, random_track)
+
+    # only apply normalization on non zero lat/lon
+    x[~nan_value, FG.lat()] = lat[~nan_value]
+    x[~nan_value, FG.lon()] = lon[~nan_value]
+    x[~nan_value, FG.track()] = track[~nan_value]
+
+    # fill nan lat/lon with the first non zero lat lon
+    first_non_zero_ts = np.argmax(~nan_value)
+    start_lat, start_lon = lat[first_non_zero_ts], lon[first_non_zero_ts]
+    x[nan_value, FG.lat()] = start_lat
+    x[nan_value, FG.lon()] = start_lon
+
+    # if there is timestamp in the features, we normalize it
+    if (FG.has("timestamp")):
+        x[:, FG.timestamp()] = FG.timestamp(pos) - FG.timestamp(x)
+
+    if (post_flight is not None):
+        return x[:len(flight)], x[len(flight):]
+    return x
+

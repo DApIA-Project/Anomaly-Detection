@@ -156,11 +156,11 @@ for i in range(len(files)):
             # replace nan by 0
             df['vertical_rate'] = df['vertical_rate'].fillna(0)
             vertrate = max(np.nanmax(df['vertical_rate'].values), -np.nanmin(df['vertical_rate'].values))
-            # vertrate = 
+            # vertrate =
 
             metric = vertrate
 
-            
+
 
     if METRIC == TRACK:
         lat_lon_angle = []
@@ -171,7 +171,7 @@ for i in range(len(files)):
                 math.atan2(
                     lat[i] - lat[i-1],
                     lon[i] - lon[i-1]) * 180.0 / math.pi)
-            
+
         mean_angle_diff = 0
         for i in range(1, len(lat_lon_angle)):
             mean_angle_diff += angle_diff(lat_lon_angle[i], lat_lon_angle[i-1])
@@ -217,7 +217,7 @@ print()
 import matplotlib.pyplot as plt
 # plot the concentrations for each distance
 
-        
+
 keys = list(metrics.keys())
 max_bar_height = max(metrics.values())
 

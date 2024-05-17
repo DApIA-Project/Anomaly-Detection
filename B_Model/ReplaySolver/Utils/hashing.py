@@ -9,19 +9,19 @@ def serialize_lat_lon(lat, lon, CTX):
         if (t == 0):
             x[t], y[t], z[t] = (1, 0, 0)
 
-        x[t], y[t], z[t] = U.Zrotation(x[t], y[t], z[t], np.radians(-lon[t-1]))
-        x[t], y[t], z[t] = U.Yrotation(x[t], y[t], z[t], np.radians(-lat[t-1]))
+        x[t], y[t], z[t] = U.z_rotation(x[t], y[t], z[t], np.radians(-lon[t-1]))
+        x[t], y[t], z[t] = U.y_rotation(x[t], y[t], z[t], np.radians(-lat[t-1]))
 
         if (t >= 2):
             lx, ly, lz = _x[t-2], _y[t-2], _z[t-2]
-            lx, ly, lz = U.Zrotation(lx, ly, lz, np.radians(-lon[t-1]))
-            lx, ly, lz = U.Yrotation(lx, ly, lz, np.radians(-lat[t-1]))
+            lx, ly, lz = U.z_rotation(lx, ly, lz, np.radians(-lon[t-1]))
+            lx, ly, lz = U.y_rotation(lx, ly, lz, np.radians(-lat[t-1]))
             R = -np.arctan2(-lz, -ly)
 
         else:
             R = -np.arctan2(z[t], y[t])
 
-        x[t], y[t], z[t] = U.Xrotation(x[t], y[t], z[t], -R)
+        x[t], y[t], z[t] = U.x_rotation(x[t], y[t], z[t], -R)
 
     x = y
     y = z

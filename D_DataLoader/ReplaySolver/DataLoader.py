@@ -1,4 +1,4 @@
- 
+
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -30,12 +30,12 @@ BAR = ProgressBar()
 ###################################################
 
 class DataLoader(AbstractDataLoader):
-    
+
     ###################################################
     # LOADING DATASET FROM DISK
     ###################################################
 
-    def __init__(self, CTX, path="") -> None:    
+    def __init__(self, CTX, path="") -> None:
         self.CTX = CTX
         self.PAD = None
 
@@ -54,7 +54,7 @@ class DataLoader(AbstractDataLoader):
     def __load_dataset__(self, CTX, path):
         is_folder = os.path.isdir(path)
         if (is_folder):
-            filenames = U.listFlight(path, limit=INT_MAX) #INT_MAX
+            filenames = U.list_flights(path, limit=INT_MAX) #INT_MAX
             prntC(C.INFO, "Dataset loading")
         else: # allow to load a single file (can be useful for eval)
             path = path.split("/")
@@ -66,22 +66,19 @@ class DataLoader(AbstractDataLoader):
         x = []
         for f in range(len(filenames)):
             df = U.read_trajectory(path, filenames[f])
-            array = U.dfToFeatures(df, CTX)
-            
+            array = U.df_to_feature_array(CTX, df)
+
             x.append(array)
 
             if (is_folder): BAR.update(f+1)
-        
+
         if (self.PAD is None): self.PAD = U.genPadValues(CTX, x)
         x = fillNaN3D(x, self.PAD)
 
         prntC()
         return x, filenames
-    
-    def __split__(self, x, y):
-        split = U.splitDataset([x, y], self.CTX["TEST_RATIO"])
-        return split[0][0], split[0][1], split[1][0], split[1][1]
-        
+
+
 
     ###################################################
     # SCALERS
@@ -89,7 +86,7 @@ class DataLoader(AbstractDataLoader):
 
     def __scalers_transform__(self, CTX, x_batches):
         return x_batches
-    
+
 
     ###################################################
     # UTILS
@@ -124,7 +121,7 @@ class DataLoader(AbstractDataLoader):
     ###################################################
     # GENERATING TEST SET
     ###################################################
-        
+
     def genEpochTest(self):
 
         CTX = self.CTX
@@ -157,7 +154,7 @@ class DataLoader(AbstractDataLoader):
     # GENERATING EVAL SET
     ###################################################
 
-    def genEval(self):
+    def genEval(self) -> "tuple[np.ndarray, np.ndarray, list[list[str]]]":
         CTX = self.CTX
         if (CTX["NB_BATCH"] == 1 and CTX["BATCH_SIZE"] == None):
             x_batches = []
@@ -184,6 +181,6 @@ class DataLoader(AbstractDataLoader):
             x_batches, y_batches, x_alters =\
                 self.__reshape__(CTX, x_batches, y_batches, x_alters)
             return x_batches, y_batches, x_alters
-        
+
         prntC(C.ERROR, "Not implemented yet : impossible to generate multiple batches for now")
         exit(1)
