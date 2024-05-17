@@ -1,5 +1,5 @@
 # Anomaly-Detection
-Deep learning approach to detect anomaly inside ADS-B data.
+Deep learning algoritms to detect anomaly inside ADS-B data.
 
 
 ## Experiment 1: AicraftClassification
