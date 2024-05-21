@@ -357,13 +357,12 @@ class SigmoidScaler2D():
         return self.fit(X).transform(X)
 
     def inverse_transform(self, X):
+            X=np.array(X)
 
             X = X.copy()
 
             # check if is numpy array
             for f in range(len(X[0])):
-
-
                 X[:, f] = sigmoid_inverse(X[:, f])
                 X[:, f] = X[:, f] * self.stds[f] + self.means[f]
 

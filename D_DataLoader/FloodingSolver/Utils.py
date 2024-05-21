@@ -60,9 +60,9 @@ def alloc_batch(CTX:dict, size:int) -> """tuple[
 def gen_random_sample(CTX:dict, x:"list[NP.float32_2d[AX.time, AX.feature]]", PAD:NP.float32_1d)\
         -> "tuple[NP.float32_2d[AX.time, AX.feature], NP.float32_1d[AX.feature]]":
     i, t = pick_random_loc(CTX, x)
-    x, _ = gen_sample(CTX, x, PAD, i, t, valid=True)
-    y = FG.lat_lon(x[i][t+CTX["HORIZON"]])
-    return x, y
+    x_sample, _ = gen_sample(CTX, x, PAD, i, t, valid=True)
+    y_sample = FG.lat_lon(x[i][t+CTX["HORIZON"]])
+    return x_sample, y_sample
 
 def pick_random_loc(CTX:dict, x:"list[NP.float32_2d[AX.time, AX.feature]]") -> "tuple[int, int]":
     HORIZON = CTX["HORIZON"]

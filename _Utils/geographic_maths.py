@@ -1,6 +1,7 @@
 
 
 import math
+import numpy as np_
 
 
 
@@ -49,3 +50,24 @@ def bearing_diff(a, b):
     elif (diff < -180):
         diff += 360
     return diff
+
+
+class np:
+    def bearing(lat1, lon1, lat2, lon2):
+        lat1 = np_.radians(lat1)
+        lon1 = np_.radians(lon1)
+        lat2 = np_.radians(lat2)
+        lon2 = np_.radians(lon2)
+
+        y = np_.sin(lon2-lon1) * np_.cos(lat2)
+        x = np_.cos(lat1)*np_.sin(lat2) - np_.sin(lat1)*np_.cos(lat2)*np_.cos(lon2-lon1)
+        return np_.degrees(np_.arctan2(y, x))
+
+    def distance(lat1, lon1, lat2, lon2):
+        R = 6378.137 # Radius of earth in KM
+        dLat = lat2 * math.pi / 180 - lat1 * math.pi / 180
+        dLon = lon2 * math.pi / 180 - lon1 * math.pi / 180
+        a = np_.sin(dLat/2.0)**2 + np_.cos(lat1 * math.pi / 180) * np_.cos(lat2 * math.pi / 180) * np_.sin(dLon/2.0)**2
+        c = 2 * np_.arctan2(np_.sqrt(a), np_.sqrt(1-a))
+        distance = R * c * 1000
+        return distance

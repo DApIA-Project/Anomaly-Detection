@@ -48,7 +48,9 @@ class ProgressBar:
 
 
 
-    def update(self, value:float, additional_text="") -> None:
+    def update(self, value:float=None, additional_text="") -> None:
+        if (value is None):
+            value = self._progress + 1
         additional_text = additional_text.strip()
         if (value == self.min):
             self._startup = time.time()

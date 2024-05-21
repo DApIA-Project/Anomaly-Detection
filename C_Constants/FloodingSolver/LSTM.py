@@ -39,5 +39,5 @@ PRED_FEATURE_MAP = dict([[PRED_FEATURES[i], i] for i in range(FEATURES_OUT)])
 
 RESUDUAL = 0.5
 
-
-INPUT_PADDING = "nan" # "valid", "last", "nan"
+# possibilities "valid", "last", "nan"
+INPUT_PADDING = "nan"

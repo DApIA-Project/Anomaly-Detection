@@ -60,7 +60,7 @@ class DataLoader(AbstractDataLoader):
 
     def __load_dataset__(self, CTX:dict, path:str) -> "list[NP.float32_2d[AX.time, AX.feature]]":
 
-        filenames = U.list_flights(path, limit=Limits.INT_MAX)
+        filenames = U.list_flights(path, limit=100)#Limits.INT_MAX)
         BAR.reset(max=len(filenames))
 
         x = []
@@ -111,8 +111,8 @@ class DataLoader(AbstractDataLoader):
             NP.float32_4d[AX.batch, AX.sample, AX.time, AX.feature],
             NP.float32_3d[AX.batch, AX.sample, AX.feature]]""":
 
-        x_batches = x_batches.reshape(nb_batches, batch_size, CTX["INPUT_LEN"],CTX["FEATURES_IN"])
-        y_batches = y_batches.reshape(nb_batches, batch_size, CTX["FEATURES_OUT"])
+        x_batches = x_batch.reshape(nb_batches, batch_size, CTX["INPUT_LEN"],CTX["FEATURES_IN"])
+        y_batches = y_batch.reshape(nb_batches, batch_size, CTX["FEATURES_OUT"])
 
         return x_batches, y_batches
 
@@ -129,7 +129,7 @@ class DataLoader(AbstractDataLoader):
         # Allocate memory for the batches
         x_batch, y_batch = SU.alloc_batch(CTX, CTX["NB_BATCH"] * CTX["BATCH_SIZE"])
 
-        for n in range(len(x_batches)):
+        for n in range(len(x_batch)):
             x_sample, y_sample = SU.gen_random_sample(CTX, self.x_train, self.PAD)
 
             x_batch[n] = x_sample
@@ -139,6 +139,7 @@ class DataLoader(AbstractDataLoader):
 
         x_batch, y_batch = self.__scalers_transform__(CTX, x_batch, y_batch)
         x_batches, y_batches = self.__reshape__(CTX, x_batch, y_batch, CTX["NB_BATCH"], CTX["BATCH_SIZE"])
+
         return x_batches, y_batches
 
 
@@ -148,9 +149,9 @@ class DataLoader(AbstractDataLoader):
         lon = FG.lon(x)
 
         box = [min(lat), min(lon), max(lat), max(lon)]
-        PLT.figure(NAME, box[0], box[1], box[2], box[3])
-        PLT.title("Flooding Solver - Prediction on a training sample")
-        PLT.plot(NAME, lat, lon, color="tab:blue", linestyle="--")
+        PLT.figure (NAME, box[0], box[1], box[2], box[3])
+        PLT.title  (NAME, "Flooding Solver - Prediction on a training sample")
+        PLT.plot   (NAME, lat, lon, color="tab:blue", linestyle="--")
         PLT.scatter(NAME, lat, lon, color="tab:blue", marker="x")
         PLT.scatter(NAME, [y[0]], [y[1]], color="tab:green", marker="x")
 

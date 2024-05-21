@@ -185,8 +185,6 @@ def df_to_feature_array(CTX:dict, df:DataFrame, check_length:bool=True) -> NP.fl
 
 
     # cap altitude to min = 0
-    df["altitude"] = df["altitude"].clip(lower=0)
-    df["geoaltitude"] = df["geoaltitude"].clip(lower=0)
     df.setColumValue("altitude", slice(0, len(df)), np.clip(df["altitude"], 0, None))
     df.setColumValue("geoaltitude", slice(0, len(df)), np.clip(df["geoaltitude"], 0, None))
 

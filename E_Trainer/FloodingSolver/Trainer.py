@@ -135,7 +135,7 @@ class Trainer(AbstractTrainer):
             x_test,  y_test  = self.dl.genEpochTest()
 
             _y_train, _y_test, loss_train, loss_test = __alloc_pred_batches__(
-                CTX, len(x_train), len(x_train[0][0]), len(x_test),  len(x_test[0][0]))
+                CTX, len(x_train), len(x_train[0]), len(x_test),  len(x_test[0]))
 
 
             CHRONO.start()
@@ -145,16 +145,16 @@ class Trainer(AbstractTrainer):
             # Training
             for batch in range(len(x_train)):
                 loss_train[batch], _y_train[batch] = self.model.training_step(x_train[batch], y_train[batch])
-                BAR.update(batch+1)
-            _y_train:NP.nd_2d[AX.sample, AX.feature] = _y_train.reshape(-1, _y_train.shape[-1])
-            y_train :NP.nd_2d[AX.sample, AX.feature] =  y_train.reshape(-1,  y_train.shape[-1])
+                BAR.update()
+            _y_train:NP.float32_2d[AX.sample, AX.feature] = _y_train.reshape(-1, _y_train.shape[-1])
+            y_train :NP.float32_2d[AX.sample, AX.feature] =  y_train.reshape(-1,  y_train.shape[-1])
 
             # Testing
             for batch in range(len(x_test)):
                 loss_test[batch], _y_test[batch] = self.model.compute_loss(x_test[batch], y_test[batch])
-                BAR.update(len(x_train)+batch+1)
-            _y_test:NP.nd_2d[AX.sample, AX.feature] = _y_test.reshape(-1, _y_test.shape[-1])
-            y_test :NP.nd_2d[AX.sample, AX.feature] =  y_test.reshape(-1,  y_test.shape[-1])
+                BAR.update()
+            _y_test:NP.float32_2d[AX.sample, AX.feature] = _y_test.reshape(-1, _y_test.shape[-1])
+            y_test :NP.float32_2d[AX.sample, AX.feature] =  y_test.reshape(-1,  y_test.shape[-1])
 
             self.__epoch_stats__(ep, y_train, _y_train, y_test, _y_test)
 
@@ -163,19 +163,20 @@ class Trainer(AbstractTrainer):
 # |--------------------------------------------------------------------------------------------------------------------
 # |    STATISTICS FOR TRAINING
 # |--------------------------------------------------------------------------------------------------------------------
-    def __prediction_statistics__(self, y:NP.nd_2d[AX.sample, AX.feature], y_:NP.nd_2d[AX.sample, AX.feature])\
+    def __prediction_statistics__(self, y:NP.float32_2d[AX.sample, AX.feature], y_:NP.float32_2d[AX.sample, AX.feature])\
             -> "tuple[float, float]":
 
         y_unscaled  = self.dl.yScaler.inverse_transform(y)
         y_unscaled_ = self.dl.yScaler.inverse_transform(y_)
-        dist = GEO.distance(y_unscaled[:, 0], y_unscaled[:, 1], y_unscaled_[:, 0], y_unscaled_[:, 1])
+        dist = GEO.np.distance(y_unscaled[:, 0], y_unscaled[:, 1], y_unscaled_[:, 0], y_unscaled_[:, 1])
+        dist = np.mean(dist)
         loss = Metrics.mse(y, y_)
         return dist, loss
 
 
     def __epoch_stats__(self, ep:int,
-                        y_train:NP.nd_2d[AX.sample, AX.feature], _y_train:NP.nd_2d[AX.sample, AX.feature],
-                        y_test :NP.nd_2d[AX.sample, AX.feature], _y_test :NP.nd_2d[AX.sample, AX.feature]) -> None:
+                        y_train:NP.float32_2d[AX.sample, AX.feature], _y_train:NP.float32_2d[AX.sample, AX.feature],
+                        y_test :NP.float32_2d[AX.sample, AX.feature], _y_test :NP.float32_2d[AX.sample, AX.feature]) -> None:
 
         train_dist, train_loss = self.__prediction_statistics__(y_train, _y_train)
         test_dist,  test_loss  = self.__prediction_statistics__(y_test,  _y_test )
@@ -184,6 +185,7 @@ class Trainer(AbstractTrainer):
         if (self.__ep__ == -1 or self.__ep__ > ep):
             self.__history__         = np.full((4, self.CTX["EPOCHS"]), np.nan, dtype=np.float32)
             self.__history_mov_avg__ = np.full((4, self.CTX["EPOCHS"]), np.nan, dtype=np.float32)
+
 
         # Save epoch statistics
         self.__ep__ = ep
@@ -226,8 +228,8 @@ class Trainer(AbstractTrainer):
         GUI.visualize("/Training/Table/0/0/loss", GUI.IMAGE, self.ARTIFACTS+"/loss.png")
         GUI.visualize("/Training/Table/1/0/acc", GUI.IMAGE, self.ARTIFACTS+"/distance.png")
 
-    def __plot_train_exemple__(self, y_train:NP.nd_2d[AX.sample, AX.feature],
-                                    _y_train:NP.nd_2d[AX.sample, AX.feature]) -> None:
+    def __plot_train_exemple__(self, y_train:NP.float32_2d[AX.sample, AX.feature],
+                                    _y_train:NP.float32_2d[AX.sample, AX.feature]) -> None:
         NAME = "train_example"
         y_sample = self.dl.yScaler.inverse_transform([y_train[-1]])[0]
         y_sample_ = self.dl.yScaler.inverse_transform([_y_train[-1]])[0]
