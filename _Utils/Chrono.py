@@ -74,6 +74,9 @@ class Chrono:
     def __repr__(self) -> str:
 
         s, m, h, d = self.get_time_s(), 0, 0, 0
+        ms = s - int(s)
+        s = int(s)
+
         if (s >= 60):
             m = s // 60
             s %= 60

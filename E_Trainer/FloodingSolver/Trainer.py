@@ -1,15 +1,11 @@
 import os
-import time
-import json
-import time
 import pandas as pd
 import numpy as np
-import matplotlib.pyplot as plt
-from   matplotlib.backends.backend_pdf import PdfPages
 
-from B_Model.AbstractModel import Model as _Model_
-from D_DataLoader.FloodingSolver.DataLoader import DataLoader
-from E_Trainer.AbstractTrainer import Trainer as AbstractTrainer
+from   B_Model.AbstractModel import Model as _Model_
+from   D_DataLoader.FloodingSolver.DataLoader import DataLoader
+import D_DataLoader.Utils as U
+from   E_Trainer.AbstractTrainer import Trainer as AbstractTrainer
 
 import _Utils.Metrics as Metrics
 from   _Utils.save import write, load
@@ -127,6 +123,8 @@ class Trainer(AbstractTrainer):
 
     def train(self) -> None:
         CTX = self.CTX
+        prntC(C.INFO, "Training model : ", C.BLUE, self.model.name,
+              C.RESET, " for ", C.BLUE, CTX["EPOCHS"], C.RESET, " epochs")
 
         for ep in range(1, CTX["EPOCHS"] + 1):
 
@@ -140,7 +138,6 @@ class Trainer(AbstractTrainer):
 
             CHRONO.start()
             BAR.reset(max=len(x_train) + len(x_test))
-
 
             # Training
             for batch in range(len(x_train)):
@@ -163,7 +160,10 @@ class Trainer(AbstractTrainer):
 # |--------------------------------------------------------------------------------------------------------------------
 # |    STATISTICS FOR TRAINING
 # |--------------------------------------------------------------------------------------------------------------------
-    def __prediction_statistics__(self, y:NP.float32_2d[AX.sample, AX.feature], y_:NP.float32_2d[AX.sample, AX.feature])\
+
+    def __prediction_statistics__(self,
+                                  y:NP.float32_2d[AX.sample, AX.feature],
+                                  y_:NP.float32_2d[AX.sample, AX.feature])\
             -> "tuple[float, float]":
 
         y_unscaled  = self.dl.yScaler.inverse_transform(y)
@@ -175,8 +175,10 @@ class Trainer(AbstractTrainer):
 
 
     def __epoch_stats__(self, ep:int,
-                        y_train:NP.float32_2d[AX.sample, AX.feature], _y_train:NP.float32_2d[AX.sample, AX.feature],
-                        y_test :NP.float32_2d[AX.sample, AX.feature], _y_test :NP.float32_2d[AX.sample, AX.feature]) -> None:
+                        y_train:NP.float32_2d[AX.sample, AX.feature],
+                        _y_train:NP.float32_2d[AX.sample, AX.feature],
+                        y_test :NP.float32_2d[AX.sample, AX.feature],
+                        _y_test :NP.float32_2d[AX.sample, AX.feature]) -> None:
 
         train_dist, train_loss = self.__prediction_statistics__(y_train, _y_train)
         test_dist,  test_loss  = self.__prediction_statistics__(y_test,  _y_test )
@@ -231,10 +233,17 @@ class Trainer(AbstractTrainer):
     def __plot_train_exemple__(self, y_train:NP.float32_2d[AX.sample, AX.feature],
                                     _y_train:NP.float32_2d[AX.sample, AX.feature]) -> None:
         NAME = "train_example"
-        y_sample = self.dl.yScaler.inverse_transform([y_train[-1]])[0]
+        y_sample  = self.dl.yScaler.inverse_transform([y_train[-1]])[0]
         y_sample_ = self.dl.yScaler.inverse_transform([_y_train[-1]])[0]
 
-        PLT.scatter
+        o_lat, o_lon = PLT.get_data(NAME+"Origin")
+        y_sample  = U.denormalize_trajectory(self.CTX, [y_sample[0]], [y_sample[1]], o_lat, o_lon, 0)
+        y_sample_ = U.denormalize_trajectory(self.CTX, [y_sample_[0]], [y_sample_[1]], o_lat, o_lon, 0)
+
+        PLT.scatter(NAME, y_sample[0],  y_sample[1],  color="tab:purple", marker="x")
+        PLT.scatter(NAME, y_sample_[0], y_sample_[1], color="tab:red", marker="x")
+
+        PLT.show(NAME, self.ARTIFACTS+"/train_example.png")
 
 
 
@@ -259,123 +268,9 @@ class Trainer(AbstractTrainer):
         self.model.set_variables(load(self.ARTIFACTS+"/weights/"+str(best_i)+".w"))
         self.save()
 
-        # # if _Artifacts/modelsW folder exists and is not empty, clear it
-        # if os.path.exists("./_Artifacts/modelsW"):
-        #     if (len(os.listdir("./_Artifacts/modelsW")) > 0):
-        #         os.system("rm ./_Artifacts/modelsW/*")
-        # else:
-        #     os.makedirs("./_Artifacts/modelsW")
-
-        # for ep in range(1, CTX["EPOCHS"] + 1):
-        #     ##############################
-        #     #         Training           #
-        #     ##############################
-        #     start = time.time()
-        #     x_inputs, y_batches = self.dl.genEpochTrain(CTX["NB_BATCH"], CTX["BATCH_SIZE"])
-
-        #     # print(x_inputs.shape)
-
-        #     train_loss = 0
-        #     train_distance = 0
-        #     for batch in range(len(x_inputs)):
-        #         loss, output = self.model.training_step(x_inputs[batch], y_batches[batch])
-        #         train_loss += loss
-
-        #         output = self.dl.yScaler.inverse_transform(output.numpy())
-        #         true = self.dl.yScaler.inverse_transform(y_batches[batch])
-        #         train_distance += distance(CTX, output, true)
-
-        #     train_loss /= len(x_inputs)
-        #     train_distance /= len(x_inputs)
-
-        #     ##############################
-        #     #          Testing           #
-        #     ##############################
-        #     # if (test_save_x is None):
-        #     #     test_save_x, test_save_y = self.dl.genEpochTest()
-        #     x_inputs, test_y = self.dl.genEpochTest()
-
-        #     test_loss = 0
-        #     test_distance = 0
-        #     n = 0
-        #     for batch in range(0, len(x_inputs), CTX["BATCH_SIZE"]):
-        #         sub_test_x = x_inputs[batch:batch+CTX["BATCH_SIZE"]]
-        #         sub_test_y = test_y[batch:batch+CTX["BATCH_SIZE"]]
-
-        #         sub_loss, sub_output = self.model.compute_loss(sub_test_x, sub_test_y)
-
-        #         test_loss += sub_loss
-
-        #         sub_output = self.dl.yScaler.inverse_transform(sub_output.numpy())
-        #         sub_true = self.dl.yScaler.inverse_transform(sub_test_y)
-        #         test_distance += distance(CTX, sub_output, sub_true)
-
-        #         n += 1
-
-        #     test_loss /= n
-        #     test_distance /= n
-
-
-        #     # Verbose area
-        #     print()
-        #     print(f"Epoch {ep}/{CTX['EPOCHS']} - train_loss: {train_loss:.4f} - train_distance: {train_distance:.4f} - test_loss: {test_loss:.4f} - test_distance: {test_distance:.4f} - time: {time.time() - start:.2f}s", flush=True)
-
-        #     # Save the model loss
-        #     history[0].append(train_loss)
-        #     history[1].append(test_loss)
-        #     history[2].append(train_distance)
-        #     history[3].append(test_distance)
-
-        #     # Save the model weights
-        #     write("./_Artifacts/modelsW/"+self.model.name+"_"+str(ep)+".w", self.model.getVariables())
-
-
-        # # Compute the moving average of the loss for a better visualization
-        # history_avg = [[], [], [], []]
-        # window_len = 5
-        # for i in range(len(history[0])):
-        #     min_ = max(0, i - window_len)
-        #     max_ = min(len(history[0]), i + window_len)
-        #     history_avg[0].append(np.mean(history[0][min_:max_]))
-        #     history_avg[1].append(np.mean(history[1][min_:max_]))
-        #     history_avg[2].append(np.mean(history[2][min_:max_]))
-        #     history_avg[3].append(np.mean(history[3][min_:max_]))
-
-        # Metrics.plotLoss(history[0], history[1], history_avg[0], history_avg[1])
-        # Metrics.plotLoss(history[2], history[3], history_avg[2], history_avg[3], filename="distance.png")
-
-        # # #  load back best model
-        # if (len(history[1]) > 0):
-        #     # find best model epoch
-        #     best_i = np.argmin(history_avg[3])
-
-        #     print("load best model, epoch : ", best_i+1, " with distance : ", history[3][best_i], flush=True)
-
-        #     best_variables = load("./_Artifacts/modelsW/"+self.model.name+"_"+str(best_i+1)+".w")
-        #     self.model.set_variables(best_variables)
-        # else:
-        #     print("WARNING : no history of training has been saved")
-
-
-        # write("./_Artifacts/"+self.model.name+".w", self.model.getVariables())
-        # write("./_Artifacts/"+self.model.name+".xs", self.dl.xScaler.getVariables())
-        # write("./_Artifacts/"+self.model.name+".ys", self.dl.yScaler.getVariables())
-        # write("./_Artifacts/"+self.model.name+".min", self.dl.FEATURES_MIN_VALUES)
 
 
 
-
-
-    def un_transform(self, lats, lons, lats_preds, lons_preds):
-        CTX = self.CTX
-        for t in range(CTX["HORIZON"], len(lats)):
-            o_lat = lats[t - CTX["HORIZON"]]
-            o_lon = lons[t - CTX["HORIZON"]]
-            track = 0
-
-            lats_preds[t], lons_preds[t] = undo_batch_preprocess(CTX, o_lat, o_lon, track, lats_preds[t], lons_preds[t], CTX["RELATIVE_POSITION"], CTX["RELATIVE_TRACK"], CTX["RANDOM_TRACK"])
-
-        return lats_preds, lons_preds
 
 
     def eval(self):

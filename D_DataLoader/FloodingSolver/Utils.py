@@ -4,6 +4,7 @@ import _Utils.Color            as C
 from   _Utils.Color import prntC
 import _Utils.FeatureGetter    as FG
 import _Utils.geographic_maths as GEO
+import _Utils.plotADSB         as PLT
 from   _Utils.Typing import NP, AX
 
 import D_DataLoader.Utils      as U
@@ -58,11 +59,11 @@ def alloc_batch(CTX:dict, size:int) -> """tuple[
     return x_batch, y_batch
 
 def gen_random_sample(CTX:dict, x:"list[NP.float32_2d[AX.time, AX.feature]]", PAD:NP.float32_1d)\
-        -> "tuple[NP.float32_2d[AX.time, AX.feature], NP.float32_1d[AX.feature]]":
+        -> "tuple[NP.float32_2d[AX.time, AX.feature], NP.float32_1d[AX.feature], tuple[float, float]]":
     i, t = pick_random_loc(CTX, x)
-    x_sample, _ = gen_sample(CTX, x, PAD, i, t, valid=True)
-    y_sample = FG.lat_lon(x[i][t+CTX["HORIZON"]])
-    return x_sample, y_sample
+    x_sample, y_sample, _, origin = gen_sample(CTX, x, PAD, i, t, valid=True)
+    y_sample = FG.lat_lon(y_sample)
+    return x_sample, y_sample, origin
 
 def pick_random_loc(CTX:dict, x:"list[NP.float32_2d[AX.time, AX.feature]]") -> "tuple[int, int]":
     HORIZON = CTX["HORIZON"]
@@ -81,18 +82,20 @@ def gen_sample(CTX:dict,
                x:"list[NP.float32_2d[AX.time, AX.feature]]",
                PAD:NP.float32_1d,
                i:int, t:int, valid:bool=None)\
-        -> "tuple[NP.float32_2d[AX.time, AX.feature], bool]":
+        -> """tuple[NP.float32_2d[AX.time, AX.feature],
+                    NP.float32_1d[AX.feature],
+                    bool, tuple[float, float]]""":
 
     if (valid is None): valid = check_sample(CTX, x, i, t)
-    x_batch = alloc_sample(CTX)
-    if (not(valid)): return x_batch
+    x_sample = alloc_sample(CTX)
+    if (not(valid)): return x_sample
 
 
     start, end, length, pad_lenght, shift = U.window_slice(CTX, t)
-    x_batch[pad_lenght:] = x[i][start:end:CTX["DILATION_RATE"]]
-    x_batch[:pad_lenght] = PAD
+    x_sample[pad_lenght:] = x[i][start:end:CTX["DILATION_RATE"]]
+    x_sample[:pad_lenght] = PAD
 
-    last_message = U.get_aircraft_last_message(CTX, x_batch)
+    last_message = U.get_aircraft_last_message(CTX, x_sample)
     lat, lon = FG.lat(last_message), FG.lon(last_message)
     #TODO remove this check
     if (lat == FG.lat(PAD) or lon == FG.lon(PAD)):
@@ -102,26 +105,13 @@ def gen_sample(CTX:dict,
         prntC(i, t, start, end, length, pad_lenght, shift)
         prntC(C.ERROR, "ERROR: lat or lon is 0")
 
-    x_batch = U.batch_preprocess(CTX, x_batch, CTX["RELATIVE_POSITION"], CTX["RELATIVE_TRACK"], CTX["RANDOM_TRACK"])
-    return x_batch, valid
+    y_sample = x[i][t+CTX["HORIZON"]]
 
+    x_sample, y_sample = U.batch_preprocess(CTX, x_sample, PAD,
+                                 post_flight = np.array([y_sample]))
 
+    return x_sample, y_sample[0], valid, (lat, lon)
 
-def batch_preprocess(CTX, flight, relative_position=False, relative_track=False, random_track=False):
-    pos = U.get_aircraft_last_message(CTX, flight)
-    nan_value = np.logical_and(FG.lat(flight) == FG.lat(PAD), FG.lon(flight) == FG.lon(PAD))
-    lat, lon, track = U.normalize_trajectory(CTX,
-                                  FG.lat(flight), FG.lon(flight), FG.track(flight),
-                                  FG.lat(pos), FG.lon(pos), FG.track(pos),
-                                  relative_position, relative_track, random_track)
-
-    # only apply normalization on non zero lat/lon
-    flight[~nan_value, FG.lat()] = lat[~nan_value]
-    flight[~nan_value, FG.lon()] = lon[~nan_value]
-    flight[~nan_value, FG.track()] = track[~nan_value]
-
-def undo_batch_preprocess(CTX, Olat, Olon, Otrack, lat, lon, relative_position=False, relative_track=False, random_track=False):
-    return U.undo_normalize_trajectory(CTX, lat, lon, Olat, Olon, Otrack, relative_position, relative_track, random_track)
 
 
 

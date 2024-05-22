@@ -43,6 +43,21 @@ def cartesian_to_spherical(x:NP.float32_1d, y:NP.float32_1d, z:NP.float32_1d)\
     -> "tuple[NP.float32_1d, NP.float32_1d]":...
 
 
+# |====================================================================================================================
+# | UTILS
+# |====================================================================================================================
+
+
+def mini(*args):
+    m = min(args[0])
+    for a in args[1:]:
+        m = min(m, min(a))
+    return m
+def maxi(*args):
+    m = max(args[0])
+    for a in args[1:]:
+        m = max(m, max(a))
+    return m
 
 # |====================================================================================================================
 # | LOADING FLIGHTS FROM DISK UTILS
@@ -371,10 +386,16 @@ def normalize_trajectory(CTX:"dict[str, object]",
     return lat, lon, track
 
 
-def undo_normalize_trajectory(CTX:dict, lat:"NP.float32_1d[AX.feature]", lon:"NP.float32_1d[AX.feature]",
+def denormalize_trajectory(CTX:dict, lat:"NP.float32_1d[AX.feature]", lon:"NP.float32_1d[AX.feature]",
                               Olat:float, Olon:float, Otrack:float,
-                              relative_position:bool, relative_track:bool)\
+                              relative_position:bool=None, relative_track:bool=None)\
         -> "tuple[NP.float32_1d[AX.feature], NP.float32_1d[AX.feature]]":
+
+    if (relative_position is None):
+        relative_position = CTX["RELATIVE_POSITION"]
+    if (relative_track is None):
+        relative_track = CTX["RELATIVE_TRACK"]
+
     ROT = 0
     LAT = -CTX["BOX_CENTER"][0]
     LON = -CTX["BOX_CENTER"][1]
@@ -398,10 +419,17 @@ def undo_normalize_trajectory(CTX:dict, lat:"NP.float32_1d[AX.feature]", lon:"NP
 
 def batch_preprocess(CTX:dict, flight:"NP.float32_2d[AX.time, AX.feature]",
                           PAD:"NP.float32_1d[AX.feature]",
-                          relative_position:bool=False, relative_track:bool=False, random_track:bool=False,
+                          relative_position:bool=None, relative_track:bool=None, random_track:bool=None,
                           post_flight:"NP.float32_2d[AX.time, AX.feature]"=None)\
         -> """NP.float32_2d[AX.time, AX.feature]
             | tuple[NP.float32_2d[AX.time, AX.feature], NP.float32_2d[AX.time, AX.feature]]""":
+
+    if (relative_position is None):
+        relative_position = CTX["RELATIVE_POSITION"]
+    if (relative_track is None):
+        relative_track = CTX["RELATIVE_TRACK"]
+    if (random_track is None):
+        random_track = CTX["RANDOM_TRACK"]
 
     # calculate normalized trajectory
     pos = get_aircraft_last_message(CTX, flight)

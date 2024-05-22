@@ -9,10 +9,9 @@ from   D_DataLoader.AbstractDataLoader import DataLoader as AbstractDataLoader
 import _Utils.FeatureGetter as FG
 import _Utils.Color as C
 from   _Utils.Color import prntC
+from _Utils import Limits
 from   _Utils.Scaler3D import  StandardScaler3D, SigmoidScaler2D, fillNaN3D, fillNaN2D
 from   _Utils.ProgressBar import ProgressBar
-from   _Utils.Chrono import Chrono
-import _Utils.Limits as Limits
 import _Utils.plotADSB as PLT
 from   _Utils.ADSB_Streamer import Streamer
 from   _Utils.Typing import NP, AX
@@ -60,7 +59,7 @@ class DataLoader(AbstractDataLoader):
 
     def __load_dataset__(self, CTX:dict, path:str) -> "list[NP.float32_2d[AX.time, AX.feature]]":
 
-        filenames = U.list_flights(path, limit=100)#Limits.INT_MAX)
+        filenames = U.list_flights(path, limit=Limits.INT_MAX)
         BAR.reset(max=len(filenames))
 
         x = []
@@ -130,12 +129,12 @@ class DataLoader(AbstractDataLoader):
         x_batch, y_batch = SU.alloc_batch(CTX, CTX["NB_BATCH"] * CTX["BATCH_SIZE"])
 
         for n in range(len(x_batch)):
-            x_sample, y_sample = SU.gen_random_sample(CTX, self.x_train, self.PAD)
+            x_sample, y_sample, origin = SU.gen_random_sample(CTX, self.x_train, self.PAD)
 
             x_batch[n] = x_sample
             y_batch[n] = y_sample
 
-        self.__plot_flight__(x_sample, y_sample)
+        self.__plot_flight__(x_sample, y_sample, origin)
 
         x_batch, y_batch = self.__scalers_transform__(CTX, x_batch, y_batch)
         x_batches, y_batches = self.__reshape__(CTX, x_batch, y_batch, CTX["NB_BATCH"], CTX["BATCH_SIZE"])
@@ -143,17 +142,33 @@ class DataLoader(AbstractDataLoader):
         return x_batches, y_batches
 
 
-    def __plot_flight__(self, x:NP.float32_2d[AX.time, AX.feature], y:NP.float32_1d[AX.feature]) -> None:
+    def __plot_flight__(self,
+                        x:NP.float32_2d[AX.time, AX.feature],
+                        y:NP.float32_1d[AX.feature],
+                        origin:"tuple[float, float]") -> None:
+
         NAME = "train_example"
         lat = FG.lat(x)
         lon = FG.lon(x)
+        o_lat, o_lon = origin
+        lat, lon     = U.denormalize_trajectory( self.CTX, lat, lon, o_lat, o_lon, 0)
+        y_lat, y_lon = U.denormalize_trajectory(self.CTX, [y[0]], [y[1]], o_lat, o_lon, 0)
 
-        box = [min(lat), min(lon), max(lat), max(lon)]
+        box = [U.mini(lat, y_lat), U.mini(lon, y_lon), U.maxi(lat, y_lat), U.maxi(lon, y_lon)]
+        # add some margin
+        size = max(box[2]-box[0], box[3]-box[1])
+        box[0] -= size * 0.1
+        box[1] -= size * 0.1
+        box[2] += size * 0.1
+        box[3] += size * 0.1
+
         PLT.figure (NAME, box[0], box[1], box[2], box[3])
         PLT.title  (NAME, "Flooding Solver - Prediction on a training sample")
         PLT.plot   (NAME, lat, lon, color="tab:blue", linestyle="--")
         PLT.scatter(NAME, lat, lon, color="tab:blue", marker="x")
-        PLT.scatter(NAME, [y[0]], [y[1]], color="tab:green", marker="x")
+        PLT.scatter(NAME, y_lat, y_lon, color="tab:green", marker="+")
+
+        PLT.attach_data(NAME+"Origin", (o_lat, o_lon))
 
 
 
@@ -174,7 +189,7 @@ class DataLoader(AbstractDataLoader):
         x_batch, y_batch = SU.alloc_batch(CTX, SIZE)
 
         for n in range(SIZE):
-            x_sample, y_sample = SU.gen_random_sample(CTX, self.x_test, self.PAD)
+            x_sample, y_sample, _ = SU.gen_random_sample(CTX, self.x_test, self.PAD)
             x_batch[n] = x_sample
             y_batch[n] = y_sample
 

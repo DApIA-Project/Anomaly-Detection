@@ -58,9 +58,7 @@ def figure(tag, min_lat, min_lon, max_lat, max_lon, figsize=(10, 10)):
     fig, ax = plt.subplots(figsize=figsize,
                     subplot_kw=dict(projection=request_OSM.crs))
 
-    ax.set_extent([min_lon, max_lon, min_lat, max_lat])
-
-
+    ax.set_extent([min_lat, max_lat, min_lon, max_lon])
     ax.add_image(request_OSM, zoom)
 
     __save__(tag, fig, ax)
