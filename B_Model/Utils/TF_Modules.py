@@ -117,7 +117,7 @@ class Attention(tf.keras.layers.Layer):
                 trainable=True,
                 initializer=tf.keras.initializers.RandomUniform(minval=0, maxval=1),
                 constraint=tf.keras.constraints.NonNeg(),
-                dtype=tf.float32)
+                dtype=tf.float64)
     
 
     def call(self, x):

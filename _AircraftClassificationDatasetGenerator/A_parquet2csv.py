@@ -5,7 +5,7 @@ import os
 from datetime import datetime
 import time
 import random
-import numpy as np
+from _Utils.numpy import np, ax
 
 """ read parquet file and split it into separates flights """
 

@@ -1,6 +1,6 @@
 
 
-import numpy as np
+from _Utils.numpy import np, ax
 import matplotlib.pyplot as plt
 import os
 

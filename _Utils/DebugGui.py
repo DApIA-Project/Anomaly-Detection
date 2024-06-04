@@ -77,7 +77,6 @@ def import_all():
     import dearpygui.dearpygui as dpg
     import folium
 
-    import numpy as np
     import os
 
 
@@ -432,24 +431,6 @@ def import_all():
             dpg.delete_item(parent_node[child_name].path)
             parent_node.pop(child_name)
 
-
-        # def __render__(self, path, data, data_header=None):
-        #     if (isinstance(data, np.ndarray)):
-        #         if (len(data.shape) == 2):
-        #             self.__render__2D_ndarray__(path, data, data_header)
-
-
-        # def __render__2D_ndarray__(self, path, data, data_header=None):
-        #     # create table
-        #     with dpg.table(header_row=True, parent=path):
-
-        #         for i in range(data.shape[1]):
-        #             dpg.add_table_column(label=data_header[i])
-
-        #         for i in range(data.shape[0]):
-        #             with dpg.table_row():
-        #                 for j in range(data.shape[1]):
-        #                     dpg.add_text(str(data[i, j]))
 
 
 

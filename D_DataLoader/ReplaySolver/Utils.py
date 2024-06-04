@@ -1,4 +1,4 @@
-import numpy as np
+from _Utils.numpy import np, ax
 from D_DataLoader.Utils import normalize_trajectory, latlondistance
 import _Utils.geographic_maths as GEO
 

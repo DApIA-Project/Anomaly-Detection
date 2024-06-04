@@ -1,5 +1,4 @@
 
-import numpy as np
 import os
 
 import _Utils.FeatureGetter as FG
@@ -9,9 +8,9 @@ from   _Utils.Scaler3D import StandardScaler3D, MinMaxScaler2D, fillNaN3D, fillN
 from   _Utils.SparceLabelBinarizer import SparceLabelBinarizer
 from   _Utils.ProgressBar import ProgressBar
 import _Utils.Limits as Limits
-import _Utils.plotADSB as PLT
+from _Utils.plotADSB import PLT
 from   _Utils.ADSB_Streamer import Streamer
-from   _Utils.Typing import NP, AX
+from _Utils.numpy import np, ax
 
 import D_DataLoader.Utils as U
 import D_DataLoader.AircraftClassification.Utils as SU
@@ -73,7 +72,7 @@ class DataLoader(AbstractDataLoader):
 
         x, y = [], []
         for f in range(len(filenames)):
-            df = U.read_trajectory(path, filenames[f])
+            df = U.read_trajectory(filenames[f])
 
             label = SU.getLabel(CTX, df["icao24", 0])
             if (label == 0):

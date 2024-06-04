@@ -1,4 +1,3 @@
-import numpy as np
 import pandas as pd
 import os
 from typing import overload
@@ -8,7 +7,7 @@ from _Utils.Color import prntC
 from _Utils.DataFrame import DataFrame
 import _Utils.FeatureGetter as FG
 from _Utils.Limits import INT_MAX
-from _Utils.Typing import NP, AX
+from _Utils.numpy import np, ax
 
 from D_DataLoader.Airports import TOULOUSE
 
@@ -19,28 +18,28 @@ from D_DataLoader.Airports import TOULOUSE
 @overload
 def x_rotation(x:float, y:float, z:float, a:float) -> "tuple[float, float, float]":...
 @overload
-def x_rotation(x:NP.float32_1d, y:NP.float32_1d, z:NP.float32_1d, a:float)\
-    -> "tuple[NP.float32_1d, NP.float32_1d, NP.float32_1d]":...
+def x_rotation(x:np.float64_1d, y:np.float64_1d, z:np.float64_1d, a:float)\
+    -> "tuple[np.float64_1d, np.float64_1d, np.float64_1d]":...
 @overload
 def y_rotation(x:float, y:float, z:float, a:float) -> "tuple[float, float, float]":...
 @overload
-def y_rotation(x:NP.float32_1d, y:NP.float32_1d, z:NP.float32_1d, a:float)\
-    -> "tuple[NP.float32_1d, NP.float32_1d, NP.float32_1d]":...
+def y_rotation(x:np.float64_1d, y:np.float64_1d, z:np.float64_1d, a:float)\
+    -> "tuple[np.float64_1d, np.float64_1d, np.float64_1d]":...
 @overload
 def z_rotation(x:float, y:float, z:float, a:float) -> "tuple[float, float, float]":...
 @overload
-def z_rotation(x:NP.float32_1d, y:NP.float32_1d, z:NP.float32_1d, a:float)\
-    -> "tuple[NP.float32_1d, NP.float32_1d, NP.float32_1d]":...
+def z_rotation(x:np.float64_1d, y:np.float64_1d, z:np.float64_1d, a:float)\
+    -> "tuple[np.float64_1d, np.float64_1d, np.float64_1d]":...
 @overload
 def spherical_to_cartesian(lat:float, lon:float) -> "tuple[float, float, float]":...
 @overload
-def spherical_to_cartesian(lat:NP.float32_1d, lon:NP.float32_1d)\
-    -> "tuple[NP.float32_1d, NP.float32_1d, NP.float32_1d]":...
+def spherical_to_cartesian(lat:np.float64_1d, lon:np.float64_1d)\
+    -> "tuple[np.float64_1d, np.float64_1d, np.float64_1d]":...
 @overload
 def cartesian_to_spherical(x:float, y:float, z:float) -> "tuple[float, float]":...
 @overload
-def cartesian_to_spherical(x:NP.float32_1d, y:NP.float32_1d, z:NP.float32_1d)\
-    -> "tuple[NP.float32_1d, NP.float32_1d]":...
+def cartesian_to_spherical(x:np.float64_1d, y:np.float64_1d, z:np.float64_1d)\
+    -> "tuple[np.float64_1d, np.float64_1d]":...
 
 
 # |====================================================================================================================
@@ -65,7 +64,7 @@ def maxi(*args):
 
 def list_flights(path:str, limit:int=INT_MAX) -> "list[str]":
     filenames = os.listdir(path)
-    filenames = [f for f in filenames if f.endswith(".csv")]
+    filenames = [os.path.join(path, f) for f in filenames if f.endswith(".csv")]
     filenames.sort()
     return filenames[:limit]
 
@@ -114,6 +113,10 @@ def angle_diff(a:float, b:float) -> float:
         diff -= 360
     elif (diff < -180):
         diff += 360
+    if (diff > 180 or diff < -180):
+        prntC(C.WARNING, "[angle_diff]:", "angle diff > 180", a, b, diff)
+        prntC(C.WARNING, "[angle_diff]:", "angle diff > 180", a, b, diff)
+        prntC(C.WARNING, "[angle_diff]:", "angle diff > 180", a, b, diff)
     return diff
 
 
@@ -152,7 +155,7 @@ def window_slice(CTX:dict, t:int) -> "tuple[int, int, int, int, int]":
 # | GET LAST MESSAGE FROM TRAJECTORY WITH NANs
 # |--------------------------------------------------------------------------------------------------------------------
 
-def get_aircraft_last_message(CTX:dict, flight:NP.float32_2d[AX.time, AX.feature]) -> NP.float32_1d:
+def get_aircraft_last_message(CTX:dict, flight:np.float64_2d[ax.time, ax.feature]) -> np.float64_1d:
     # get the aircraft last non zero latitudes and longitudes
     lat = flight[:, CTX["FEATURE_MAP"]["latitude"]]
     lon = flight[:, CTX["FEATURE_MAP"]["longitude"]]
@@ -163,7 +166,7 @@ def get_aircraft_last_message(CTX:dict, flight:NP.float32_2d[AX.time, AX.feature
         return None
     return flight[i]
 
-def get_aircraft_position(CTX:dict, flight:NP.float32_2d[AX.time, AX.feature]) -> "tuple[float, float]":
+def get_aircraft_position(CTX:dict, flight:np.float64_2d[ax.time, ax.feature]) -> "tuple[float, float]":
     # get the aircraft last non zero latitudes and longitudes
     pos = get_aircraft_last_message(CTX, flight)
     return FG.lat(pos), FG.lon(pos)
@@ -173,7 +176,7 @@ def get_aircraft_position(CTX:dict, flight:NP.float32_2d[AX.time, AX.feature]) -
 # | Convert a CSV dataframe into a numerical array with the right features
 # |--------------------------------------------------------------------------------------------------------------------
 
-def df_to_feature_array(CTX:dict, df:DataFrame, check_length:bool=True) -> NP.float32_2d[AX.time, AX.feature]:
+def df_to_feature_array(CTX:dict, df:DataFrame, check_length:bool=True) -> np.float64_2d[ax.time, ax.feature]:
     """
     Convert a complete ADS-B trajectory dataframe into a numpy array
     with the right features and preprocessing
@@ -210,7 +213,7 @@ def df_to_feature_array(CTX:dict, df:DataFrame, check_length:bool=True) -> NP.fl
         relative_track[i] = angle_diff(track[i-1], track[i])
     relative_track[0] = 0
     df.add_column("relative_track", relative_track)
-    df.setColumValue("timestamp", slice(0, len(df)), df["timestamp"] - df["timestamp"][0])
+    df.setColumValue("timestamp", slice(0, len(df)), df["timestamp"]) # 01/01/2015
 
 
     if ("toulouse_0" in CTX["USED_FEATURES"]):
@@ -236,7 +239,7 @@ def df_to_feature_array(CTX:dict, df:DataFrame, check_length:bool=True) -> NP.fl
     df = df.getColumns(CTX["USED_FEATURES"])
 
 
-    array = df.astype(np.float32)
+    array = df.astype(np.float64)
 
     if (len(array) == 0): return None
     return array
@@ -244,7 +247,7 @@ def df_to_feature_array(CTX:dict, df:DataFrame, check_length:bool=True) -> NP.fl
 TOULOUSE_LATS = np.array([TOULOUSE[i]['lat'] for i in range(len(TOULOUSE))], dtype=np.float64)
 TOULOUSE_LONS = np.array([TOULOUSE[i]['long'] for i in range(len(TOULOUSE))], dtype=np.float64)
 
-def toulouse_airportDistance(lats, lons):
+def toulouse_airportDistance(lats:"list[float]", lons:"list[float]"):
     """
     Compute the distance to the nearest airport
     """
@@ -310,7 +313,7 @@ def analysis(CTX, dataframe):
 
     return minValues, maxValues
 
-def genPadValues(CTX:dict, dataframe) -> NP.float32_1d:
+def genPadValues(CTX:dict, dataframe) -> np.float64_1d:
     minValues = analysis(CTX, dataframe)[0]
     padValues = minValues
 
@@ -356,17 +359,18 @@ def splitDataset(data, ratio):
 # |====================================================================================================================
 
 def normalize_trajectory(CTX:"dict[str, object]",
-                         lat:NP.float32_1d, lon:NP.float32_1d, track:NP.float32_1d,
+                         lat:np.float64_1d[ax.time], lon:np.float64_1d[ax.time], track:np.float64_1d[ax.time],
                          Olat:float, Olon:float, Otrack:float,
                          relative_position:bool, relative_track:bool, random_track:bool)\
-        -> "tuple[NP.float32_1d, NP.float32_1d, NP.float32_1d]":
+        -> "tuple[np.float64_1d[ax.time], np.float64_1d[ax.time], np.float64_1d[ax.time]]":
 
-    ROT = 0
-    LAT = -CTX["BOX_CENTER"][0]
-    LON = -CTX["BOX_CENTER"][1]
+    LAT, LON, ROT = 0, 0, 0
     if relative_position:
         LAT = -Olat
         LON = -Olon
+    else:
+        LAT = -CTX["BOX_CENTER"][0]
+        LON = -CTX["BOX_CENTER"][1]
     if relative_track:
         ROT = -Otrack
     if random_track:
@@ -378,7 +382,8 @@ def normalize_trajectory(CTX:"dict[str, object]",
     # Normalize latitude with Y rotation
     x, y, z = y_rotation(x, y, z, np.radians(LAT))
     # Rotate the fragment with the random angle along X axis
-    x, y, z = x_rotation(x, y, z, np.radians(ROT))
+    if (ROT != 0):
+        x, y, z = x_rotation(x, y, z, np.radians(ROT))
 
     lat, lon = cartesian_to_spherical(x, y, z)
     track = np.remainder(track + ROT, 360)
@@ -386,22 +391,23 @@ def normalize_trajectory(CTX:"dict[str, object]",
     return lat, lon, track
 
 
-def denormalize_trajectory(CTX:dict, lat:"NP.float32_1d[AX.feature]", lon:"NP.float32_1d[AX.feature]",
+def denormalize_trajectory(CTX:dict, lat:"np.float64_1d[ax.time]", lon:"np.float64_1d[ax.time]",
                               Olat:float, Olon:float, Otrack:float,
                               relative_position:bool=None, relative_track:bool=None)\
-        -> "tuple[NP.float32_1d[AX.feature], NP.float32_1d[AX.feature]]":
+        -> "tuple[np.float64_1d[ax.time], np.float64_1d[ax.time]]":
 
     if (relative_position is None):
         relative_position = CTX["RELATIVE_POSITION"]
     if (relative_track is None):
-        relative_track = CTX["RELATIVE_TRACK"]
+        relative_track = CTX["RELATIVE_TRACK"] or CTX["RANDOM_TRACK"]
 
     ROT = 0
-    LAT = -CTX["BOX_CENTER"][0]
-    LON = -CTX["BOX_CENTER"][1]
     if relative_position:
         LAT = -Olat
         LON = -Olon
+    else:
+        LAT = -CTX["BOX_CENTER"][0]
+        LON = -CTX["BOX_CENTER"][1]
     if relative_track:
         ROT = -Otrack
 
@@ -417,12 +423,12 @@ def denormalize_trajectory(CTX:dict, lat:"NP.float32_1d[AX.feature]", lon:"NP.fl
     return lat, lon
 
 
-def batch_preprocess(CTX:dict, flight:"NP.float32_2d[AX.time, AX.feature]",
-                          PAD:"NP.float32_1d[AX.feature]",
+def batch_preprocess(CTX:dict, flight:"np.float64_2d[ax.time, ax.feature]",
+                          PAD:"np.float64_1d[ax.feature]",
                           relative_position:bool=None, relative_track:bool=None, random_track:bool=None,
-                          post_flight:"NP.float32_2d[AX.time, AX.feature]"=None)\
-        -> """NP.float32_2d[AX.time, AX.feature]
-            | tuple[NP.float32_2d[AX.time, AX.feature], NP.float32_2d[AX.time, AX.feature]]""":
+                          post_flight:"np.float64_2d[ax.time, ax.feature]"=None)\
+        -> """np.float64_2d[ax.time, ax.feature]
+            | tuple[np.float64_2d[ax.time, ax.feature], np.float64_2d[ax.time, ax.feature]]""":
 
     if (relative_position is None):
         relative_position = CTX["RELATIVE_POSITION"]

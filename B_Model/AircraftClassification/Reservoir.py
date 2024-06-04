@@ -3,7 +3,7 @@
 from B_Model.AbstractModel import Model as AbstactModel
 from B_Model.Utils.Reservoir.modules import RC_model
 import os
-import numpy as np
+from _Utils.numpy import np, ax
 
 
 class Model(AbstactModel):

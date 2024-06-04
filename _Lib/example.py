@@ -1,6 +1,6 @@
 from AdsbAnomalyDetector import predict
 import pandas as pd
-import numpy as np
+from _Utils.numpy import np, ax
 
 # utilisation du modèle sur deux vols simultanés
 flight_1 = pd.read_csv("./2022-01-12_13-19-13_SAMU31_39ac45.csv", dtype=str)

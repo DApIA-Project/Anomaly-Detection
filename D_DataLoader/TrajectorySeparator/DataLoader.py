@@ -1,5 +1,5 @@
 import pandas as pd
-import numpy as np
+from _Utils.numpy import np, ax
 
 import _Utils.Color as C
 from _Utils.Color import prntC
@@ -45,7 +45,7 @@ class DataLoader(AbstractDataLoader):
         df = pd.DataFrame()
         icao_codes = set()
         for f in range(len(filenames)):
-            messages = U.read_trajectory(path, filenames[f])
+            messages = U.read_trajectory(filenames[f])
             # check if the icao24 is already in the set
             icao = messages.iloc[0]['icao24']
             if (icao in icao_codes):
@@ -95,7 +95,13 @@ class StreamerInterface:
             prntC(C.WARNING, "No tag provided for message : ", x['icao24'])
 
 
-    def get_flights_with_icao(self, icao:str, timestamp:int) -> "tuple[list[np.ndarray], list[int], list[str]]":
+    def clear(self)-> None:
+        STREAMER.clear()
+
+
+    def get_flights_with_icao(self, icao:str, timestamp:int) -> """tuple[
+        list[np.float64_2d[ax.time, ax.feature]],
+        list[str]]""":
 
         tags = STREAMER.get_tags_for_icao(icao)
         if (len(tags) == 0):
@@ -104,10 +110,10 @@ class StreamerInterface:
         COL = self.CTX["USED_FEATURES"]
         x, tags = zip(*[[STREAMER.get(tag).getColumns(COL), tag] for tag in tags])
 
-
         # remove trajectory witch already has a message at this timestamp
         x_tag = [(x[i], tags[i]) for i in range(len(x))
                         if len(x[i]) <= 1 or int(x[i][-1, -1]) < timestamp]
+
         if (len(x_tag) > 0):
             x, tags = zip(*x_tag)
             x, tags = list(x), list(tags)

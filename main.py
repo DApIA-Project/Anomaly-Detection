@@ -14,14 +14,14 @@ import sys
 # algo = "AircraftClassification"
 # model = "CNN2"
 
-algo = "FloodingSolver"
-model = "LSTM"
+# algo = "FloodingSolver"
+# model = "LSTM"
 
 # algo = "ReplaySolver"
 # model = "HASH"
 
-# algo = "TrajectorySeparator"
-# model = "ALG"
+algo = "TrajectorySeparator"
+model = "ALG"
 ###################################
 argv = sys.argv
 if ("-ui" in argv):

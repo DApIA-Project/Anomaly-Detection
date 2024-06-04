@@ -1,5 +1,5 @@
 
-import numpy as np
+from _Utils.numpy import np, ax
 
 from _Utils.DataFrame import DataFrame
 from _Utils.Color import prntC
@@ -49,6 +49,12 @@ class Streamer:
         self.__cache__:dict[str, dict[str, object]] = {}
         self.__icao_to_tag__:dict[str, set] = {}
         self.__tag_to_icao__:dict[str, str] = {}
+
+    def clear(self) -> None:
+        self.trajectories.clear()
+        self.__cache__.clear()
+        self.__icao_to_tag__.clear()
+        self.__tag_to_icao__.clear()
 
     def add(self, x:"dict[str, object]", tag:str=None) -> DataFrame:
         if (tag == None):

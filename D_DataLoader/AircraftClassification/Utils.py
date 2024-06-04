@@ -7,7 +7,7 @@ from PIL import Image
 import _Utils.Color         as C
 import _Utils.FeatureGetter as FG
 from   _Utils.Color import prntC
-from   _Utils.Typing import NP, AX
+from _Utils.numpy import np, ax
 
 import D_DataLoader.Utils   as U
 
@@ -91,12 +91,12 @@ def num2deg(xtile, ytile, zoom):
 # load image as numpy array
 path = "A_Dataset/AircraftClassification/map.png"
 img = Image.open(path)
-MAP =  np.array(img, dtype=np.float32) / 255.0
+MAP =  np.array(img, dtype=np.float64) / 255.0
 def genMap(lat:float, lon:float, size:int) -> np.ndarray:
     """Generate an image of the map with the flight at the center"""
 
     if (lat == 0 and lon == 0):
-        return np.zeros((size, size, 3), dtype=np.float32)
+        return np.zeros((size, size, 3), dtype=np.float64)
 
 
     #######################################################
@@ -182,31 +182,31 @@ def check_sample(CTX:"dict[str, object]", x:"np.ndarray", i:int, t:int) -> bool:
 
 def alloc_sample(CTX:dict)\
         -> """tuple[
-                  NP.float32_2d[AX.time, AX.feature],
-                  NP.float32_2d[AX.time, AX.feature],
-                  NP.float32_3d[AX.x, AX.y, AX.rgb],
-                  NP.float32_1d[AX.feature]]""":
+                  np.float64_2d[ax.time, ax.feature],
+                  np.float64_2d[ax.time, ax.feature],
+                  np.float64_3d[ax.x, ax.y, ax.rgb],
+                  np.float64_1d[ax.feature]]""":
 
     x_sample = np.zeros((CTX["INPUT_LEN"],CTX["FEATURES_IN"]))
     x_sample_takeoff, x_sample_map, x_sample_airport = None, None, None
     if (CTX["ADD_TAKE_OFF_CONTEXT"]): x_sample_takeoff = np.zeros((CTX["INPUT_LEN"],CTX["FEATURES_IN"]))
-    if (CTX["ADD_MAP_CONTEXT"]): x_sample_map = np.zeros((CTX["IMG_SIZE"], CTX["IMG_SIZE"],3), dtype=np.float32)
+    if (CTX["ADD_MAP_CONTEXT"]): x_sample_map = np.zeros((CTX["IMG_SIZE"], CTX["IMG_SIZE"],3), dtype=np.float64)
     if (CTX["ADD_AIRPORT_CONTEXT"]): x_sample_airport = np.zeros((CTX["AIRPORT_CONTEXT_IN"]))
     return x_sample, x_sample_takeoff, x_sample_map, x_sample_airport
 
 def alloc_batch(CTX:dict, size:int)\
         -> """tuple[
-                  NP.float32_3d[AX.sample, AX.time, AX.feature],
-                  NP.float32_2d[AX.sample, AX.feature],
-                  NP.float32_3d[AX.sample, AX.time, AX.feature],
-                  NP.float32_4d[AX.sample, AX.x, AX.y, AX.rgb],
-                  NP.float32_2d[AX.sample, AX.feature]]""":
+                  np.float64_3d[ax.sample, ax.time, ax.feature],
+                  np.float64_2d[ax.sample, ax.feature],
+                  np.float64_3d[ax.sample, ax.time, ax.feature],
+                  np.float64_4d[ax.sample, ax.x, ax.y, ax.rgb],
+                  np.float64_2d[ax.sample, ax.feature]]""":
 
     x_batch = np.zeros((size, CTX["INPUT_LEN"],CTX["FEATURES_IN"]))
     y_batch = np.zeros((size, CTX["FEATURES_OUT"]))
     x_batch_takeoff, x_batch_map, x_batch_airport = None, None, None
     if (CTX["ADD_TAKE_OFF_CONTEXT"]): x_batch_takeoff = np.zeros((size, CTX["INPUT_LEN"],CTX["FEATURES_IN"]))
-    if (CTX["ADD_MAP_CONTEXT"]): x_batch_map = np.zeros((size, CTX["IMG_SIZE"], CTX["IMG_SIZE"],3), dtype=np.float32)
+    if (CTX["ADD_MAP_CONTEXT"]): x_batch_map = np.zeros((size, CTX["IMG_SIZE"], CTX["IMG_SIZE"],3), dtype=np.float64)
     if (CTX["ADD_AIRPORT_CONTEXT"]): x_batch_airport = np.zeros((size, CTX["AIRPORT_CONTEXT_IN"]))
     return x_batch, y_batch, x_batch_takeoff, x_batch_map, x_batch_airport
 

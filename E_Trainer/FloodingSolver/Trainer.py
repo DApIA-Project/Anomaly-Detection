@@ -1,6 +1,8 @@
 import os
 import pandas as pd
-import numpy as np
+import matplotlib.pyplot as plt
+from   matplotlib.backends.backend_pdf import PdfPages
+from _Utils.numpy import np, ax
 
 from   B_Model.AbstractModel import Model as _Model_
 from   D_DataLoader.FloodingSolver.DataLoader import DataLoader
@@ -14,9 +16,9 @@ from   _Utils.Color import prntC
 from   _Utils.ProgressBar import ProgressBar
 from   _Utils.Chrono import Chrono
 from   _Utils.DebugGui import GUI
-import _Utils.plotADSB as PLT
-from   _Utils.Typing import NP, AX
+from   _Utils.plotADSB import PLT
 import _Utils.geographic_maths as GEO
+
 
 
 # |====================================================================================================================
@@ -47,13 +49,13 @@ CHRONO = Chrono()
 
 def __alloc_pred_batches__(CTX:dict, train_batches:int, train_size:int,
                                      test_batches :int, test_size :int) ->"""tuple[
-        NP.float32_3d[AX.batch, AX.sample, AX.feature],
-        NP.float32_3d[AX.batch, AX.sample, AX.feature],
-        NP.float32_1d, NP.float32_1d]""":
+        np.float64_3d[ax.batch, ax.sample, ax.feature],
+        np.float64_3d[ax.batch, ax.sample, ax.feature],
+        np.float64_1d, np.float64_1d]""":
 
-    return np.zeros((train_batches, train_size, CTX["FEATURES_OUT"]), dtype=np.float32), \
-           np.zeros((test_batches,  test_size,  CTX["FEATURES_OUT"]), dtype=np.float32), \
-           np.zeros(train_batches, dtype=np.float32), np.zeros(test_size, dtype=np.float32)
+    return np.zeros((train_batches, train_size, CTX["FEATURES_OUT"]), dtype=np.float64), \
+           np.zeros((test_batches,  test_size,  CTX["FEATURES_OUT"]), dtype=np.float64), \
+           np.zeros(train_batches, dtype=np.float64), np.zeros(test_size, dtype=np.float64)
 
 
 # |====================================================================================================================
@@ -79,6 +81,8 @@ class Trainer(AbstractTrainer):
         self.__ep__ = -1
         self.__history__ = None
         self.__history_mov_avg__ = None
+        # __eval_files__ is initialized only if eval is called (as there is no eval file in production)
+        self.__eval_files__ = None
 
 
     def __makes_artifacts__(self) -> None:
@@ -102,13 +106,15 @@ class Trainer(AbstractTrainer):
 # |====================================================================================================================
 # |     SAVE & LOAD MODEL'S VARIABLES
 # |====================================================================================================================
+
     def save(self) -> None:
         write(self.ARTIFACTS+"/w", self.model.getVariables())
         write(self.ARTIFACTS+"/xs", self.dl.xScaler.getVariables())
         write(self.ARTIFACTS+"/ys", self.dl.yScaler.getVariables())
         write(self.ARTIFACTS+"/pad", self.dl.PAD)
 
-    def load(self, path:str) -> None:
+
+    def load(self, path:str=None) -> None:
         if (path is None):
             path = self.ARTIFACTS
 
@@ -116,6 +122,7 @@ class Trainer(AbstractTrainer):
         self.dl.xScaler.set_variables(load(path+"/xs"))
         self.dl.yScaler.set_variables(load(path+"/ys"))
         self.dl.PAD = load(path+"/pad")
+
 
 # |====================================================================================================================
 # |     TRAINING FUNCTIONS
@@ -143,15 +150,15 @@ class Trainer(AbstractTrainer):
             for batch in range(len(x_train)):
                 loss_train[batch], _y_train[batch] = self.model.training_step(x_train[batch], y_train[batch])
                 BAR.update()
-            _y_train:NP.float32_2d[AX.sample, AX.feature] = _y_train.reshape(-1, _y_train.shape[-1])
-            y_train :NP.float32_2d[AX.sample, AX.feature] =  y_train.reshape(-1,  y_train.shape[-1])
+            _y_train:np.float64_2d[ax.sample, ax.feature] = _y_train.reshape(-1, _y_train.shape[-1])
+            y_train :np.float64_2d[ax.sample, ax.feature] =  y_train.reshape(-1,  y_train.shape[-1])
 
             # Testing
             for batch in range(len(x_test)):
                 loss_test[batch], _y_test[batch] = self.model.compute_loss(x_test[batch], y_test[batch])
                 BAR.update()
-            _y_test:NP.float32_2d[AX.sample, AX.feature] = _y_test.reshape(-1, _y_test.shape[-1])
-            y_test :NP.float32_2d[AX.sample, AX.feature] =  y_test.reshape(-1,  y_test.shape[-1])
+            _y_test:np.float64_2d[ax.sample, ax.feature] = _y_test.reshape(-1, _y_test.shape[-1])
+            y_test :np.float64_2d[ax.sample, ax.feature] =  y_test.reshape(-1,  y_test.shape[-1])
 
             self.__epoch_stats__(ep, y_train, _y_train, y_test, _y_test)
 
@@ -162,8 +169,8 @@ class Trainer(AbstractTrainer):
 # |--------------------------------------------------------------------------------------------------------------------
 
     def __prediction_statistics__(self,
-                                  y:NP.float32_2d[AX.sample, AX.feature],
-                                  y_:NP.float32_2d[AX.sample, AX.feature])\
+                                  y:np.float64_2d[ax.sample, ax.feature],
+                                  y_:np.float64_2d[ax.sample, ax.feature])\
             -> "tuple[float, float]":
 
         y_unscaled  = self.dl.yScaler.inverse_transform(y)
@@ -175,18 +182,18 @@ class Trainer(AbstractTrainer):
 
 
     def __epoch_stats__(self, ep:int,
-                        y_train:NP.float32_2d[AX.sample, AX.feature],
-                        _y_train:NP.float32_2d[AX.sample, AX.feature],
-                        y_test :NP.float32_2d[AX.sample, AX.feature],
-                        _y_test :NP.float32_2d[AX.sample, AX.feature]) -> None:
+                        y_train:np.float64_2d[ax.sample, ax.feature],
+                        _y_train:np.float64_2d[ax.sample, ax.feature],
+                        y_test :np.float64_2d[ax.sample, ax.feature],
+                        _y_test :np.float64_2d[ax.sample, ax.feature]) -> None:
 
         train_dist, train_loss = self.__prediction_statistics__(y_train, _y_train)
         test_dist,  test_loss  = self.__prediction_statistics__(y_test,  _y_test )
 
         # On first epoch, initialize history
         if (self.__ep__ == -1 or self.__ep__ > ep):
-            self.__history__         = np.full((4, self.CTX["EPOCHS"]), np.nan, dtype=np.float32)
-            self.__history_mov_avg__ = np.full((4, self.CTX["EPOCHS"]), np.nan, dtype=np.float32)
+            self.__history__         = np.full((4, self.CTX["EPOCHS"]), np.nan, dtype=np.float64)
+            self.__history_mov_avg__ = np.full((4, self.CTX["EPOCHS"]), np.nan, dtype=np.float64)
 
 
         # Save epoch statistics
@@ -230,18 +237,20 @@ class Trainer(AbstractTrainer):
         GUI.visualize("/Training/Table/0/0/loss", GUI.IMAGE, self.ARTIFACTS+"/loss.png")
         GUI.visualize("/Training/Table/1/0/acc", GUI.IMAGE, self.ARTIFACTS+"/distance.png")
 
-    def __plot_train_exemple__(self, y_train:NP.float32_2d[AX.sample, AX.feature],
-                                    _y_train:NP.float32_2d[AX.sample, AX.feature]) -> None:
+    def __plot_train_exemple__(self, y_train:np.float64_2d[ax.sample, ax.feature],
+                                    _y_train:np.float64_2d[ax.sample, ax.feature]) -> None:
         NAME = "train_example"
         y_sample  = self.dl.yScaler.inverse_transform([y_train[-1]])[0]
         y_sample_ = self.dl.yScaler.inverse_transform([_y_train[-1]])[0]
 
-        o_lat, o_lon = PLT.get_data(NAME+"Origin")
-        y_sample  = U.denormalize_trajectory(self.CTX, [y_sample[0]], [y_sample[1]], o_lat, o_lon, 0)
-        y_sample_ = U.denormalize_trajectory(self.CTX, [y_sample_[0]], [y_sample_[1]], o_lat, o_lon, 0)
+        o_lat, o_lon, o_track = PLT.get_data(NAME+"Origin")
+        y_sample  = U.denormalize_trajectory(self.CTX, [y_sample[0]], [y_sample[1]],
+                                             o_lat, o_lon, o_track)
+        y_sample_ = U.denormalize_trajectory(self.CTX, [y_sample_[0]], [y_sample_[1]],
+                                             o_lat, o_lon, o_track)
 
-        PLT.scatter(NAME, y_sample[0],  y_sample[1],  color="tab:purple", marker="x")
-        PLT.scatter(NAME, y_sample_[0], y_sample_[1], color="tab:red", marker="x")
+        PLT.scatter(NAME, y_sample[1],  y_sample[0],  color="tab:green", marker="x")
+        PLT.scatter(NAME, y_sample_[1], y_sample_[0], color="tab:purple", marker="x")
 
         PLT.show(NAME, self.ARTIFACTS+"/train_example.png")
 
@@ -259,132 +268,412 @@ class Trainer(AbstractTrainer):
             prntC(C.WARNING, "No history of training has been saved")
             return
 
-        best_i = np.argmax(self.__history_mov_avg__[H_TEST_DIST]) + 1
+        best_i = np.argmin(self.__history_mov_avg__[H_TEST_DIST]) + 1
 
         prntC(C.INFO, "load best model, epoch : ",
-              C.BLUE, best_i, C.RESET, " with Acc : ",
-              C.BLUE, self.__history__[H_TEST_DIST][best_i-1])
+              C.BLUE, best_i, C.RESET, " with distance loss of : ",
+              C.BLUE, self.__history__[H_TEST_DIST][best_i-1],"m")
 
         self.model.set_variables(load(self.ARTIFACTS+"/weights/"+str(best_i)+".w"))
         self.save()
 
 
+# |====================================================================================================================
+# |     MAKING PREDICTIONS FROM RAW ADSB MESSAGES
+# |====================================================================================================================
 
 
+    def predict(self, x:"list[dict[str,object]]") -> np.float64_2d[ax.sample, ax.feature]:
+
+        # allocate memory
+        x_batch  = np.zeros((len(x), self.CTX["INPUT_LEN"], self.CTX["FEATURES_IN"]))
+        y_batch  = np.full((len(x), self.CTX["FEATURES_OUT"]), np.nan, dtype=np.float64)
+        y_batch_ = np.full((len(x), self.CTX["FEATURES_OUT"]), np.nan, dtype=np.float64)
+        y_       = np.full((len(x), self.CTX["FEATURES_OUT"]), np.nan, dtype=np.float64)
+        y        = np.full((len(x), self.CTX["FEATURES_OUT"]), np.nan, dtype=np.float64)
+        is_interesting = np.zeros(len(x), dtype=bool)
+        origin   = np.zeros((len(x), 3), dtype=np.float64)
+
+        # stream message and build input batch
+        for i in range(len(x)):
+            sample, y_sample, valid, o = self.dl.streamer.stream(x[i])
+            x_batch[i] = sample[0]
+            if (valid): y_batch[i] = y_sample[0]
+
+            is_interesting[i] = valid
+            origin[i] = o
+
+
+        # predict only on interesting samples
+        x_preds = x_batch[is_interesting]
+        y_preds_ = np.zeros((len(x_preds), self.CTX["FEATURES_OUT"]), dtype=np.float64)
+        for i in range(0, len(x_preds), self.CTX["MAX_BATCH_SIZE"]):
+            s = slice(i, i+self.CTX["MAX_BATCH_SIZE"])
+            y_preds_[s] = self.model.predict(x_preds[s]).numpy()
+        y_batch_[is_interesting] = y_preds_
+
+
+        # denormalize predictions
+        y_batch_ = self.dl.yScaler.inverse_transform(y_batch_)
+        y_batch = self.dl.yScaler.inverse_transform(y_batch)
+
+
+
+        for i in range(len(x)):
+            y_lat, y_lon = U.denormalize_trajectory(self.CTX, [y_batch_[i, 0]], [y_batch_[i, 1]],
+                                                    origin[i, 0], origin[i, 1], origin[i, 2])
+            y_[i] = [y_lat[0], y_lon[0]]
+
+
+            ylat, ylon = U.denormalize_trajectory(self.CTX, [y_batch[i, 0]], [y_batch[i, 1]],
+                                                  origin[i, 0], origin[i, 1], origin[i, 2])
+            y[i] = [ylat[0], ylon[0]]
+
+        # DEBUG (comment this line to remove debug plot)
+        # self.__debug_plot_predictions__(x_batch, y_batch, y_batch_, y_, y, is_interesting, origin)
+
+        return y_, y
+
+
+
+    def __debug_plot_predictions__(self, x_batch:np.float64_3d[ax.sample, ax.time, ax.feature],
+                                         y_batch:np.float64_2d[ax.sample, ax.feature],
+                                         y_batch_:np.float64_2d[ax.sample, ax.feature],
+                                         y_:np.float64_2d[ax.sample, ax.feature],
+                                         y:np.float64_2d[ax.sample, ax.feature],
+                                         is_interesting:np.bool_1d,
+                                         origin:np.float64_2d[ax.sample, ax.feature]) -> None:
+
+        interesting = np.arange(len(x_batch))[is_interesting]
+        if (len(interesting) > 0):
+            i = 2
+            it = interesting[i]
+
+            x_batch_norm = self.dl.xScaler.inverse_transform(x_batch)
+            x_batch_norm   = x_batch_norm[it, :, 0:2]
+            x_batch_denorm = U.denormalize_trajectory(self.CTX, x_batch_norm[:, 0], x_batch_norm[:, 1],
+                                                   origin[it, 0], origin[it, 1], origin[it, 2])
+
+            fig, ax = plt.subplots(1, 2, figsize=(15, 7))
+
+            ax[0].plot   (x_batch_norm[:, 1], x_batch_norm[:, 0], color="tab:blue")
+            ax[0].scatter(x_batch_norm[:, 1], x_batch_norm[:, 0], color="tab:blue", marker="x")
+            ax[0].scatter(y_batch_[it, 1], y_batch_[it, 0], color="tab:purple", marker="x")
+            ax[0].scatter(y_batch [it, 1], y_batch [it, 0], color="tab:green", marker="+")
+            ax[0].title.set_text("Prediction before denormalization")
+            ax[0].axis('equal')
+
+            ax[1].plot   (x_batch_denorm[1], x_batch_denorm[0], color="tab:blue")
+            ax[1].scatter(x_batch_denorm[1], x_batch_denorm[0], color="tab:blue", marker="x")
+            ax[1].scatter(y_[it, 1], y_[it, 0], color="tab:purple", marker="x")
+            ax[1].scatter(y [it, 1], y [it, 0], color="tab:green",  marker="+")
+            ax[1].title.set_text("Prediction after denormalization")
+            ax[1].axis('equal')
+
+
+            plt.savefig(self.ARTIFACTS+f"/debug_prediction.png")
+            plt.close()
+            plt.clf()
+            input("press enter to continue")
+
+
+# |====================================================================================================================
+# |     EVALUATION
+# |====================================================================================================================
+
+    def __gen_eval_batch__(self, files:"list[str]")->"""
+            tuple[list[pd.DataFrame], int,
+            list[np.float64_2d[ax.time, ax.feature]],
+            list[np.float64_2d[ax.time, ax.feature]],
+            list[np.float64_1d[ax.time]]]""":
+
+        # load all ressources needed for the batch
+        files_df, max_lenght, y, y_, loss = [], 0, [], [], []
+        for f in range(len(files)):
+            df = U.read_trajectory(files[f])
+            files_df.append(df)
+            y_.append(np.full((len(df), self.CTX["FEATURES_OUT"]), np.nan, dtype=np.float64))
+            y .append(np.full((len(df), self.CTX["FEATURES_OUT"]), np.nan, dtype=np.float64))
+            loss.append(np.full(len(df), np.nan, dtype=np.float64))
+
+            max_lenght = max(max_lenght, len(df))
+
+        return files_df, max_lenght, y, y_, loss
+
+    def __next_msgs__(self, dfs:"list[pd.DataFrame]", t:int)-> "list[dict[str:float]]":
+        x, files = [], []
+        for f in range(len(dfs)):
+            # if there is a message at this time
+            if (t < len(dfs[f])):
+                msg = dfs[f].iloc[t].to_dict()
+                x.append(msg)
+                files.append(f)
+        return x, files
 
 
     def eval(self):
-        """
-        Evaluate the model and return metrics
+
+        if (self.__eval_files__ is None):
+            self.__eval_files__ = [U.list_flights(f"{EVAL_FOLDER}{f}") for f in os.listdir(EVAL_FOLDER)]
+
+        to_remove=[f for f in os.listdir(self.ARTIFACTS) if f.startswith("prediction")]
+        for f in to_remove:
+            os.remove(self.ARTIFACTS+"/"+f)
 
 
-        Returns:
-        --------
+        for folder in self.__eval_files__:
 
-        metrics : dict
-            The metrics dictionary of the model's performance
-        """
-        if not(os.path.exists("./A_Dataset/FloodingSolver/Outputs/Eval")):
-                os.makedirs("./A_Dataset/FloodingSolver/Outputs/Eval")
+            prntC(C.INFO, "Evaluating model on : ", C.BLUE, folder[0].split("/")[-2])
 
-        CTX = self.CTX
-        FOLDER = "./A_Dataset/FloodingSolver/Eval"
-        PRED_FEATURES = CTX["PRED_FEATURES"]
-        PRED_LAT = CTX["PRED_FEATURE_MAP"]["latitude"]
-        PRED_LON = CTX["PRED_FEATURE_MAP"]["longitude"]
+            self.dl.streamer.clear()
 
+            dfs, max_len, y, y_, loss = self.__gen_eval_batch__(folder)
 
+            BAR.reset(max=max_len)
 
-        # clear Outputs/path folder
-        os.system("rm -rf ./A_Dataset/FloodingSolver/Outputs/*")
+            for t in range(max_len):
+                x, files = self.__next_msgs__(dfs, t)
+                yt_, yt = self.predict(x)
+                for i in range(len(files)):
+                    y_[files[i]][t] = yt_[i]
+                    y [files[i]][t] = yt [i]
+                    loss[files[i]][t] = GEO.distance(x[i]["latitude"], x[i]["longitude"], yt_[i][0], yt_[i][1])
+                BAR.update()
 
-        # list all folder in the eval folder
-        folders = os.listdir(FOLDER)
-        folders = [folder for folder in folders if os.path.isdir(os.path.join(FOLDER, folder))]
-        for folder in folders:
-
-            path = os.path.join(FOLDER, folder)
-
-            files = os.listdir(path)
-            files = [file for file in files if file.endswith(".csv")]
-
-            # check Outputs/path folder exists
-            if not(os.path.exists("./A_Dataset/FloodingSolver/Outputs/"+folder)):
-                os.makedirs("./A_Dataset/FloodingSolver/Outputs/"+folder)
-
-            print("EVAL : "+folder+" : "+str(len(files))+" files", flush=True)
-
-
-            mean_distances = []
-
-            for i in range(len(files)):
-                LEN = 20
-                # nb = int((i+1)/len(files)*LEN)
-                # print("EVAL : |", "-"*(nb)+" "*(LEN-nb)+"| "+str(i + 1).rjust(len(str(len(files))), " ") + "/" + str(len(files)), end="\r", flush=True)
-
-                file = files[i]
-                file_path = os.path.join(path, file)
-                df = pd.read_csv(file_path, sep=",",dtype={"callsign":str, "icao24":str})
-                df_timestamp = df["timestamp"] - df["timestamp"][0]
-                df_ts_map = dict([[df_timestamp[i], i] for i in range(len(df))])
-                x_inputs, y_batches, ts = self.dl.genEval(file_path)
-
-
-                if (len(x_inputs) == 0): # skip empty file (no label)
-                    continue
-
-                y_batches_ = np.zeros((len(x_inputs), CTX["FEATURES_OUT"]), dtype=np.float32)
-                jumps = 256
-                for b in range(0, len(x_inputs),jumps):
-                    x_batch = x_inputs[b:b+jumps]
-                    pred =  self.model.predict(x_batch).numpy()
-                    y_batches_[b:b+jumps] = pred
-
-
-                y_batches_ = self.dl.yScaler.inverse_transform(y_batches_)
-                y_batches = self.dl.yScaler.inverse_transform(y_batches)
-
-                d = distance(CTX, y_batches_, y_batches)
-                mean_distances.append(d)
-
-                # analyse outputs and give the ghost aircraft
-
-                pred_lat = y_batches_[:,PRED_LAT]
-                pred_lon = y_batches_[:,PRED_LON]
-                true_lat = y_batches[:,PRED_LAT]
-                true_lon = y_batches[:,PRED_LON]
-
-
-                pred_lat = pad_pred(ts, df_ts_map, pred_lat, CTX)
-                pred_lon = pad_pred(ts, df_ts_map, pred_lon, CTX)
-                true_lat = pad_pred(ts, df_ts_map, true_lat, CTX)
-                true_lon = pad_pred(ts, df_ts_map, true_lon, CTX)
+            name = folder[0].split("/")[-2]
+            self.__eval_stats__(loss, y_, y, dfs, max_len, name=name)
 
 
 
-                traj_lat = df["latitude"].values
-                traj_lon = df["longitude"].values
-
-                pred_lat, pred_lon = self.un_transform(traj_lat, traj_lon, pred_lat, pred_lon)
-                true_lat, true_lon = self.un_transform(traj_lat, traj_lon, true_lat, true_lon)
+# |====================================================================================================================
+# |     EVALUATION STATISTICS
+# |====================================================================================================================
 
 
-                out_df = pd.DataFrame()
-                out_df["timestamp"] = df["timestamp"].values
-                out_df["df_latitude"] = df["latitude"].values
-                out_df["df_longitude"] = df["longitude"].values
-                out_df["true_latitude"] = true_lat
-                out_df["true_longitude"] = true_lon
-                out_df["pred_latitude"] = pred_lat
-                out_df["pred_longitude"] = pred_lon
+    def __eval_stats__(self,
+                       loss:"list[np.float64_1d]",
+                       y_:"list[np.float64_2d[ax.time, ax.feature]]",
+                       y:"list[np.float64_2d[ax.time, ax.feature]]",
+                       dfs:"list[pd.DataFrame]",
+                       max_len:int, name:str) -> None:
 
-                out_df.to_csv("./A_Dataset/FloodingSolver/Outputs/"+folder+"/"+file, index=False)
+        # plot mean loss (along flights), per timestamp
+        mean_loss = np.zeros(max_len, dtype=np.float64)
+        for t in range(max_len):
+            files = [f for f in range(len(loss)) if t < len(loss[f])]
+            mean_loss[t] = np.nanmean([loss[f][t] for f in files])
 
 
-            print("Mean distance : ", np.mean(mean_distances), flush=True)
+
+        self.__plot_eval__(dfs, y_, y, loss, mean_loss, max_len, name)
 
 
-            # analyse outputs and give the ghost aircraft
 
-        return {}
+    def __plot_eval__(self, dfs:"list[pd.DataFrame]",
+                      y_:"list[np.float64_2d[ax.time, ax.feature]]", y:"list[np.float64_2d[ax.time, ax.feature]]",
+                      loss:"list[np.float64_1d]", mean_loss:np.float64_1d, max_len:int, name:str):
+
+        self.__plot_loss_curves__(loss, mean_loss, max_len, name)
+        self.__plot_predictions_on_saturation__(dfs, y_, y, loss, max_len, name)
+        # self.__plot_prediction_on_error_spikes__(dfs, y_, y, mean_loss, loss, max_len, name)
+        self.__plot_safe_icao24__(dfs, loss, name)
+
+
+# |====================================================================================================================
+# | SUB FUNCTIONS FOR PLOTTING
+# |====================================================================================================================
+
+
+    def __plot_loss_curves__(self, loss:"list[np.float64_1d]", mean_loss:np.float64_1d, max_len:int, name:str) -> None:
+
+        plt.figure(figsize=(24 * max_len / 500, 12))
+        for f in range(len(loss)):
+            plt.plot(loss[f])
+        plt.plot(mean_loss, color="black", linestyle="--", linewidth=2)
+        plt.plot([0, max_len], [70, 70], color="black", linestyle="--", linewidth=2)
+        plt.title("Mean Loss along timestamps")
+        plt.xlabel("Timestamp")
+        plt.ylabel("Distance Loss (m)")
+        plt.grid()
+        plt.savefig(self.ARTIFACTS+f"/eval_loss_{name}.png")
+
+
+
+
+
+    def __plot_predictions_on_saturation__(self, dfs:"list[pd.DataFrame]",
+                                            y_:"list[np.float64_2d[ax.time, ax.feature]]",
+                                            y:"list[np.float64_2d[ax.time, ax.feature]]",
+                                            loss:"list[np.float64_1d]", max_len:int, name:str) -> None:
+
+        # find when the saturation is reached
+        attack_t = 0
+        while(loss[0][attack_t] == loss[1][attack_t] or np.isnan(loss[0][attack_t]) or np.isnan(loss[1][attack_t])):
+            attack_t += 1
+        s = slice(max(0, attack_t-20), min(max_len, attack_t+20))
+
+        # plot the trajectory and the prediction in a map
+        min_lat, min_lon = np.inf, np.inf
+        max_lat, max_lon = -np.inf, -np.inf
+        for i in range(len(dfs)):
+            lat = dfs[i]["latitude"].to_numpy()[s]
+            lon = dfs[i]["longitude"].to_numpy()[s]
+            min_lat = min(min_lat, lat.min())
+            min_lon = min(min_lon, lon.min())
+            max_lat = max(max_lat, lat.max())
+            max_lon = max(max_lon, lon.max())
+
+
+        nb_flight = min(9, len(dfs))
+        side = int(np.ceil(np.sqrt(nb_flight)))
+        col = side
+        row = int(np.ceil(nb_flight / side))
+
+
+        box = [min_lat, min_lon, max_lat, max_lon]
+        PLT.figure (name, box[0], box[1], box[2], box[3], figsize=(15*row, 15*col), sub_plots=(row, col))
+
+
+        for i in range(nb_flight):
+            r, c = i // col, i % col
+
+            lat = dfs[i]["latitude"].to_numpy()
+            lon = dfs[i]["longitude"].to_numpy()
+
+            laty_ = y_[i][:, 0]
+            lony_ = y_[i][:, 1]
+            laty  = y [i][:, 0]
+            lony  = y [i][:, 1]
+
+            PLT.subplot(name, r, c).plot   (lon[s],  lat[s],  color="tab:blue")
+            PLT.subplot(name, r, c).scatter(lon[s],  lat[s],  color="tab:blue", marker="x")
+            PLT.subplot(name, r, c).scatter(lon[attack_t],  lat[attack_t],  color="tab:red", marker="x")
+            PLT.subplot(name, r, c).scatter(lony_[s], laty_[s], color="tab:purple", marker="x")
+            PLT.subplot(name, r, c).scatter(lony[s], laty[s], color="tab:green", marker="+")
+
+            for t in range(s.start, s.stop):
+                PLT.subplot(name, r, c).plot([lon[t], lony_[t]], [lat[t], laty_[t]], color="black", linestyle="--")
+                PLT.subplot(name, r, c).plot([lony[t], lony_[t]], [laty[t], laty_[t]], color="black", linestyle="--")
+
+        PLT.show(name, self.ARTIFACTS+f"/predictions_{name}.png")
+
+
+    def __plot_prediction_on_error_spikes__(self, dfs:"list[pd.DataFrame]",
+                                            y_:"list[np.float64_2d[ax.time, ax.feature]]",
+                                            y:"list[np.float64_2d[ax.time, ax.feature]]",
+                                            mean_loss:np.float64_1d, loss:"list[np.float64_1d]",
+                                            max_len:int, name:str) -> None:
+
+        # find error spikes
+        spikes = []
+        for t in range(max_len):
+            max_i = np.argmax([loss[f][t] for f in range(len(loss))])
+            if (loss[max_i][t] > 70):
+                spikes.append([t, max_i])
+
+        if (len(spikes) == 0):
+            return
+
+        GAP = 15
+        gaps = []
+        gap = []
+        start = 0
+        i = start
+        while (i < len(spikes)-1):
+
+            if (spikes[i][1] == spikes[start][1] and spikes[i][0] - spikes[start][0] <= GAP and i-start < 100):
+                gap.append(spikes[i])
+            else:
+                gaps.append(gap)
+                start = i
+                gap = [spikes[i]]
+            i += 1
+        gaps.append(gap)
+        gaps = [(g[0][0], g[-1][0], g[0][1]) for g in gaps]
+
+        pdf = PdfPages(self.ARTIFACTS+f"/eval_mistakes_{name}.pdf")
+        for g in gaps:
+            flight = g[2]
+            gap_start = g[0]
+            gap_end = g[1]
+
+            traj_slice = slice(max(0, gap_start-GAP), min(len(dfs[flight]), g[1]+2))
+            pred_start = g[0]
+            pred_end = min(max_len, gap_end+1)
+            pred_slice = slice(pred_start, pred_end)
+
+            lat = dfs[flight]["latitude"].to_numpy()
+            lon = dfs[flight]["longitude"].to_numpy()
+            laty_ = y_[flight][:, 0]
+            lony_ = y_[flight][:, 1]
+
+            box = [lat[traj_slice].min(), lon[traj_slice].min(),
+                   lat[traj_slice].max(), lon[traj_slice].max()]
+
+            PLT.figure(name, box[0], box[1], box[2], box[3],
+                        figsize=(15, 15),
+                        sub_plots=(2, 1), display_map=[[True], [False]])
+
+            PLT.subplot(name, 0, 0).plot   (lon[traj_slice],  lat[traj_slice],  color="tab:blue")
+            PLT.subplot(name, 0, 0).scatter(lon[traj_slice],  lat[traj_slice],  color="tab:blue", marker="x")
+            PLT.subplot(name, 0, 0).scatter(lony_[traj_slice], laty_[traj_slice], color="tab:green", marker="x")
+            PLT.subplot(name, 0, 0).scatter(lony_[pred_slice], laty_[pred_slice], color="tab:purple", marker="x")
+
+            for t in range(traj_slice.start, traj_slice.stop):
+                PLT.subplot(name, 0, 0).plot([lon[t], lony_[t]], [lat[t], laty_[t]], color="black", linestyle="--")
+
+
+            PLT.subplot(name, 1, 0).plot(list(range(traj_slice.start, traj_slice.stop)), loss[0][traj_slice])
+            PLT.subplot(name, 1, 0).scatter(list(range(traj_slice.start, traj_slice.stop)),
+                                            loss[0][traj_slice],
+                                            color="tab:green", marker="x")
+            PLT.subplot(name, 1, 0).scatter(list(range(pred_start, pred_end)),
+                                            loss[0][pred_slice],
+                                            color="tab:purple", marker="x")
+
+            PLT.show(name, pdf=pdf)
+        pdf.close()
+
+
+    def __plot_safe_icao24__(self, dfs:"list[pd.DataFrame]", loss:"list[np.float64_1d]", name:str) -> None:
+
+        icaos24 = [df["icao24"].iloc[0] for df in dfs]
+
+        # find when the saturation is reached
+        attack_t = 0
+        while(loss[0][attack_t] == loss[1][attack_t] or np.isnan(loss[0][attack_t]) or np.isnan(loss[1][attack_t])):
+            attack_t += 1
+
+        short_slice = slice(attack_t, attack_t+self.CTX["HORIZON"])
+        long_slice = slice(attack_t, attack_t+self.CTX["HISTORY"]//2)
+
+
+        mean_loss_per_flights =   [np.nanmean(loss[f])              for f in range(len(loss))]
+        mean_loss_at_attack =     [np.nanmean(loss[f][short_slice]) for f in range(len(loss))]
+        mean_loss_around_attack = [np.nanmean(loss[f][long_slice])  for f in range(len(loss))]
+
+        LABELS = ["Mean Loss", "Mean Loss at Attack", "Mean Loss around Attack"]
+
+        fig, ax = plt.subplots(1, len(LABELS), figsize=(15 * len(dfs) / 10.0, 5))
+
+        colors = ["tab:blue", "tab:green", "tab:purple", "tab:red", "tab:orange", "tab:brown", "tab:pink", "tab:gray", "tab:olive", "tab:cyan"]
+
+        for i, loss in enumerate([mean_loss_per_flights, mean_loss_at_attack, mean_loss_around_attack]):
+
+            order = np.argsort(loss)
+
+            sorted_icaos24 = [icaos24[i] for i in order]
+            sorted_loss = [loss[i] for i in order]
+
+            for j in range(len(sorted_loss)):
+                col = colors[order[j] % len(colors)]
+                ax[i].bar(j, sorted_loss[j], color=col, label=sorted_icaos24[j])
+
+            ax[i].set_xticks(range(len(icaos24)))
+            ax[i].set_xticklabels(sorted_icaos24, rotation=70)
+            ax[i].set_title(LABELS[i])
+            ax[i].grid()
+        fig.tight_layout()
+        plt.savefig(self.ARTIFACTS+f"/safe_icao24_{name}.png")
+
 

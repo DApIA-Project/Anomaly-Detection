@@ -1,5 +1,5 @@
 import os
-import numpy as np
+from _Utils.numpy import np, ax
 HERE = os.path.abspath(os.path.dirname(__file__))
 from ._Utils_module import module_to_dict
 from .E_Trainer_TrajectorySeparator_Trainer import Trainer as TrajectorySeparator

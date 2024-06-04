@@ -6,7 +6,7 @@ from B_Model.AbstractModel import Model as AbstactModel
 from B_Model.Utils.TF_Modules import *
 
 
-import numpy as np
+from _Utils.numpy import np, ax
 
 import os
 

@@ -1,6 +1,7 @@
 
 
-import numpy as np
+from _Utils.numpy import np, ax
+
 
 
 class Model():
@@ -22,7 +23,7 @@ class Model():
 
     name: str (MENDATORY)
         The name of the model
-    
+
     Methods:
     ---------
 
@@ -44,7 +45,7 @@ class Model():
     name = "AbstractModel (TO OVERRIDE)"
 
     def __init__(self, CTX:dict):
-        """ 
+        """
         Generate model architecture
         Define loss function
         Define optimizer
@@ -54,7 +55,7 @@ class Model():
 
     def predict(self, x:np.ndarray):
         """
-        Make prediction for x 
+        Make prediction for x
         """
         raise NotImplementedError
 

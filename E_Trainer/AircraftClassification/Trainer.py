@@ -8,7 +8,6 @@
 import os
 import time
 import pandas as pd
-import numpy as np
 import matplotlib.pyplot as plt
 from   matplotlib.backends.backend_pdf import PdfPages
 
@@ -25,8 +24,8 @@ from   _Utils.Color import prntC
 from   _Utils.ProgressBar import ProgressBar
 from   _Utils.Chrono import Chrono
 from   _Utils.DebugGui import GUI
-import _Utils.plotADSB as PLT
-from   _Utils.Typing import NP, AX
+from _Utils.plotADSB import PLT
+from _Utils.numpy import np, ax
 
 
 # |====================================================================================================================
@@ -57,13 +56,13 @@ CHRONO = Chrono()
 
 def __alloc_pred_batches__(CTX:dict, train_batches:int, train_size:int,
                                      test_batches :int, test_size :int) ->"""tuple[
-        NP.float32_3d[AX.batch, AX.sample, AX.feature],
-        NP.float32_3d[AX.batch, AX.sample, AX.feature],
-        NP.float32_1d, NP.float32_1d]""":
+        np.float64_3d[ax.batch, ax.sample, ax.feature],
+        np.float64_3d[ax.batch, ax.sample, ax.feature],
+        np.float64_1d, np.float64_1d]""":
 
-    return np.zeros((train_batches, train_size, CTX["FEATURES_OUT"]), dtype=np.float32), \
-           np.zeros((test_batches,  test_size,  CTX["FEATURES_OUT"]), dtype=np.float32), \
-           np.zeros(train_batches, dtype=np.float32), np.zeros(test_size, dtype=np.float32)
+    return np.zeros((train_batches, train_size, CTX["FEATURES_OUT"]), dtype=np.float64), \
+           np.zeros((test_batches,  test_size,  CTX["FEATURES_OUT"]), dtype=np.float64), \
+           np.zeros(train_batches, dtype=np.float64), np.zeros(test_size, dtype=np.float64)
 
 
 # |====================================================================================================================
@@ -199,7 +198,7 @@ class Trainer(AbstractTrainer):
 # |--------------------------------------------------------------------------------------------------------------------
 # |    STATISTICS FOR TRAINING
 # |--------------------------------------------------------------------------------------------------------------------
-    
+
     @staticmethod
     def __prediction_statistics__(y:np.ndarray, y_:np.ndarray) -> "tuple[float, float]":
         acc  = Metrics.accuracy(y, y_)
@@ -216,8 +215,8 @@ class Trainer(AbstractTrainer):
 
         # On first epoch, initialize history
         if (self.__ep__ == -1 or self.__ep__ > ep):
-            self.__history__         = np.full((4, self.CTX["EPOCHS"]), np.nan, dtype=np.float32)
-            self.__history_mov_avg__ = np.full((4, self.CTX["EPOCHS"]), np.nan, dtype=np.float32)
+            self.__history__         = np.full((4, self.CTX["EPOCHS"]), np.nan, dtype=np.float64)
+            self.__history_mov_avg__ = np.full((4, self.CTX["EPOCHS"]), np.nan, dtype=np.float64)
 
 
         # Save epoch statistics
@@ -313,16 +312,6 @@ class Trainer(AbstractTrainer):
 # |     MAKING PREDICTIONS FROM RAW ADSB MESSAGES
 # |====================================================================================================================
 
-    def __compute_prediction__(self, y_:np.ndarray) -> "tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]":
-        confidence = Metrics.confidence(y_)
-        agg_mean = np.mean(y_, axis=0)
-        agg_max = y_[np.argmax(confidence)]
-        agg_count = np.bincount(np.argmax(y_, axis=1), minlength=self.CTX["FEATURES_OUT"])
-        agg_count = agg_count / np.sum(agg_count)
-        agg_nth_max = np.mean(y_[np.argsort(confidence)[-20:]])
-        return agg_mean, agg_max, agg_count, agg_nth_max
-
-
     def predict(self, x:"list[dict[str,object]]") -> "tuple[np.ndarray, np.ndarray]":
 
         x_inputs, is_interesting = None, []
@@ -331,8 +320,9 @@ class Trainer(AbstractTrainer):
             sample, valid = self.dl.streamer.stream(x[i])
             is_interesting.append(valid)
 
+            # Initialize batch size
             if (x_inputs is None):
-                x_inputs = [np.zeros((len(x),) + sample[d].shape[1:], dtype=np.float32)
+                x_inputs = [np.zeros((len(x),) + sample[d].shape[1:], dtype=np.float64)
                                 for d in range(len(sample))]
 
             for input in range(len(x_inputs)):
@@ -342,10 +332,10 @@ class Trainer(AbstractTrainer):
         # add if interesting flag
         i_loc = np.arange(0, len(is_interesting), dtype=int)[is_interesting]
         x_batch =  [x_inputs[d][i_loc] for d in range(len(x_inputs))]
-        y_ = np.full((len(x_inputs[0]), self.CTX["FEATURES_OUT"]), np.nan, dtype=np.float32)
+        y_ = np.full((len(x_inputs[0]), self.CTX["FEATURES_OUT"]), np.nan, dtype=np.float64)
         # exit(0)
         y_[i_loc] = self.model.predict(x_batch)
-        y_agg = np.zeros((len(y_), self.CTX["FEATURES_OUT"]), dtype=np.float32)
+        y_agg = np.zeros((len(y_), self.CTX["FEATURES_OUT"]), dtype=np.float64)
         for i in range(len(y_)):
             all_y_ = self.dl.streamer.predicted(x[i], y_[i])
             # use mean method for now
@@ -386,7 +376,7 @@ class Trainer(AbstractTrainer):
             files_df.append(df)
 
             y.append(l)
-            y_.append(np.zeros((len(df), self.CTX["FEATURES_OUT"]), dtype=np.float32))
+            y_.append(np.zeros((len(df), self.CTX["FEATURES_OUT"]), dtype=np.float64))
 
             max_lenght = max(max_lenght, len(df))
 
@@ -394,7 +384,7 @@ class Trainer(AbstractTrainer):
         return files_df, max_lenght, y, y_
 
 
-    def __next_msgs__(self, dfs:"list[pd.DataFrame]", y:np.ndarray, t)-> "tuple[list[dict[str:float]], list[str]]":
+    def __next_msgs__(self, dfs:"list[pd.DataFrame]", y:np.ndarray, t:int)-> "tuple[list[dict[str:float]], list[str]]":
         x, files = [], []
         for f in range(len(dfs)):
             # only if there is a message at this time and if the aircraft has a label
@@ -412,11 +402,12 @@ class Trainer(AbstractTrainer):
         if (self.__eval_files__ is None):
             self.__eval_files__ = U.list_flights(EVAL_FOLDER)[0:]
 
+        # TODO remove batch spliting from there and put it in the predict function
         NB_BATCH = (len(self.__eval_files__)-1) // CTX["MAX_BATCH_SIZE"] + 1
         BAR.reset(max=len(self.__eval_files__))
         file_i = 0
 
-        y = np.zeros((len(self.__eval_files__), self.CTX["FEATURES_OUT"]), dtype=np.float32)
+        y = np.zeros((len(self.__eval_files__), self.CTX["FEATURES_OUT"]), dtype=np.float64)
         y_ = [np.ndarray((0,)) for _ in range(len(self.__eval_files__))]
 
         for batch in range(NB_BATCH):
@@ -446,8 +437,18 @@ class Trainer(AbstractTrainer):
 # |====================================================================================================================
 
 
+    def __compute_prediction__(self, y_:np.ndarray) -> "tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]":
+        confidence = Metrics.confidence(y_)
+        agg_mean = np.mean(y_, axis=0)
+        agg_max = y_[np.argmax(confidence)]
+        agg_count = np.bincount(np.argmax(y_, axis=1), minlength=self.CTX["FEATURES_OUT"])
+        agg_count = agg_count / np.sum(agg_count)
+        agg_nth_max = np.mean(y_[np.argsort(confidence)[-20:]])
+        return agg_mean, agg_max, agg_count, agg_nth_max
+
+
     def __eval_stats__(self, y:np.ndarray, y_:np.ndarray) -> None:
-        OUT = np.ndarray((len(y), self.CTX["FEATURES_OUT"]), dtype=np.float32)
+        OUT = np.ndarray((len(y), self.CTX["FEATURES_OUT"]), dtype=np.float64)
         agg_mean, agg_max, agg_count, agg_nth_max = OUT.copy(), OUT.copy(), OUT.copy(), OUT.copy()
 
         for f in range(len(self.__eval_files__)):

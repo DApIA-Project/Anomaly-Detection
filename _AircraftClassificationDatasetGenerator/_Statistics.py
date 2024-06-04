@@ -1,7 +1,7 @@
 import pandas as pd
 import os
 import math
-import numpy as np
+from _Utils.numpy import np, ax
 
 FOLDER = "ToulouseV2"
 

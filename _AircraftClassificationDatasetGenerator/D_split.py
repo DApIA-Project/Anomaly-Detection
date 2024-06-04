@@ -1,6 +1,6 @@
 import pandas as pd
 import os
-import numpy as np
+from _Utils.numpy import np, ax
 
 EVAL_PROP = 0.075
 from A_parquet2csv import FOLDER

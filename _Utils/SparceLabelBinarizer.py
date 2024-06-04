@@ -1,5 +1,5 @@
 
-import numpy as np
+from _Utils.numpy import np, ax
 
 class SparceLabelBinarizer():
 

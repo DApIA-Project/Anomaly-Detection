@@ -1,7 +1,7 @@
 
 
 
-import numpy as np
+from _Utils.numpy import np, ax
 import pandas as pd
 
 class DataFrame:
@@ -118,17 +118,15 @@ class DataFrame:
         self.array = np.append(self.array, np.zeros((len(self.array), 1)), axis=1)
         self.array[:self.len, -1] = value
 
-    def setColumValue(self, name, i, value):
+    def setColumValue(self, name:str, i:int, value:float):
         self.array[i, self.columns[name]] = value
 
-
-    def getColumns(self, names):
+    def getColumns(self, names:list)-> np.float64_2d[ax.time, ax.feature]:
         return self.array[:self.len, [self.columns[name] for name in names]]
-    def setColums(self, names):
+    def setColums(self, names:list):
         self.columns = {name:i for i, name in enumerate(names)}
 
-
-    def get(self, key):
+    def get(self, key) -> np.float64_1d[ax.feature]:
         left = 0
         right = self.len
         mid = (left + right)//2
@@ -199,7 +197,7 @@ class DataFrame:
     def clear(self):
         self.len = 0
         self.array = np.zeros((16, self.array.shape[1]), dtype=np.float64)
-        
+
 
 
     def __str__(self) -> str:
