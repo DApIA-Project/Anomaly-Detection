@@ -1,7 +1,6 @@
 # ML
 pip install tensorflow==2.8.0
 pip install keras
-pip install pytorch
 
 # Data processing
 pip install pandas
