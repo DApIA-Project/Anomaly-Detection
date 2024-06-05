@@ -21,7 +21,7 @@ import sys
 # model = "HASH"
 
 algo = "TrajectorySeparator"
-model = "ALG"
+model = "GEO"
 ###################################
 argv = sys.argv
 if ("-ui" in argv):
@@ -79,6 +79,9 @@ elif (algo == "ReplaySolver"):
         HASH.__main__()
 
 elif (algo == "TrajectorySeparator"):
-    if (model == "ALG"):
-        import G_Main.TrajectorySeparator.exp_ALG as ALG
-        ALG.__main__()
+    if (model == "GEO"):
+        import G_Main.TrajectorySeparator.exp_GEO as GEO
+        GEO.__main__()
+    if (model == "DEV"):
+        import G_Main.TrajectorySeparator.exp_DEV as DEV
+        DEV.__main__()

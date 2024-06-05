@@ -102,3 +102,27 @@ def argmin2(vec:np.float64_1d) -> "tuple[int, int]":
             min_val_2 = vec[i]
 
     return min_i_1, min_i_2
+
+def mat_argmin(mat:np.float64_2d) -> "tuple[int, int]":
+    "return the index of the minimum value in the matrix"
+    min_i = 0
+    min_j = 0
+    min_val = Limits.INT_MAX
+
+    for i in range(len(mat)):
+        for j in range(len(mat[i])):
+            if (mat[i, j] < min_val):
+                min_i = i
+                min_j = j
+                min_val = mat[i, j]
+
+    return min_i, min_j
+
+def have_n_inf_to(vec:np.float64_1d[ax.sample], val:float, n=2) -> bool:
+    for i in range(len(vec)):
+        if (vec[i] < val):
+            n -= 1
+            if (n == 0):
+                return True
+
+    return False

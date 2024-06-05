@@ -9,8 +9,11 @@ pip install scikit-learn
 # Visualization
 pip install matplotlib
 
-# Geospatial
+
+pip install cartopy # needs sudo apt -y install libgeos-dev
+
+
+# cartopy 
 sudo apt -y install libgeos-dev
 pip uninstall shapely
 pip install --no-binary :all: shapely
-pip install cartopy # needs sudo apt -y install libgeos-dev

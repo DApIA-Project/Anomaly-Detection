@@ -41,7 +41,29 @@ MAX_PLOT = 10
 NB_PLOT = {}
 
 DEBUG = False
+NB_STEPS = 3
 DEBUG_PLOT = "TrajectorySeparatorDebug"
+
+class STEP:
+    FIRST = 1
+    AREA = 2
+    COMBINATION = 3
+    NEAREST = 4
+    FINISHED = 5
+
+    @staticmethod
+    def to_string(step:int) -> str:
+        if (step == STEP.FIRST):
+            return "FIRST"
+        if (step == STEP.AREA):
+            return "AREA"
+        if (step == STEP.COMBINATION):
+            return "COMBINATION"
+        if (step == STEP.NEAREST):
+            return "NEAREST"
+        if (step == STEP.FINISHED):
+            return "FINISHED"
+        return "UNKNOWN"
 
 class Trainer(AbstractTrainer):
 
@@ -151,6 +173,50 @@ class Trainer(AbstractTrainer):
 
 
 # |====================================================================================================================
+# |     SECOND ASSOCIATION : ASSOCIATE ONES THAT ARE ALONE IN THEIR AREA
+# |====================================================================================================================
+
+    def __area_associate__(self, mat:np.float64_2d[ax.sample, ax.sample],
+                                 y_:np.float64_2d[ax.sample, ax.feature],
+                                 y :np.float64_2d[ax.sample, ax.feature])\
+            -> "tuple[np.int32_1d[ax.sample], np.int32_1d[ax.sample]]":
+
+        assoc = np.full((mat.shape[0],), -1, dtype=int)
+        assoc_inv = np.full((mat.shape[1],), -1, dtype=int)
+
+        pred_mat = TU.loss_matrix(y_, y_)
+        for i in range(len(pred_mat)):
+            pred_mat[i, i] = Limits.INT_MAX
+
+        true_mat = TU.loss_matrix(y, y)
+        for i in range(len(true_mat)):
+            true_mat[i, i] = Limits.INT_MAX
+
+
+        run = True
+        while (run):
+            run = False
+
+            for y_i in range(mat.shape[1]):
+                if (assoc_inv[y_i] == -1):
+                    yi = np.argmin(mat[:, y_i])
+                    area = mat[yi, y_i]
+                    if not(TU.have_n_inf_to(pred_mat[:, y_i], area) or TU.have_n_inf_to(true_mat[yi, :], area)):
+                        assoc_inv[y_i] = yi
+                        assoc[yi] = y_i
+                        mat[yi, :] = Limits.INT_MAX
+                        mat[:, y_i] = Limits.INT_MAX
+                        pred_mat[yi, :] = Limits.INT_MAX
+                        pred_mat[:, y_i] = Limits.INT_MAX
+                        true_mat[yi, :] = Limits.INT_MAX
+                        true_mat[:, y_i] = Limits.INT_MAX
+                        run = True
+
+
+        return assoc, mat
+
+
+# |====================================================================================================================
 # |    TESTING COMBINATIONS TO FIND THE BEST MSG ASSOCIATION POSSIBLE
 # |====================================================================================================================
 
@@ -171,11 +237,26 @@ class Trainer(AbstractTrainer):
 
         return assoc, mat
 
+    def __nearest_associate__(self, mat:np.float64_2d[ax.sample, ax.sample])\
+            -> "tuple[np.int32_1d[ax.sample], np.int32_1d[ax.sample]]":
+
+        assoc = np.full((mat.shape[0],), -1, dtype=int)
+
+        for _ in range(len(assoc)):
+            min_yi, min_y_i = TU.mat_argmin(mat)
+            assoc[min_yi] = min_y_i
+            mat[min_yi, :] = Limits.INT_MAX
+            mat[:, min_y_i] = Limits.INT_MAX
+
+        return assoc, mat
+
+
 
     def __debug_assoc__(self, y:np.float32_2d[ax.sample, ax.feature], y_:np.float32_2d[ax.sample, ax.feature],
                         remain_y:np.int32_1d[ax.sample], remain_y_:np.int32_1d[ax.sample],
-                        assoc:np.int32_1d[ax.sample],
-                        sample:"list[np.float64_2d[ax.time, ax.feature]]") -> None:
+                        sub_assoc:np.int32_1d[ax.sample],
+                        sample:"list[np.float64_2d[ax.time, ax.feature]]",
+                        step:STEP) -> None:
 
         if (not DEBUG):
             return
@@ -183,17 +264,29 @@ class Trainer(AbstractTrainer):
             return
 
         if (self.__nth_debug__ == 0):
+            self.__nth_debug__ = 1
             # first debug call : create figure
             PLT.figure(DEBUG_PLOT, 0, 0, 0, 0,
-                    figsize = (15, 30), sub_plots=(2, 1), display_map=[[False], [False]])
+                    figsize = (15, 30), sub_plots=(NB_STEPS, 1), display_map=[[False]] * NB_STEPS)
 
-        self.__plot_assoc__(self.__nth_debug__, y[remain_y],y_[remain_y_],
+        axis = -1
+        if (step == STEP.FIRST):
+            axis = 0
+        if (step == STEP.AREA):
+            axis = 1
+        if (step == STEP.COMBINATION or step == STEP.NEAREST):
+            axis = 2
+
+        if (axis == -1):
+            prntC(C.ERROR, "Unknown step in debug")
+
+        self.__plot_assoc__(axis, y[remain_y],y_[remain_y_],
                             [sample[i] for i in remain_y_],
-                            assoc[remain_y])
+                            sub_assoc)
 
-        self.__nth_debug__ += 1
+        PLT.subplot(DEBUG_PLOT, axis, 0).title("Step : "+STEP.to_string(step))
 
-        if (self.__nth_debug__ == 2):
+        if (axis == NB_STEPS-1):
             # last debug call : save figure
             PLT.savefig(DEBUG_PLOT, os.path.join(self.ARTIFACTS, "debug_assoc.png"))
             input("Press Enter to continue...")
@@ -220,24 +313,48 @@ class Trainer(AbstractTrainer):
         assoc = np.full((len(y),), -1, dtype=int)
 
 
-        # easy case : make associations for flight where there is only one relevant prediction
-        sub_mat, remain_y, remain_y_ = TU.compute_remaining_loss_matrix(mat, assoc)
-        sub_assoc, sub_mat = self.__first_associate__(sub_mat)
-        assoc, mat = TU.apply_sub_associations(assoc,     mat,
-                                               sub_assoc, sub_mat,
-                                               remain_y,  remain_y_)
+        step = STEP.FIRST
+        while step != STEP.FINISHED:
+            sub_mat, remain_y, remain_y_ = TU.compute_remaining_loss_matrix(mat, assoc)
 
-        self.__debug_assoc__(y, y_, remain_y, remain_y_, assoc, sample)
+            # skip area-step if we can
+            if (step == STEP.AREA):
+                if (len(remain_y) <= 5 or len(remain_y_) <= 5):
+                    step = NB_STEPS
+            # skip combination-step if we must (too many combinations)
+            # and do nearest-neighbor instead
+            if (step == STEP.COMBINATION):
+                if (len(remain_y) > 5 and len(remain_y_) > 5):
+                    step = STEP.NEAREST
+
+            # apply STEP
+            if (step == STEP.FIRST):
+                sub_assoc, sub_mat = self.__first_associate__(sub_mat)
+            elif (step == STEP.AREA):
+                sub_assoc, sub_mat = self.__area_associate__(sub_mat, y_[remain_y_], y[remain_y])
+            elif (step == STEP.COMBINATION):
+                sub_assoc, sub_mat = self.__combination_associate__(sub_mat)
+            elif (step == STEP.NEAREST):
+                sub_assoc, sub_mat = self.__nearest_associate__(sub_mat)
 
 
-        # hard case : make associations for flight where there are multiple relevant predictions
-        sub_mat, remain_y, remain_y_ = TU.compute_remaining_loss_matrix(mat, assoc)
-        sub_assoc, sub_mat = self.__combination_associate__(sub_mat)
-        assoc, mat = TU.apply_sub_associations(assoc,     mat,
-                                               sub_assoc, sub_mat,
-                                               remain_y,  remain_y_)
+            self.__debug_assoc__(y, y_, remain_y, remain_y_, sub_assoc, sample, step)
 
-        self.__debug_assoc__(y, y_, remain_y, remain_y_, assoc, sample)
+            assoc, mat = TU.apply_sub_associations(assoc,     mat,
+                                    sub_assoc, sub_mat,
+                                    remain_y,  remain_y_)
+
+            # next step
+            if (step == STEP.FIRST):
+                step = STEP.AREA
+            elif (step == STEP.AREA):
+                step = STEP.COMBINATION
+            elif (step == STEP.COMBINATION):
+                step = STEP.FINISHED
+            elif (step == STEP.NEAREST):
+                step = STEP.FINISHED
+
+
 
 
 
