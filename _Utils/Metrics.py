@@ -1,4 +1,5 @@
 from _Utils.numpy import np, ax
+from _Utils.plotADSB import Color
 import os
 
 # |====================================================================================================================
@@ -106,22 +107,22 @@ def plot_confusion_matrix(confusion_matrix:np.ndarray, path:str, label_names:"li
 
 def plotLoss(train:np.ndarray, test:np.ndarray,
              train_avg:np.ndarray, test_avg:np.ndarray,
-             type:str="loss", path:str=""):
+             type:str="loss", path:str="") -> None:
 
     # Plot the loss curves
     import matplotlib.pyplot as plt
     fig, ax = plt.subplots(1, 1, figsize=(10, 6))
     ax.grid()
 
-    ax.plot(np.array(train), c="tab:blue", linewidth=0.5)
-    ax.plot(np.array(test), c="tab:orange", linewidth=0.5)
+    ax.plot(np.array(train), c=Color.TRAIN, linewidth=0.5)
+    ax.plot(np.array(test), c=Color.TEST, linewidth=0.5)
 
     label = "loss"
     if (type != None):
         label = type
 
-    ax.plot(np.array(train_avg), c="tab:blue", ls="--", label=f"train {label}")
-    ax.plot(np.array(test_avg), c="tab:orange", ls="--", label=f"test {label}")
+    ax.plot(np.array(train_avg), c=Color.TRAIN, ls="--", label=f"train {label}")
+    ax.plot(np.array(test_avg), c=Color.TEST, ls="--", label=f"test {label}")
     ax.set_ylabel(label)
 
 

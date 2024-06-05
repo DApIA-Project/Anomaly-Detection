@@ -1,5 +1,5 @@
 # ML
-pip install tensorflow
+pip install tensorflow==2.8.0
 pip install keras
 pip install pytorch
 

@@ -1,4 +1,5 @@
 import matplotlib.pyplot as plt
+from matplotlib.backends.backend_pdf import PdfPages
 import math
 
 import _Utils.geographic_maths as GEO
@@ -13,27 +14,33 @@ plot_in_progress = {}
 
 class Plotter:
 
-    def __init__(self, fig, ax):
+    def __init__(self, fig:plt.Figure, ax:plt.Axes) -> None:
         self.fig = fig
         self.ax = ax
 
 
-    def plot(self, *args, **kwargs):
+    def plot(self, *args, **kwargs) -> None:
         self.ax.plot(*args, **kwargs, transform=ccrs.PlateCarree())
 
-    def scatter(self,*args, **kwargs):
+    def scatter(self,*args, **kwargs) -> None:
         self.ax.scatter(*args, **kwargs, transform=ccrs.PlateCarree())
 
-    def title(self,title):
+    def title(self,title:str) -> None:
         self.ax.set_title(title)
 
+    def legend(self) -> None:
+        self.ax.legend()
 
+    def set_aspect(self, aspect:str) -> None:
+        self.ax.set_aspect(aspect)
 
 
 
 class PLT:
     @staticmethod
-    def figure(tag:str, min_lat, min_lon, max_lat, max_lon, figsize=(10, 10), sub_plots=(1, 1), display_map=None, ratios=None):
+    def figure(tag:str, min_lat:float, min_lon:float, max_lat:float, max_lon:float,
+               figsize:"tuple[float, float]"=(10, 10), sub_plots:"tuple[int, int]"=(1, 1),
+               display_map:"list[list[bool]]"=None, ratios:"list[list[bool]]"=None) -> None:
 
         circumference = 40075017
 
@@ -70,30 +77,11 @@ class PLT:
                     ax[i][j].add_image(request_OSM, zoom)
                     ax[i][j].set_aspect('equal')
                 else:
-                    # top_plot = None if (sub_plots[0] == 1) else (i - 1 if (i > 0) else i + 1)
-                    # left_plot = None if (sub_plots[1] == 1) else (j - 1 if (j > 0) else j + 1)
-                    # if (top_plot is None and left_plot is None):
-                    #     pass
-
-                    # ax_width = max_lat[top_plot ][j] - min_lat[top_plot ][j] if (top_plot is not None) else\
-                    #             max_lat[i][left_plot] - min_lat[i][left_plot]
-                    # ax_width *= ratios[i][j][0]
-
-                    # ax_height = max_lon[i][left_plot] - min_lon[i][left_plot] if (left_plot is not None) else\
-                    #             max_lon[top_plot][j] - min_lon[top_plot][j]
-                    # ax_height *= ratios[i][j][1]
-
-                    # # make figsize
-                    # ax[i][j].set_extent([0, ax_width, 0, ax_height])
-
 
                     ax[i][j].set_aspect('auto')
 
 
-
-
-
-        plotters = []
+        plotters:"list[list[Plotter]]" = []
         for i in range(sub_plots[0]):
             plotters.append([])
             for j in range(sub_plots[1]):
@@ -103,13 +91,13 @@ class PLT:
 
 
     @staticmethod
-    def subplot(name, ax1:int=None, ax2:int=None) -> Plotter:
+    def subplot(tag:str, ax1:int=None, ax2:int=None) -> Plotter:
         if (ax1 is None):
-            return PLT.__load__(name)[0][0]
-        return PLT.__load__(name)[ax1][ax2]
+            return PLT.__load__(tag)[0][0]
+        return PLT.__load__(tag)[ax1][ax2]
 
     @staticmethod
-    def show(tag:str, path=None, pdf=None):
+    def show(tag:str, path:str=None, pdf:PdfPages=None) -> None:
         fig = PLT.__load__(tag)[0][0].fig
 
         fig.tight_layout()
@@ -124,19 +112,28 @@ class PLT:
         del plot_in_progress[tag]
 
     @staticmethod
-    def plot(tag:str, *args, **kwargs):
+    def savefig(tag:str, path:str=None, pdf:PdfPages=None) -> None:
+        PLT.show(tag, path, pdf)
+
+    @staticmethod
+    def plot(tag:str, *args, **kwargs) -> None:
         plotter = PLT.__load__(tag)[0][0]
         plotter.plot(*args, **kwargs)
 
     @staticmethod
-    def scatter(tag:str, *args, **kwargs):
+    def scatter(tag:str, *args, **kwargs) -> None:
         plotter = PLT.__load__(tag)[0][0]
         plotter.scatter(*args, **kwargs)
 
     @staticmethod
-    def title(tag:str, title):
+    def title(tag:str, title:str) -> None:
         plotter = PLT.__load__(tag)[0][0]
         plotter.title(title)
+
+    @staticmethod
+    def legend(tag:str) -> None:
+        plotter = PLT.__load__(tag)[0][0]
+        plotter.legend()
 
 
 
@@ -146,31 +143,40 @@ class PLT:
 # |====================================================================================================================
 
     @staticmethod
-    def __save__(plot_name, plotter):
+    def __save__(tag:str, plotter: "list[list[Plotter]]") -> None:
         global plot_in_progress
 
-        if (plot_name not in plot_in_progress):
-            plot_in_progress[plot_name] = {}
+        if (tag not in plot_in_progress):
+            plot_in_progress[tag] = {}
 
-        plot_in_progress[plot_name]["plotter"] = plotter
-
-
-    @staticmethod
-    def __load__(plot_name):
-        return plot_in_progress[plot_name]["plotter"]
+        plot_in_progress[tag]["plotter"] = plotter
 
 
     @staticmethod
-    def attach_data(plot_name, data):
+    def __load__(tag:str) -> "list[list[Plotter]]":
+        return plot_in_progress[tag]["plotter"]
+
+
+    @staticmethod
+    def attach_data(tag:str, data:object) -> None:
         """
         Save data related to your plot for later use
         """
         global plot_in_progress
-        if (plot_name not in plot_in_progress):
-            plot_in_progress[plot_name] = {}
-        plot_in_progress[plot_name]["data"] = data
+        if (tag not in plot_in_progress):
+            plot_in_progress[tag] = {}
+        plot_in_progress[tag]["data"] = data
 
 
     @staticmethod
-    def get_data(plot_name):
-        return plot_in_progress[plot_name]["data"]
+    def get_data(tag:str) -> object:
+        return plot_in_progress[tag]["data"]
+
+
+
+class Color:
+    TRAJECTORY = "tab:blue"
+    PREDICTION = "tab:purple"
+    
+    TRAIN = "tab:blue"
+    TEST = "tab:orange"

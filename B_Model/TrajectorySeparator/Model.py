@@ -7,6 +7,7 @@ import _Utils.Limits as Limits
 import D_DataLoader.Utils as U
 
 import matplotlib.pyplot as plt
+from _Utils.plotADSB import Color
 
 from _Utils.numpy import np, ax
 
@@ -37,8 +38,8 @@ FORECAST_LEN = 20
 WEIGHT = np.linspace(0.1, 1, FORECAST_LEN)
 def forecast(history:np.float64_2d[ax.time, ax.feature], t:int) -> "tuple[float, float]":
 
-    if (len(history) <= 2):
-        return dumb_forecast(history, t)
+    # if (len(history) <= 2):
+    return dumb_forecast(history, t)
 
     history = history[-FORECAST_LEN:]
     lat, lon, timestamp = FG.lat(history), FG.lon(history), FG.timestamp(history)
@@ -108,33 +109,33 @@ def forecast(history:np.float64_2d[ax.time, ax.feature], t:int) -> "tuple[float,
 
     # fig, ax = plt.subplots(2, 3, figsize=(15, 10))
     # ax[0, 0].title.set_text("Bearing")
-    # ax[0, 0].plot(x_second, y_rotation, c="tab:blue")
-    # ax[0, 0].scatter(x_second, y_rotation, c="tab:blue")
-    # ax[0, 0].scatter(t, next_rotation, c="tab:orange")
+    # ax[0, 0].plot(x_second, y_rotation, c=Color.TRAJECTORY)
+    # ax[0, 0].scatter(x_second, y_rotation, c=Color.TRAJECTORY)
+    # ax[0, 0].scatter(t, next_rotation, c=Color.PREDICTION)
     # ax[0, 0].plot([timestamp[0], t],
-    #               [rotation_a * timestamp[0] + rotation_b, rotation_a * t + rotation_b], c="tab:orange")
+    #               [rotation_a * timestamp[0] + rotation_b, rotation_a * t + rotation_b], c=Color.PREDICTION)
 
     # ax[0, 1].title.set_text("Angle")
-    # ax[0, 1].plot(x_first, y_angle, c="tab:blue")
-    # ax[0, 1].scatter(x_first, y_angle, c="tab:blue")
-    # ax[0, 1].scatter(t, next_angle, c="tab:orange")
+    # ax[0, 1].plot(x_first, y_angle, c=Color.TRAJECTORY)
+    # ax[0, 1].scatter(x_first, y_angle, c=Color.TRAJECTORY)
+    # ax[0, 1].scatter(t, next_angle, c=Color.PREDICTION)
 
     # ax[1, 1].title.set_text("Distance")
-    # ax[1, 1].plot(x_first, y_distance, c="tab:blue")
-    # ax[1, 1].scatter(x_first, y_distance, c="tab:blue")
-    # ax[1, 1].scatter(t, next_distance, c="tab:orange")
+    # ax[1, 1].plot(x_first, y_distance, c=Color.TRAJECTORY)
+    # ax[1, 1].scatter(x_first, y_distance, c=Color.TRAJECTORY)
+    # ax[1, 1].scatter(t, next_distance, c=Color.PREDICTION)
 
 
     # ax[0, 2].title.set_text("Lat lon")
-    # ax[0, 2].plot(lat, lon, c="tab:blue")
-    # ax[0, 2].scatter(lat, lon, c="tab:blue")
-    # ax[0, 2].scatter(next_lat, next_lon, c="tab:orange")
+    # ax[0, 2].plot(lat, lon, c=Color.TRAJECTORY)
+    # ax[0, 2].scatter(lat, lon, c=Color.TRAJECTORY)
+    # ax[0, 2].scatter(next_lat, next_lon, c=Color.PREDICTION)
     # ax[0, 2].axis("equal")
 
     # ax[1, 2].title.set_text("pred !")
-    # ax[1, 2].plot(FG.lat(history), FG.lon(history), c="tab:blue")
-    # ax[1, 2].scatter(FG.lat(history), FG.lon(history), c="tab:blue")
-    # ax[1, 2].scatter(perd_lat, pred_lon, c="tab:orange")
+    # ax[1, 2].plot(FG.lat(history), FG.lon(history), c=Color.TRAJECTORY)
+    # ax[1, 2].scatter(FG.lat(history), FG.lon(history), c=Color.TRAJECTORY)
+    # ax[1, 2].scatter(perd_lat, pred_lon, c=Color.PREDICTION)
     # ax[1, 2].axis("equal")
 
 

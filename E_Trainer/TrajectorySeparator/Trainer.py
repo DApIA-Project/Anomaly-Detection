@@ -12,15 +12,17 @@ from   D_DataLoader.TrajectorySeparator.DataLoader import DataLoader
 import D_DataLoader.TrajectorySeparator.Utils as SU
 import D_DataLoader.Utils as U
 from   E_Trainer.AbstractTrainer import Trainer as AbstractTrainer
+import E_Trainer.TrajectorySeparator.Utils as TU
 
 import _Utils.Color as C
 from   _Utils.Color import prntC
 from   _Utils.DebugGui import GUI
 from   _Utils.ProgressBar import ProgressBar
-import _Utils.geographic_maths as GEO
 import _Utils.Limits as Limits
 import _Utils.FeatureGetter as FG
-from _Utils.numpy import np, ax
+from   _Utils.numpy import np, ax
+from   _Utils.plotADSB import PLT
+
 
 
 
@@ -38,6 +40,9 @@ BAR = ProgressBar(max = 100)
 MAX_PLOT = 10
 NB_PLOT = {}
 
+DEBUG = False
+DEBUG_PLOT = "TrajectorySeparatorDebug"
+
 class Trainer(AbstractTrainer):
 
 
@@ -46,13 +51,15 @@ class Trainer(AbstractTrainer):
 # |====================================================================================================================
 
     def __init__(self, CTX:dict, Model:"type[_Model_]") -> None:
-        super().__init__(CTX, Model)
+        # Public attributes
         self.CTX = CTX
-
         self.model:_Model_ = Model(CTX)
         self.__makes_artifacts__()
         self.__init_GUI__()
         self.dl = DataLoader(CTX)
+
+        # Private attributes
+        self.__nth_debug__ = 0
 
 
     def __makes_artifacts__(self) -> None:
@@ -64,7 +71,7 @@ class Trainer(AbstractTrainer):
         if not os.path.exists(self.ARTIFACTS):
             os.makedirs(self.ARTIFACTS)
 
-        os.system("rm -rf "+self.ARTIFACTS+"/*")
+        # os.system("rm -rf "+self.ARTIFACTS+"/*")
 
         if not os.path.exists(self.ARTIFACTS+"/Predictions_plot"):
             os.makedirs(self.ARTIFACTS+"/Predictions_plot")
@@ -84,25 +91,16 @@ class Trainer(AbstractTrainer):
         pass
 
 # |====================================================================================================================
-# |     TRAINING FUNCTIONS (NO TRAINING NEEDED FOR THIS)
+# |     TRAINING FUNCTIONS (NO TRAINING NEEDED FOR TRAJECTORY SEPARATOR AS IT IS SOLVED BY A CLASSICAL ALGORITHM)
 # |====================================================================================================================
 
-    def train(self):
+    def train(self) -> None:
         pass
 
 # |====================================================================================================================
 # |     MAKING PREDICTIONS FROM RAW ADSB MESSAGES
 # |====================================================================================================================
 
-
-    def __loss_matrix__(self, y:np.float32_2d[ax.sample, ax.feature], y_:np.float32_2d[ax.sample, ax.feature])\
-            -> np.float32_2d[ax.sample, ax.sample]:
-
-        mat = np.zeros((len(y), len(y_)), dtype=np.float64)
-        for i in range(len(y)):
-            for j in range(len(y_)):
-                mat[i, j] = GEO.distance(y[i][0], y[i][1], y_[j][0], y_[j][1])
-        return mat
 
     def __give_icao__(self, assoc:np.int32_1d[ax.sample], msgs:"list[dict[str,object]]", tags:"list[str]")\
             -> "list[str]":
@@ -120,70 +118,6 @@ class Trainer(AbstractTrainer):
 
 
 
-
-
-    def __print_mat__(self, mat:np.float64_2d[ax.sample, ax.sample]) -> None:
-
-        for i in range(len(mat)):
-            for j in range(len(mat[i])):
-                if (mat[i, j] == Limits.INT_MAX):
-                    print(str("X").rjust(3), end=" ")
-                else:
-                    print(str(int(mat[i, j])).rjust(3), end=" ")
-            print()
-        print()
-        print()
-
-    @staticmethod
-    def __min_i_2__(vec:np.float64_1d) -> "tuple[int, int]":
-        min_i_1 = 0
-        min_i_2 = 0
-        min_val_1 = Limits.INT_MAX
-        min_val_2 = Limits.INT_MAX
-
-        for i in range(len(vec)):
-
-            if (vec[i] < min_val_1):
-                # transfer min_1 to min_2
-                min_i_2 = min_i_1
-                min_val_2 = min_val_1
-
-                # update min_1
-                min_i_1 = i
-                min_val_1 = vec[i]
-
-            elif (vec[i] < min_val_2):
-                min_i_2 = i
-                min_val_2 = vec[i]
-
-        return min_i_1, min_i_2
-
-
-# |====================================================================================================================
-# |    UTILS TO MAKE ASSOCIATIONS ON SUB-SET OF OUR PROBLEM
-# |====================================================================================================================
-
-    def __get_remaining_mat__(self, mat:np.float64_2d[ax.sample, ax.sample])\
-            -> "tuple[np.float64_2d[ax.sample, ax.sample], np.int32_1d[ax.sample], np.int32_1d[ax.sample]]":
-
-        remain_y = np.where(mat[:, 0] != Limits.INT_MAX)[0]
-        remain_y_ = np.where(mat[0, :] != Limits.INT_MAX)[0]
-        return mat[remain_y, :][:, remain_y_], remain_y, remain_y_
-
-    def __add_new_associations__(self,
-                assoc:np.int32_1d, mat:np.float64_2d[ax.sample, ax.sample],
-                sub_assoc:np.int32_1d, sub_mat:np.float64_2d[ax.sample, ax.sample],
-                remain_y:np.int32_1d, remain_y_:np.int32_1d,) -> "tuple[np.int32_1d, np.int32_1d]":
-
-        for i in range(len(remain_y)):
-            if (sub_assoc[i] != -1):
-                assoc[remain_y[i]] = remain_y_[sub_assoc[i]]
-
-        for i in range(len(remain_y)):
-            for j in range(len(remain_y_)):
-                mat[remain_y[i], remain_y_[j]] = sub_mat[i, j]
-
-        return assoc, mat
 
 # |====================================================================================================================
 # |     FIRST ASSOCIATION TO REDUCE THE COMPLEXITY OF NEXT ASSOCIATIONS
@@ -203,7 +137,7 @@ class Trainer(AbstractTrainer):
 
             for y_i in range(mat.shape[1]):
                 if (assoc_inv[y_i] == -1):
-                    min_1, min_2 = self.__min_i_2__(mat[:, y_i])
+                    min_1, min_2 = TU.argmin2(mat[:, y_i])
                     if (min_1 == min_2 or mat[min_2, y_i] - mat[min_1, y_i] > VALID_DIST):
                         assoc_inv[y_i] = min_1
                         assoc[min_1] = y_i
@@ -211,38 +145,17 @@ class Trainer(AbstractTrainer):
                         mat[:, y_i] = Limits.INT_MAX
                         run = True
 
+
+
         return assoc, mat
 
 
 # |====================================================================================================================
-# |    TESTING COMBINATIONS TO FIND THE BEST ASSOCIATION
+# |    TESTING COMBINATIONS TO FIND THE BEST MSG ASSOCIATION POSSIBLE
 # |====================================================================================================================
-
-    def __compute_genetic_loss__(self, mat:np.float32_2d[ax.sample, ax.sample], combination:np.int32_1d[ax.sample])\
-            -> np.float32:
-
-        loss = 0
-        for i in range(len(combination)):
-            if (combination[i] != -1):
-                loss += mat[i, combination[i]]
-        return loss
-
-    def __mutate_combination__(self, combination:np.int32_1d[ax.sample], n=3) -> np.int32_1d[ax.sample]:
-        # permute n elements together in the combination
-        if (len(combination) < n):
-            return combination
-
-        to_permute = np.random.choice(np.arange(len(combination)), n, replace=False)
-        permuted = np.random.permutation(to_permute)
-        new_combination = combination.copy()
-        for i in range(n):
-            new_combination[to_permute[i]] = combination[permuted[i]]
-        return new_combination
 
     def __combination_associate__(self, mat:np.float64_2d[ax.sample, ax.sample])\
             -> "tuple[np.int32_1d[ax.sample], np.int32_1d[ax.sample]]":
-
-        print(mat.shape)
 
         assoc = np.full((mat.shape[0],), -1, dtype=int)
         assoc[:mat.shape[1]] = np.arange(mat.shape[1])
@@ -251,7 +164,7 @@ class Trainer(AbstractTrainer):
         best_loss = Limits.INT_MAX
         for perm in all_perms:
             perm = np.array(perm)
-            loss = self.__compute_genetic_loss__(mat, perm)
+            loss = TU.eval_association(mat, perm)
             if (loss < best_loss):
                 best_loss = loss
                 assoc = perm
@@ -259,8 +172,36 @@ class Trainer(AbstractTrainer):
         return assoc, mat
 
 
+    def __debug_assoc__(self, y:np.float32_2d[ax.sample, ax.feature], y_:np.float32_2d[ax.sample, ax.feature],
+                        remain_y:np.int32_1d[ax.sample], remain_y_:np.int32_1d[ax.sample],
+                        assoc:np.int32_1d[ax.sample],
+                        sample:"list[np.float64_2d[ax.time, ax.feature]]") -> None:
+
+        if (not DEBUG):
+            return
+        if (len(y_) <= 1):
+            return
+
+        if (self.__nth_debug__ == 0):
+            # first debug call : create figure
+            PLT.figure(DEBUG_PLOT, 0, 0, 0, 0,
+                    figsize = (15, 30), sub_plots=(2, 1), display_map=[[False], [False]])
+
+        self.__plot_assoc__(self.__nth_debug__, y[remain_y],y_[remain_y_],
+                            [sample[i] for i in remain_y_],
+                            assoc[remain_y])
+
+        self.__nth_debug__ += 1
+
+        if (self.__nth_debug__ == 2):
+            # last debug call : save figure
+            PLT.savefig(DEBUG_PLOT, os.path.join(self.ARTIFACTS, "debug_assoc.png"))
+            input("Press Enter to continue...")
+            self.__nth_debug__ = 0
+
     def __associate__(self, msgs:"list[dict[str,object]]",
-                                y_:np.float32_2d[ax.sample, ax.feature], tags:"list[str]") -> "list[str]":
+                            y_:np.float32_2d[ax.sample, ax.feature], tags:"list[str]",
+                            sample:"list[np.float64_2d[ax.time, ax.feature]]") -> "list[str]":
 
         if (len(tags) == 0):
             return self.__give_icao__(np.full((len(msgs),), -1, dtype=int), msgs, tags)
@@ -272,7 +213,7 @@ class Trainer(AbstractTrainer):
 
         # mat give loss between [msg_i, pred_j]
         # if mat is INT_MAX, it means that the association is done and is now impossible
-        mat = self.__loss_matrix__(y, y_)
+        mat = TU.loss_matrix(y, y_)
 
         # associate the msg[i] with pred[j] as best as possible.
         # goal is to minimize : sum of mat[i, j] is minimal
@@ -280,27 +221,73 @@ class Trainer(AbstractTrainer):
 
 
         # easy case : make associations for flight where there is only one relevant prediction
-        sub_mat, remain_y, remain_y_ = self.__get_remaining_mat__(mat)
+        sub_mat, remain_y, remain_y_ = TU.compute_remaining_loss_matrix(mat, assoc)
         sub_assoc, sub_mat = self.__first_associate__(sub_mat)
-        assoc, mat = self.__add_new_associations__(
-                assoc, mat,
-                sub_assoc, sub_mat,
-                remain_y, remain_y_)
+        assoc, mat = TU.apply_sub_associations(assoc,     mat,
+                                               sub_assoc, sub_mat,
+                                               remain_y,  remain_y_)
 
-        print()
-        self.__print_mat__(mat)
+        self.__debug_assoc__(y, y_, remain_y, remain_y_, assoc, sample)
+
 
         # hard case : make associations for flight where there are multiple relevant predictions
-        sub_mat, remain_y, remain_y_ = self.__get_remaining_mat__(mat)
+        sub_mat, remain_y, remain_y_ = TU.compute_remaining_loss_matrix(mat, assoc)
         sub_assoc, sub_mat = self.__combination_associate__(sub_mat)
-        assoc, mat = self.__add_new_associations__(
-            assoc, mat,
-            sub_assoc, sub_mat,
-            remain_y, remain_y_)
+        assoc, mat = TU.apply_sub_associations(assoc,     mat,
+                                               sub_assoc, sub_mat,
+                                               remain_y,  remain_y_)
+
+        self.__debug_assoc__(y, y_, remain_y, remain_y_, assoc, sample)
+
+
 
         return self.__give_icao__(assoc, msgs, tags)
 
 
+# |--------------------------------------------------------------------------------------------------------------------
+# | PLOTING ASSOCIATIONS
+# |--------------------------------------------------------------------------------------------------------------------
+
+    def __plot_assoc__(self, plot_axis:int,
+                            y :np.float32_2d[ax.sample, ax.feature],
+                            y_:np.float32_2d[ax.sample, ax.feature],
+                            sample:"list[np.float64_2d[ax.time, ax.feature]]",
+                            assoc:np.int32_1d[ax.sample]) -> None:
+
+        SAMPLE_LEN = 5
+        for i in range(len(sample)):
+            label = "Trajectories" if i == 0 else None
+            PLT.subplot(DEBUG_PLOT, plot_axis, 0)\
+               .scatter(sample[i][-SAMPLE_LEN:, 0], sample[i][-SAMPLE_LEN:, 1], c="tab:blue", label=label)
+
+            PLT.subplot(DEBUG_PLOT, plot_axis, 0)\
+               .plot(sample[i][-SAMPLE_LEN:, 0], sample[i][-SAMPLE_LEN:, 1], c="tab:blue")
+
+
+
+        PLT.subplot(DEBUG_PLOT, plot_axis, 0)\
+           .scatter(y_[:, 0], y_[:, 1], c="tab:purple", marker="x", label="Predictions")
+
+        PLT.subplot(DEBUG_PLOT, plot_axis, 0)\
+           .scatter(y[:, 0], y[:, 1], c="tab:green", marker="+", label="Messages")
+
+        for i in range(len(assoc)):
+            if (assoc[i] != -1):
+                PLT.subplot(DEBUG_PLOT, plot_axis, 0)\
+                   .plot([y[i, 0], y_[assoc[i], 0]], [y[i, 1], y_[assoc[i], 1]], c="tab:orange", linestyle="--")
+
+
+        if (plot_axis == 0):
+            PLT.subplot(DEBUG_PLOT, plot_axis, 0).legend()
+
+        PLT.subplot(DEBUG_PLOT, plot_axis, 0).set_aspect("equal")
+
+
+
+
+# |====================================================================================================================
+# |   PREDICTION FUNCTION
+# |====================================================================================================================
 
 
 
@@ -322,10 +309,10 @@ class Trainer(AbstractTrainer):
 
             y_ = self.model.predict(sample, timestamps)
 
-            # if (__EVAL__):
-            #     self.__plot__(sample, msgs, y_)
+            if (__EVAL__ and DEBUG):
+                self.__plot__(sample, msgs, y_)
 
-            msg_tags = self.__associate__(msgs, y_, tags)
+            msg_tags = self.__associate__(msgs, y_, tags, sample)
             for i in range(len(msgs)):
                 msgs[i]["tag"] = msg_tags[i]
                 self.dl.streamer.stream(msgs[i])
@@ -412,8 +399,7 @@ class Trainer(AbstractTrainer):
             msgs[i]["longitude"]]
                 for i in range(len(msgs))], dtype=np.float64)
 
-        mat = self.__loss_matrix__(y, y_)
-        # print(mat)
+        mat = TU.loss_matrix(y, y_)
 
         for s in range(len(ax)):
             if (s < len(sample)):
@@ -577,45 +563,3 @@ class Trainer(AbstractTrainer):
             sub_df = df[df["icao24"] == icao24]
             sub_df.to_csv(os.path.join(self.ARTIFACTS, folder, "separated_csv", icao24+".csv"), index=False)
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-    # def __associate__(self, msgs:"list[dict[str,object]]",
-    #                           y_:np.float32_2d[ax.sample, ax.feature], tags:"list[str]") -> "list[str]":
-
-    #     y = np.array([[
-    #         msgs[i]["latitude"],
-    #         msgs[i]["longitude"]]
-    #             for i in range(len(msgs))], dtype=np.float64)
-    #     mat = self.__loss_matrix__(y, y_)
-
-    #     # -1 means no association
-    #     # otherwise, the index of the associated prediction
-    #     assoc = np.full((len(y),), -1, dtype=int)
-
-    #     for _ in range(min(len(y), len(y_))):
-    #         min_i = np.argmin(mat)
-    #         min_msg, min_pred = min_i // len(y_), min_i % len(y_)
-
-
-    #         if (mat[min_msg, min_pred] < Limits.INT_MAX):
-    #             assoc[min_msg] = min_pred
-
-    #         mat[min_msg, :] = Limits.INT_MAX
-    #         mat[:, min_pred] = Limits.INT_MAX
-
-    #     return self.__give_icao__(assoc, msgs, tags)
