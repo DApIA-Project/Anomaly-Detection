@@ -1,10 +1,9 @@
 
-import os
-import pandas as pd
+import itertools
 import matplotlib.pyplot as plt
 import math
-import itertools
-
+import os
+import pandas as pd
 
 
 from   B_Model.AbstractModel import Model as _Model_
@@ -17,11 +16,11 @@ import E_Trainer.TrajectorySeparator.Utils as TU
 import _Utils.Color as C
 from   _Utils.Color import prntC
 from   _Utils.DebugGui import GUI
-from   _Utils.ProgressBar import ProgressBar
-import _Utils.Limits as Limits
 import _Utils.FeatureGetter as FG
+import _Utils.Limits as Limits
 from   _Utils.numpy import np, ax
 from   _Utils.plotADSB import PLT
+from   _Utils.ProgressBar import ProgressBar
 
 
 
@@ -40,9 +39,15 @@ BAR = ProgressBar(max = 100)
 MAX_PLOT = 10
 NB_PLOT = {}
 
-DEBUG = False
+DEBUG_PER_TIMESTEPS = False
+DEBUG = True
 NB_STEPS = 3
 DEBUG_PLOT = "TrajectorySeparatorDebug"
+
+# |====================================================================================================================
+# | STEP ENUM FOR MESSAGE ASSOCIATION ALGORITHM (DONE IN MULTIPLE STEPS)
+# |====================================================================================================================
+
 
 class STEP:
     FIRST = 1
@@ -65,6 +70,11 @@ class STEP:
             return "FINISHED"
         return "UNKNOWN"
 
+# |====================================================================================================================
+# | TRAINER CLASS (THIS ONE DOES NOT TRAIN BUT I KEEP THE CLASS NAME FOR CONSISTENCY)
+# |====================================================================================================================
+
+
 class Trainer(AbstractTrainer):
 
 
@@ -78,6 +88,7 @@ class Trainer(AbstractTrainer):
         self.model:_Model_ = Model(CTX)
         self.__makes_artifacts__()
         self.__init_GUI__()
+        self.viz_model(self.ARTIFACTS)
         self.dl = DataLoader(CTX)
 
         # Private attributes
@@ -92,9 +103,7 @@ class Trainer(AbstractTrainer):
             os.makedirs(ARTIFACTS+PBM_NAME)
         if not os.path.exists(self.ARTIFACTS):
             os.makedirs(self.ARTIFACTS)
-
         # os.system("rm -rf "+self.ARTIFACTS+"/*")
-
         if not os.path.exists(self.ARTIFACTS+"/Predictions_plot"):
             os.makedirs(self.ARTIFACTS+"/Predictions_plot")
 
@@ -258,7 +267,7 @@ class Trainer(AbstractTrainer):
                         sample:"list[np.float64_2d[ax.time, ax.feature]]",
                         step:STEP) -> None:
 
-        if (not DEBUG):
+        if (not DEBUG_PER_TIMESTEPS):
             return
         if (len(y_) <= 1):
             return

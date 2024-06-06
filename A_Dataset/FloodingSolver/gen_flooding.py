@@ -66,8 +66,8 @@ def rotate_sphe(lats, lons, Olat:float, Olon:float, angle:float):
 df = pd.read_csv('./2022-01-11_19-43-26_SAMU31_39ac45.csv',  dtype={"icao24":str, "callsign":str})
 
 FLOOD_AFTER = 60
+# "rdm" | "geo" | "sphe"
 MODE = "rdm"
-# MODE = "geo"
 OUT = "./Eval/exp"
 
 if not(os.path.exists(f'{OUT}_{MODE}')):

@@ -7,11 +7,11 @@ from _Utils.numpy import np, ax
 
 
 class Model(AbstactModel):
-    
+
     name = "Reservoir"
 
     def __init__(self, CTX:dict):
-        """ 
+        """
         Generate model architecture
         Define loss function
         Define optimizer
@@ -20,9 +20,9 @@ class Model(AbstactModel):
 
         # load context
         self.CTX = CTX
-        
+
         self.model =  RC_model(
-                        reservoir=None,     
+                        reservoir=None,
                         n_internal_units=self.CTX['n_internal_units'],
                         spectral_radius=self.CTX['spectral_radius'],
                         leak=self.CTX['leak'],
@@ -32,26 +32,26 @@ class Model(AbstactModel):
                         circle=self.CTX['circ'],
                         n_drop=self.CTX['n_drop'],
                         bidir=self.CTX['bidir'],
-                        dimred_method=self.CTX['dimred_method'], 
+                        dimred_method=self.CTX['dimred_method'],
                         n_dim=self.CTX['n_dim'],
                         mts_rep=self.CTX['mts_rep'],
                         w_ridge_embedding=self.CTX['w_ridge_embedding'],
-                        readout_type=self.CTX['readout_type'],            
-                        w_ridge=self.CTX['w_ridge'],              
+                        readout_type=self.CTX['readout_type'],
+                        w_ridge=self.CTX['w_ridge'],
                         mlp_layout=self.CTX['mlp_layout'],
                         num_epochs=self.CTX['num_epochs'],
                         w_l2=self.CTX['w_l2'],
-                        nonlinearity=self.CTX['nonlinearity'], 
+                        nonlinearity=self.CTX['nonlinearity'],
                         svm_gamma=self.CTX['svm_gamma'],
                         svm_C=self.CTX['svm_C']
                         )
-        
+
     def predict(self, x):
         """
-        Make prediction for x 
+        Make prediction for x
         """
         fake_y = np.zeros((x.shape[0], self.CTX["FEATURES_OUT"]))
-        
+
         return self.compute_loss(x, fake_y)[1]
 
     def compute_loss(self, x, y):
@@ -60,7 +60,7 @@ class Model(AbstactModel):
         that will be used for training
         """
         acc, f1, out = self.model.test(x, y)
-        
+
         return f1, out
 
     def training_step(self, x, y):
@@ -74,7 +74,7 @@ class Model(AbstactModel):
 
 
 
-    def getVariables(self):
+    def get_variables(self):
         """
         Return the variables of the model
         """

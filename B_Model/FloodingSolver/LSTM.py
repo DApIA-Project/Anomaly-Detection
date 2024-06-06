@@ -15,7 +15,7 @@ class Model(AbstactModel):
     name = "LSTM"
 
     def __init__(self, CTX:dict):
-        """ 
+        """
         Generate model architecture
         Define loss function
         Define optimizer
@@ -35,7 +35,7 @@ class Model(AbstactModel):
         # inputs = [x]
 
         z = x
-        
+
 
         n = self.CTX["LAYERS"]
         z = Conv1DModule(128, 1)(z)
@@ -46,12 +46,12 @@ class Model(AbstactModel):
 
             z = Add()([z, res])
         z= LSTM(self.outs, return_sequences=False)(z)
-        
+
         # z = DenseModule(256, dropout=self.dropout)(z)
         # z = Dense(self.outs, activation="sigmoid")(z)
         y = (z + 1) / 2
-            
-            
+
+
         self.model = tf.keras.Model(x, y)
 
 
@@ -61,10 +61,10 @@ class Model(AbstactModel):
         # define optimizer
         self.opt = tf.keras.optimizers.Adam(learning_rate=CTX["LEARNING_RATE"])
 
-        
+
     def predict(self, x):
         """
-        Make prediction for x 
+        Make prediction for x
         """
         return self.model(x)
 
@@ -101,14 +101,14 @@ class Model(AbstactModel):
         for i in range(len(self.model.trainable_variables)):
             params += np.prod(self.model.trainable_variables[i].shape)
         print("number of trainable variables: ", params)
-        
-            
+
+
         filename = os.path.join(save_path, self.name+".png")
         tf.keras.utils.plot_model(self.model, to_file=filename, show_shapes=True)
 
 
 
-    def getVariables(self):
+    def get_variables(self):
         """
         Return the variables of the model
         """

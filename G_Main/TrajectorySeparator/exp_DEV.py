@@ -1,21 +1,20 @@
 
 
 # Import the model
-from B_Model.FloodingSolver.LSTM import Model
+from B_Model.TrajectorySeparator.DeviationModel import Model
 
 # Import the context (hyperparameters, constants, etc...)
-import C_Constants.FloodingSolver.LSTM as CTX
-import C_Constants.FloodingSolver.DefaultCTX as DefaultCTX
+import C_Constants.TrajectorySeparator.Model as CTX
+import C_Constants.TrajectorySeparator.DefaultCTX as DefaultCTX
 
 # Import the training loop adapted to the model
-from E_Trainer.FloodingSolver.Trainer import Trainer
+from E_Trainer.TrajectorySeparator.Trainer import Trainer
 
 # Choose the training method
 from F_Runner.FitOnce import fitOnce
 from F_Runner.MultiFit import multiFit
 
 import os
-
 
 
 def __main__() -> None:

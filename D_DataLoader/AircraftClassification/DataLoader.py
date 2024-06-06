@@ -4,7 +4,7 @@ import os
 import _Utils.FeatureGetter as FG
 import _Utils.Color as C
 from   _Utils.Color import prntC
-from   _Utils.Scaler3D import StandardScaler3D, MinMaxScaler2D, fillNaN3D, fillNaN2D
+from   _Utils.Scaler3D import StandardScaler3D, MinMaxScaler2D, fill_nan_3d, fill_nan_2d
 from   _Utils.SparceLabelBinarizer import SparceLabelBinarizer
 from   _Utils.ProgressBar import ProgressBar
 import _Utils.Limits as Limits
@@ -86,7 +86,7 @@ class DataLoader(AbstractDataLoader):
             if (is_folder): BAR.update(f+1)
 
         if (self.PAD is None): self.PAD = U.genPadValues(CTX, x)
-        x = fillNaN3D(x, self.PAD)
+        x = fill_nan_3d(x, self.PAD)
         y = self.yScaler.transform(y)
 
         return x, y, filenames
@@ -100,7 +100,7 @@ class DataLoader(AbstractDataLoader):
 
     def __scalers_transform__(self, CTX, x_batch, x_batch_takeoff, x_batch_airport):
         # fit the scaler on the first epoch
-        if not(self.xScaler.isFitted()):
+        if not(self.xScaler.is_fitted()):
             self.xScaler.fit(x_batch)
             if (CTX["ADD_TAKE_OFF_CONTEXT"]): self.xTakeOffScaler.fit(x_batch_takeoff)
             if (CTX["ADD_AIRPORT_CONTEXT"]): self.xAirportScaler.fit(x_batch_airport)
@@ -278,7 +278,7 @@ class StreamerInterface:
         cache = STREAMER.cache("AircraftClassification", tag)
 
         array = U.df_to_feature_array(self.CTX, raw_df[-2:], check_length=False)
-        array = fillNaN2D(array, self.dl.PAD)
+        array = fill_nan_2d(array, self.dl.PAD)
 
         # concatenate the new array to the cache
         # remove the first element of the array

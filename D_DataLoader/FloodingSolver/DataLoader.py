@@ -9,7 +9,7 @@ import _Utils.FeatureGetter as FG
 import _Utils.Color as C
 from   _Utils.Color import prntC
 from _Utils import Limits
-from   _Utils.Scaler3D import  StandardScaler3D, SigmoidScaler2D, fillNaN3D, fillNaN2D
+from   _Utils.Scaler3D import  StandardScaler3D, SigmoidScaler2D, fill_nan_3d, fill_nan_2d
 from   _Utils.ProgressBar import ProgressBar
 from _Utils.plotADSB import PLT
 from   _Utils.ADSB_Streamer import Streamer
@@ -72,7 +72,7 @@ class DataLoader(AbstractDataLoader):
             BAR.update(f+1)
 
         if (self.PAD is None): self.PAD = U.genPadValues(CTX, x)
-        x = fillNaN3D(x, self.PAD)
+        x = fill_nan_3d(x, self.PAD)
 
         return x
 
@@ -88,12 +88,12 @@ class DataLoader(AbstractDataLoader):
             -> """tuple[np.float64_3d[ax.sample, ax.time, ax.feature], np.float64_2d[ax.sample, ax.feature]]
                 | np.float64_3d[ax.sample, ax.time, ax.feature]""":
 
-        if (not(self.xScaler.isFitted())):
+        if (not(self.xScaler.is_fitted())):
             self.xScaler.fit(x_batch)
         x_batch = self.xScaler.transform(x_batch)
 
         if (y_batch is not None):
-            if (not(self.yScaler.isFitted())):
+            if (not(self.yScaler.is_fitted())):
                 self.yScaler.fit(y_batch)
 
             y_batch = self.yScaler.transform(y_batch)
@@ -231,7 +231,7 @@ class StreamerInterface:
         cache = STREAMER.cache("FloodingSolver", tag)
 
         array = U.df_to_feature_array(self.CTX, raw_df[-2:], check_length=False)
-        array = fillNaN2D(array, self.dl.PAD)
+        array = fill_nan_2d(array, self.dl.PAD)
 
         if (cache is not None):
             cache = np.concatenate([cache, array[1:]], axis=0)

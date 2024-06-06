@@ -15,7 +15,7 @@ class Model(AbstactModel):
     name = "LSTM"
 
     def __init__(self, CTX:dict):
-        """ 
+        """
         Generate model architecture
         Define loss function
         Define optimizer
@@ -34,19 +34,19 @@ class Model(AbstactModel):
         x_input_shape = (self.CTX["INPUT_LEN"], self.CTX["FEATURES_IN"])
         if (CTX["ADD_TAKE_OFF_CONTEXT"]): takeoff_input_shape = (self.CTX["INPUT_LEN"], self.CTX["FEATURES_IN"])
         if (CTX["ADD_MAP_CONTEXT"]): map_input_shape = (self.CTX["IMG_SIZE"], self.CTX["IMG_SIZE"], 3)
-    
+
         x = tf.keras.Input(shape=x_input_shape, name='input')
         inputs = [x]
-        if (CTX["ADD_TAKE_OFF_CONTEXT"]): 
+        if (CTX["ADD_TAKE_OFF_CONTEXT"]):
             takeoff = tf.keras.Input(shape=takeoff_input_shape, name='takeoff')
             inputs.append(takeoff)
 
-        if (CTX["ADD_MAP_CONTEXT"]): 
+        if (CTX["ADD_MAP_CONTEXT"]):
             map = tf.keras.Input(shape=map_input_shape, name='map')
             inputs.append(map)
 
         # concat takeoff and x
-        if (CTX["ADD_TAKE_OFF_CONTEXT"]): 
+        if (CTX["ADD_TAKE_OFF_CONTEXT"]):
             z = Concatenate(axis=2)([x, takeoff])
         else:
             z = x
@@ -78,7 +78,7 @@ class Model(AbstactModel):
             y_map = GlobalAveragePooling2D()(y_map)
             y_map = Flatten()(y_map)
 
-        
+
         to_concat = [z]
         if (CTX["ADD_MAP_CONTEXT"]): to_concat.append(y_map)
 
@@ -86,8 +86,8 @@ class Model(AbstactModel):
         z = DenseModule(256, dropout=self.dropout)(z)
         z = Dense(self.outs, activation="softmax")(z)
         y = z
-            
-            
+
+
         self.model = tf.keras.Model(inputs, y)
 
 
@@ -98,10 +98,10 @@ class Model(AbstactModel):
         # define optimizer
         self.opt = tf.keras.optimizers.Adam(learning_rate=CTX["LEARNING_RATE"])
 
-        
+
     def predict(self, x):
         """
-        Make prediction for x 
+        Make prediction for x
         """
         return self.model(x)
 
@@ -133,14 +133,14 @@ class Model(AbstactModel):
         """
         Generate a visualization of the model's architecture
         """
-        
-            
+
+
         filename = os.path.join(save_path, self.name+".png")
         tf.keras.utils.plot_model(self.model, to_file=filename, show_shapes=True)
 
 
 
-    def getVariables(self):
+    def get_variables(self):
         """
         Return the variables of the model
         """

@@ -7,7 +7,7 @@ import os
 import _Utils.FeatureGetter as FG
 import _Utils.Color as C
 from _Utils.Color import prntC
-from _Utils.Scaler3D import StandardScaler3D, fillNaN3D, StandardScaler2D,MinMaxScaler2D
+from _Utils.Scaler3D import StandardScaler3D, fill_nan_3d, StandardScaler2D,MinMaxScaler2D
 from _Utils.SparceLabelBinarizer import SparceLabelBinarizer
 from _Utils.ProgressBar import ProgressBar
 from _Utils.Limits import *
@@ -73,7 +73,7 @@ class DataLoader(AbstractDataLoader):
             if (is_folder): BAR.update(f+1)
 
         if (self.PAD is None): self.PAD = U.genPadValues(CTX, x)
-        x = fillNaN3D(x, self.PAD)
+        x = fill_nan_3d(x, self.PAD)
 
         prntC()
         return x, filenames

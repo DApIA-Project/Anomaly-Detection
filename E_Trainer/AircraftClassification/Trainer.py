@@ -124,13 +124,13 @@ class Trainer(AbstractTrainer):
 
     def save(self) -> None:
         CTX = self.CTX
-        write(self.ARTIFACTS+"/w", self.model.getVariables())
-        write(self.ARTIFACTS+"/xs", self.dl.xScaler.getVariables())
+        write(self.ARTIFACTS+"/w", self.model.get_variables())
+        write(self.ARTIFACTS+"/xs", self.dl.xScaler.get_variables())
 
         if (CTX["ADD_TAKE_OFF_CONTEXT"]):
-            write(self.ARTIFACTS+"/xts", self.dl.xTakeOffScaler.getVariables())
+            write(self.ARTIFACTS+"/xts", self.dl.xTakeOffScaler.get_variables())
         if (CTX["ADD_AIRPORT_CONTEXT"]):
-            write(self.ARTIFACTS+"/xas", self.dl.xAirportScaler.getVariables())
+            write(self.ARTIFACTS+"/xas", self.dl.xAirportScaler.get_variables())
 
         write(self.ARTIFACTS+"/pad", self.dl.PAD)
 
@@ -224,7 +224,7 @@ class Trainer(AbstractTrainer):
         self.__history__[:, ep-1] = [train_loss, test_loss, train_acc, test_acc]
         for i in range(4):
             self.__history_mov_avg__[i, ep-1] = Metrics.moving_average_at(self.__history__[i], ep-1, w=5)
-        write(self.ARTIFACTS+"/weights/"+str(ep)+".w", self.model.getVariables())
+        write(self.ARTIFACTS+"/weights/"+str(ep)+".w", self.model.get_variables())
 
         per_class_acc = Metrics.per_class_accuracy(y_test, _y_test)
 

@@ -2,22 +2,22 @@ import os
 import pandas as pd
 import matplotlib.pyplot as plt
 from   matplotlib.backends.backend_pdf import PdfPages
-from _Utils.numpy import np, ax
 
 from   B_Model.AbstractModel import Model as _Model_
 from   D_DataLoader.FloodingSolver.DataLoader import DataLoader
 import D_DataLoader.Utils as U
 from   E_Trainer.AbstractTrainer import Trainer as AbstractTrainer
 
-import _Utils.Metrics as Metrics
-from   _Utils.save import write, load
+from   _Utils.Chrono import Chrono
 import _Utils.Color as C
 from   _Utils.Color import prntC
-from   _Utils.ProgressBar import ProgressBar
-from   _Utils.Chrono import Chrono
 from   _Utils.DebugGui import GUI
-from   _Utils.plotADSB import PLT
 import _Utils.geographic_maths as GEO
+from   _Utils.numpy import np, ax
+import _Utils.Metrics as Metrics
+from   _Utils.plotADSB import PLT
+from   _Utils.ProgressBar import ProgressBar
+from   _Utils.save import write, load
 
 
 
@@ -108,9 +108,9 @@ class Trainer(AbstractTrainer):
 # |====================================================================================================================
 
     def save(self) -> None:
-        write(self.ARTIFACTS+"/w", self.model.getVariables())
-        write(self.ARTIFACTS+"/xs", self.dl.xScaler.getVariables())
-        write(self.ARTIFACTS+"/ys", self.dl.yScaler.getVariables())
+        write(self.ARTIFACTS+"/w", self.model.get_variables())
+        write(self.ARTIFACTS+"/xs", self.dl.xScaler.get_variables())
+        write(self.ARTIFACTS+"/ys", self.dl.yScaler.get_variables())
         write(self.ARTIFACTS+"/pad", self.dl.PAD)
 
 
@@ -201,7 +201,7 @@ class Trainer(AbstractTrainer):
         self.__history__[:, ep-1] = [train_loss, test_loss, train_dist, test_dist]
         for i in range(4):
             self.__history_mov_avg__[i, ep-1] = Metrics.moving_average_at(self.__history__[i], ep-1, w=5)
-        write(self.ARTIFACTS+"/weights/"+str(ep)+".w", self.model.getVariables())
+        write(self.ARTIFACTS+"/weights/"+str(ep)+".w", self.model.get_variables())
 
         # Print & Display statistics !
         self.__print_epoch_stats__(ep, train_loss, test_loss, train_dist, test_dist)

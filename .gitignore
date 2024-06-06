@@ -23,8 +23,9 @@ _Utils/secrets_stuffs.py
 __pycache__/
 
 # Do not put any csv or dataset in git !
-A_Dataset/*
+A_Dataset/*/*
 !A_Dataset/readme.md
+!A_Dataset/*/readme.md
 
 # Do not put any built lib or lib building artefact in git !
 _Lib/*

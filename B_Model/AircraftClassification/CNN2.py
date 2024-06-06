@@ -8,7 +8,6 @@ from B_Model.Utils.TF_Modules import *
 from _Utils.numpy import np, ax
 
 import os
-from random import randint
 
 class Model(AbstactModel):
 
@@ -127,7 +126,7 @@ class Model(AbstactModel):
 
 
 
-    def getVariables(self):
+    def get_variables(self):
         """
         Return the variables of the model
         """

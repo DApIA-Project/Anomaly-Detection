@@ -1,69 +1,81 @@
-import _Utils.Color as C
-from _Utils.Color import prntC
+import os
+import time
 
 from B_Model.AbstractModel import Model as _Model_
 from D_DataLoader.ReplaySolver.DataLoader import DataLoader
 from E_Trainer.AbstractTrainer import Trainer as AbstractTrainer
 
-import os
-import time
-import matplotlib.pyplot as plt
-from matplotlib.backends.backend_pdf import PdfPages
+
+from   _Utils.DebugGui import GUI
+import _Utils.Color as C
+from   _Utils.Color import prntC
+from   _Utils.numpy import np, ax
+from   _Utils.save import write, load
+
+# |====================================================================================================================
+# | CONSTANTS
+# |====================================================================================================================
+
+PBM_NAME = os.path.dirname(os.path.abspath(__file__)).split("/")[-1]+"/"
+ARTIFACTS = "./_Artifacts/"
+EVAL_FOLDER = "./A_Dataset/ReplaySolver/"
 
 
-# parent folder
-PBM_NAME = os.path.dirname(os.path.abspath(__file__)).split("/")[-1]
 
+# |====================================================================================================================
+# | TRAINER CLASS
+# |====================================================================================================================
 
-###################################################
-# Trainer class
-###################################################
 
 class Trainer(AbstractTrainer):
 
-    ###################################################
-    # Initialization
-    ###################################################
 
-    def __init__(self, CTX:dict, Model:"type[_Model_]"):
-        super().__init__(CTX, Model)
+# |====================================================================================================================
+# |     INITIALIZATION
+# |====================================================================================================================
+
+    def __init__(self, CTX:dict, Model:"type[_Model_]") -> None:
+        # Public attributes
         self.CTX = CTX
         self.model:_Model_ = Model(CTX)
-
-        self.makes_artifacts()
-        self.viz_model("./test.png")
-
+        self.__makes_artifacts__()
+        self.__init_GUI__()
+        self.viz_model(self.ARTIFACTS)
         self.dl = DataLoader(CTX, "./A_Dataset/AircraftClassification/Train")
 
+        # Private attributes
 
-    def makes_artifacts(self):
-        self.ARTIFACTS = "./_Artifacts/"+PBM_NAME+"/"+self.model.name
 
-        if not os.path.exists("./_Artifacts"):
-            os.makedirs("./_Artifacts")
-        if not os.path.exists("./_Artifacts/"+PBM_NAME):
-            os.makedirs("./_Artifacts/"+PBM_NAME)
+
+    def __makes_artifacts__(self) -> None:
+        self.ARTIFACTS = ARTIFACTS+PBM_NAME+"/"+self.model.name
+        if not os.path.exists(ARTIFACTS):
+            os.makedirs(ARTIFACTS)
+        if not os.path.exists(ARTIFACTS+PBM_NAME):
+            os.makedirs(ARTIFACTS+PBM_NAME)
         if not os.path.exists(self.ARTIFACTS):
             os.makedirs(self.ARTIFACTS)
 
 
-    ###################################################
-    # Save and load model
-    ###################################################
+    def __init_GUI__(self) -> None:
+        GUI.visualize("/ReplaySolver", GUI.TEXT, "TODO")
 
-    def save(self):
-        write(self.ARTIFACTS+"/w", self.model.getVariables())
+# |====================================================================================================================
+# |     SAVE & LOAD HASH DATABASE
+# |====================================================================================================================
 
-    def load(self):
+
+    def save(self) -> None:
+        write(self.ARTIFACTS+"/w", self.model.get_variables())
+
+    def load(self) -> None:
         self.model.set_variables(load(self.ARTIFACTS+"/w"))
 
+# |====================================================================================================================
+# |     TRAINING
+# |====================================================================================================================
 
-
-    ###################################################
-    # Training
-    ###################################################
-
-    def train(self):
+    def train(self) -> None:
 
         CTX = self.CTX
 

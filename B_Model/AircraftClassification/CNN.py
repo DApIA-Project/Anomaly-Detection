@@ -15,7 +15,7 @@ class Model(AbstactModel):
     name = "CNN"
 
     def __init__(self, CTX:dict):
-        """ 
+        """
         Generate model architecture
         Define loss function
         Define optimizer
@@ -28,7 +28,7 @@ class Model(AbstactModel):
         x_input_shape = (self.CTX["INPUT_LEN"], self.CTX["FEATURES_IN"])
         if (CTX["ADD_TAKE_OFF_CONTEXT"]): takeoff_input_shape = (self.CTX["INPUT_LEN"], self.CTX["FEATURES_IN"])
         if (CTX["ADD_MAP_CONTEXT"]): map_input_shape = (self.CTX["IMG_SIZE"], self.CTX["IMG_SIZE"], 3)
-    
+
         # generate layers
         x = tf.keras.Input(shape=x_input_shape, name='input')
         inputs = [x]
@@ -39,7 +39,7 @@ class Model(AbstactModel):
         self.PROBA = None
 
         adsb_module_inputs = [x]
-        if (CTX["ADD_TAKE_OFF_CONTEXT"]): 
+        if (CTX["ADD_TAKE_OFF_CONTEXT"]):
             takeoff = tf.keras.Input(shape=takeoff_input_shape, name='takeoff')
             inputs.append(takeoff)
 
@@ -50,7 +50,7 @@ class Model(AbstactModel):
             self.TAKEOFF = len(outputs)
 
 
-        if (CTX["ADD_MAP_CONTEXT"]): 
+        if (CTX["ADD_MAP_CONTEXT"]):
             map = tf.keras.Input(shape=map_input_shape, name='map')
             inputs.append(map)
 
@@ -68,7 +68,7 @@ class Model(AbstactModel):
 
 
 
-        
+
 
         # generate model
         self.model = tf.keras.Model(inputs, outputs)
@@ -82,7 +82,7 @@ class Model(AbstactModel):
 
     def predict(self, x):
         """
-        Make prediction for x 
+        Make prediction for x
         """
         if (not(self.CTX["ADD_TAKE_OFF_CONTEXT"]) and not(self.CTX["ADD_MAP_CONTEXT"])):
             return self.model(x)
@@ -99,7 +99,7 @@ class Model(AbstactModel):
         if (not(self.CTX["ADD_TAKE_OFF_CONTEXT"]) and not(self.CTX["ADD_MAP_CONTEXT"])):
             loss = self.loss(y_, y)
             return loss, y_
-        
+
         loss = self.loss(y_[self.PROBA], y)
         return loss, y_[self.PROBA]
 
@@ -117,7 +117,7 @@ class Model(AbstactModel):
 
             y_ = self.model(x)
             loss = self.loss(y_[self.PROBA], y)
-            
+
 
             if (self.CTX["ADD_TAKE_OFF_CONTEXT"]):
                 takeoff_loss = self.loss(y_[self.TAKEOFF], y)
@@ -152,7 +152,7 @@ class Model(AbstactModel):
 
 
 
-    def getVariables(self):
+    def get_variables(self):
         """
         Return the variables of the model
         """
@@ -194,7 +194,7 @@ class TakeOffModule(tf.Module):
         self.convNN = convNN
         self.gradiant_skip = Dense(self.outs, activation=CTX["ACTIVATION"], name="skip")
 
-    
+
     def __call__(self, x):
         for layer in self.convNN:
             x = layer(x)
@@ -231,7 +231,7 @@ class MapModule(tf.Module):
         for layer in self.convNN:
             x = layer(x)
         return x, self.gradiant_skip(x)
-    
+
 
 
 class ADS_B_Module(tf.Module):
@@ -252,7 +252,7 @@ class ADS_B_Module(tf.Module):
         convNN.append(Conv1DModule(self.outs, 3, padding=self.CTX["MODEL_PADDING"]))
         convNN.append(GlobalMaxPooling1D())
         # convNN.append(Dense(self.outs, activation="linear", name="prediction"))
-        
+
         valid_padding_to_remove = CTX["LAYERS"] * (CTX["MODEL_PADDING"] == "valid")
 
         self.preNN = preNN

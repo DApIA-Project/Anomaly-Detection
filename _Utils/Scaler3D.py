@@ -1,16 +1,19 @@
 from _Utils.numpy import np, ax
+from typing_extensions import Self
+
+IRREGULAR_DIMENSION = "The last dimension is not always the same size"
 
 class MinMaxScaler3D:
 
-    def __init__(self, min=0, max=1):
+    def __init__(self, min:float=0, max:float=1) -> None:
         self.mins = []
         self.maxs = []
         self.min = min
         self.max = max
-        self.__isFitted__ = False
+        self.__is_fitted__ = False
 
-    def fit(self, X):
-        self.__isFitted__ = True
+    def fit(self, X:np.float64_3d) -> "Self":
+        self.__is_fitted__ = True
 
         # check if 3dr channel is allways the same size
         size = -1
@@ -19,7 +22,7 @@ class MinMaxScaler3D:
                 if (size == -1):
                     size = len(X[b][t])
                 if (size != len(X[b][t])):
-                    raise Exception("The 3rd dimension is not always the same size")
+                    raise ValueError(IRREGULAR_DIMENSION)
 
 
         self.mins = np.full(size, np.inf)
@@ -30,7 +33,7 @@ class MinMaxScaler3D:
 
         return self
 
-    def transform(self, X):
+    def transform(self, X:np.float64_3d) -> np.float64_3d:
 
         X = X.copy()
 
@@ -46,10 +49,10 @@ class MinMaxScaler3D:
 
         return X
 
-    def fit_transform(self, X):
+    def fit_transform(self, X:np.float64_3d) -> np.float64_3d:
         return self.fit(X).transform(X)
 
-    def inverse_transform(self, X):
+    def inverse_transform(self, X:np.float64_3d) -> np.float64_3d:
 
         X = X.copy()
 
@@ -61,34 +64,37 @@ class MinMaxScaler3D:
 
         return X
 
-    def isFitted(self):
-        return self.__isFitted__
+    def is_fitted(self) -> bool:
+        return self.__is_fitted__
 
 
-    def getVariables(self):
+    def get_variables(self) -> "tuple[np.float64_1d[ax.feature], np.float64_1d[ax.feature], float, float]":
         return np.array([self.mins, self.maxs, self.min, self.max])
 
-    def set_variables(self, variables):
+    def set_variables(self, variables:"tuple[np.float64_1d[ax.feature], np.float64_1d[ax.feature], float, float]")\
+            -> "Self":
+
         self.mins = variables[0]
         self.maxs = variables[1]
         self.min = variables[2]
         self.max = variables[3]
-        self.__isFitted__ = True
+        self.__is_fitted__ = True
         return self
+
 
 
 class MinMaxScaler2D:
 
-    def __init__(self, min=0, max=1):
+    def __init__(self, min:float=0, max:float=1) -> None:
         self.mins = []
         self.maxs = []
         self.min = min
         self.max = max
         self.max_min = self.max - self.min
-        self.__isFitted__ = False
+        self.__is_fitted__ = False
 
-    def fit(self, X):
-        self.__isFitted__ = True
+    def fit(self, X:np.float64_2d) -> "Self":
+        self.__is_fitted__ = True
 
         # check if 3dr channel is allways the same size
         size = -1
@@ -96,7 +102,7 @@ class MinMaxScaler2D:
             if (size == -1):
                 size = len(X[t])
             if (size != len(X[t])):
-                raise Exception("The 3rd dimension is not always the same size")
+                raise ValueError(IRREGULAR_DIMENSION)
 
 
         self.mins = np.full(size, np.inf)
@@ -112,42 +118,43 @@ class MinMaxScaler2D:
 
         return self
 
-    def transform(self, X):
+    def transform(self, X:np.float64_2d) -> np.float64_2d:
         return ((X - self.mins) / self.maxs_mins) * self.max_min + self.min
 
-    def fit_transform(self, X):
+    def fit_transform(self, X:np.float64_2d) -> np.float64_2d:
         return self.fit(X).transform(X)
 
-    def inverse_transform(self, X):
+    def inverse_transform(self, X:np.float64_2d) -> np.float64_2d:
         return ((X - self.min) / self.max_min) * self.maxs_mins + self.mins
 
-    def isFitted(self):
-        return self.__isFitted__
+    def is_fitted(self) -> bool:
+        return self.__is_fitted__
 
-    def getVariables(self):
+    def get_variables(self) -> "tuple[np.float64_1d[ax.feature], np.float64_1d[ax.feature], float, float]":
         return [self.mins, self.maxs, self.min, self.max]
 
-    def set_variables(self, variables):
+    def set_variables(self, variables:"tuple[np.float64_1d[ax.feature], np.float64_1d[ax.feature], float, float]")\
+            -> "Self":
         self.mins = variables[0]
         self.maxs = variables[1]
         self.min = variables[2]
         self.max = variables[3]
         self.maxs_mins = self.maxs - self.mins
         self.max_min = self.max - self.min
-        self.__isFitted__ = True
+        self.__is_fitted__ = True
         return self
 
 
 
 class StandardScaler3D:
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.means = []
         self.stds = []
-        self.__isFitted__ = False
+        self.__is_fitted__ = False
 
-    def fit(self, X):
-        self.__isFitted__ = True
+    def fit(self, X:np.float64_3d) -> "Self":
+        self.__is_fitted__ = True
 
         # check if 3dr channel is allways the same size
         size = -1
@@ -156,7 +163,7 @@ class StandardScaler3D:
                 if (size == -1):
                     size = len(X[b][t])
                 if (size != len(X[b][t])):
-                    raise Exception("The 3rd dimension is not always the same size")
+                    raise ValueError(IRREGULAR_DIMENSION)
 
 
         self.means = np.full(size, np.inf)
@@ -167,7 +174,7 @@ class StandardScaler3D:
 
         return self
 
-    def transform(self, X):
+    def transform(self, X:np.float64_3d) -> np.float64_3d:
 
             X = X.copy()
 
@@ -180,10 +187,10 @@ class StandardScaler3D:
 
             return X
 
-    def fit_transform(self, X):
+    def fit_transform(self, X:np.float64_3d) -> np.float64_3d:
         return self.fit(X).transform(X)
 
-    def inverse_transform(self, X):
+    def inverse_transform(self, X:np.float64_3d) -> np.float64_3d:
 
             X = X.copy()
 
@@ -194,27 +201,27 @@ class StandardScaler3D:
 
             return X
 
-    def isFitted(self):
-        return self.__isFitted__
+    def is_fitted(self) -> bool:
+        return self.__is_fitted__
 
-    def getVariables(self):
+    def get_variables(self) -> "tuple[np.float64_1d[ax.feature], np.float64_1d[ax.feature]]":
         return np.array([self.means, self.stds])
 
-    def set_variables(self, variables):
+    def set_variables(self, variables:"tuple[np.float64_1d[ax.feature], np.float64_1d[ax.feature]]") -> "Self":
         self.means = variables[0]
         self.stds = variables[1]
-        self.__isFitted__ = True
+        self.__is_fitted__ = True
         return self
 
 class StandardScaler2D:
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.means = []
         self.stds = []
-        self.__isFitted__ = False
+        self.__is_fitted__ = False
 
-    def fit(self, X):
-        self.__isFitted__ = True
+    def fit(self, X:np.float64_2d) -> "Self":
+        self.__is_fitted__ = True
 
         # check if 3dr channel is allways the same size
         size = -1
@@ -222,7 +229,7 @@ class StandardScaler2D:
             if (size == -1):
                 size = len(X[t])
             if (size != len(X[t])):
-                raise Exception("The 3rd dimension is not always the same size")
+                raise ValueError(IRREGULAR_DIMENSION)
 
 
         self.means = np.full(size, np.inf)
@@ -233,7 +240,7 @@ class StandardScaler2D:
 
         return self
 
-    def transform(self, X):
+    def transform(self, X:np.float64_2d) -> np.float64_2d:
 
             X = X.copy()
 
@@ -245,10 +252,10 @@ class StandardScaler2D:
 
             return X
 
-    def fit_transform(self, X):
+    def fit_transform(self, X:np.float64_2d) -> np.float64_2d:
         return self.fit(X).transform(X)
 
-    def inverse_transform(self, X):
+    def inverse_transform(self, X:np.float64_2d) -> np.float64_2d:
 
             X = X.copy()
 
@@ -258,19 +265,19 @@ class StandardScaler2D:
 
             return X
 
-    def isFitted(self):
-        return self.__isFitted__
+    def is_fitted(self) -> bool:
+        return self.__is_fitted__
 
-    def getVariables(self):
+    def get_variables(self) -> "tuple[np.float64_1d[ax.feature], np.float64_1d[ax.feature]]":
         return np.array([self.means, self.stds])
 
-    def set_variables(self, variables):
+    def set_variables(self, variables:"tuple[np.float64_1d[ax.feature], np.float64_1d[ax.feature]]") -> "Self":
         self.means = variables[0]
         self.stds = variables[1]
-        self.__isFitted__ = True
+        self.__is_fitted__ = True
         return self
 
-def fillNaN3D(x:"list[np.array]", values):
+def fill_nan_3d(x:"np.float64_3d", values:"np.float64_1d[ax.feature]") -> "np.float64_3d":
     """
     Fill NaN values in a 3D array with the given values
     """
@@ -280,7 +287,7 @@ def fillNaN3D(x:"list[np.array]", values):
             x[i][:, f] = np.nan_to_num(x[i][:, f], nan=values[f])
     return x
 
-def fillNaN2D(x:"np.array", values):
+def fill_nan_2d(x:"np.float64_2d", values:"np.float64_1d[ax.feature]") -> "np.float64_2d":
     """
     Fill NaN values in a 2D array with the given values
     """
@@ -291,10 +298,10 @@ def fillNaN2D(x:"np.array", values):
 
 import math
 
-def __sigmoid__(x):
+def __sigmoid__(x:float) -> float:
     return 1.0 / (1.0 + math.exp(float(-x)))
 
-def __sigmoid_inverse__(x):
+def __sigmoid_inverse__(x:float) -> float:
     if (x <= 0):
         return 10
     elif (x >= 1):
@@ -304,9 +311,9 @@ def __sigmoid_inverse__(x):
 np_sig_vec = np.vectorize(__sigmoid__)
 np_sig_inv_vec = np.vectorize(__sigmoid_inverse__)
 
-def sigmoid(x):
+def sigmoid(x:np.ndarray) -> np.ndarray:
     return np_sig_vec(x)
-def sigmoid_inverse(x):
+def sigmoid_inverse(x:np.ndarray) -> np.ndarray:
     return np_sig_inv_vec(x)
 
 class SigmoidScaler2D():
@@ -315,13 +322,13 @@ class SigmoidScaler2D():
     to avoid outliers
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.means = []
         self.stds = []
-        self.__isFitted__ = False
+        self.__is_fitted__ = False
 
-    def fit(self, X):
-        self.__isFitted__ = True
+    def fit(self, X:np.float64_2d) -> "Self":
+        self.__is_fitted__ = True
 
         # check if 3dr channel is allways the same size
         size = -1
@@ -329,7 +336,7 @@ class SigmoidScaler2D():
             if (size == -1):
                 size = len(X[t])
             if (size != len(X[t])):
-                raise Exception("The 3rd dimension is not always the same size")
+                raise ValueError(IRREGULAR_DIMENSION)
 
 
         self.means = np.full(size, np.inf)
@@ -340,7 +347,7 @@ class SigmoidScaler2D():
 
         return self
 
-    def transform(self, X):
+    def transform(self, X:np.float64_2d) -> np.float64_2d:
 
             X = X.copy()
 
@@ -353,10 +360,10 @@ class SigmoidScaler2D():
 
             return X
 
-    def fit_transform(self, X):
+    def fit_transform(self, X:np.float64_2d) -> np.float64_2d:
         return self.fit(X).transform(X)
 
-    def inverse_transform(self, X):
+    def inverse_transform(self, X:np.float64_2d) -> np.float64_2d:
             X=np.array(X)
 
             X = X.copy()
@@ -368,15 +375,15 @@ class SigmoidScaler2D():
 
             return X
 
-    def isFitted(self):
-        return self.__isFitted__
+    def is_fitted(self) -> bool:
+        return self.__is_fitted__
 
-    def getVariables(self):
+    def get_variables(self) -> "tuple[np.float64_1d[ax.feature], np.float64_1d[ax.feature]]":
         return np.array([self.means, self.stds])
 
-    def set_variables(self, variables):
+    def set_variables(self, variables:"tuple[np.float64_1d[ax.feature], np.float64_1d[ax.feature]]") -> "Self":
         self.means = variables[0]
         self.stds = variables[1]
-        self.__isFitted__ = True
+        self.__is_fitted__ = True
         return self
 

@@ -11,13 +11,13 @@ import C_Constants.ReplaySolver.DefaultCTX as DefaultCTX
 from E_Trainer.ReplaySolver.Trainer import Trainer as HashTrainer
 
 # Choose the training method
-from F_Runner.FitOnce import *
-from F_Runner.MultiFit import *
+from F_Runner.FitOnce import fitOnce
+from F_Runner.MultiFit import multiFit
 
 import os
 
 
-def __main__():
+def __main__() -> None:
     parent_dir = os.path.dirname(os.path.abspath(__file__)).split("/")[-1]
     fitOnce(Model, HashTrainer, CTX, default_CTX=DefaultCTX, experiment_name=parent_dir)
 

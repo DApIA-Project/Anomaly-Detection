@@ -15,7 +15,7 @@ class Model(AbstactModel):
     name = "CNN"
 
     def __init__(self, CTX:dict):
-        """ 
+        """
         Generate model architecture
         Define loss function
         Define optimizer
@@ -35,7 +35,7 @@ class Model(AbstactModel):
         # inputs = [x]
 
         z = x
-        
+
 
         n = self.CTX["LAYERS"]
         for i in range(n):
@@ -48,8 +48,8 @@ class Model(AbstactModel):
         # z = DenseModule(256, dropout=self.dropout)(z)
         z = Dense(self.outs, activation="sigmoid")(z)
         y = z
-            
-            
+
+
         self.model = tf.keras.Model(x, y)
 
 
@@ -59,10 +59,10 @@ class Model(AbstactModel):
         # define optimizer
         self.opt = tf.keras.optimizers.Adam(learning_rate=CTX["LEARNING_RATE"])
 
-        
+
     def predict(self, x):
         """
-        Make prediction for x 
+        Make prediction for x
         """
         return self.model(x)
 
@@ -94,14 +94,14 @@ class Model(AbstactModel):
         """
         Generate a visualization of the model's architecture
         """
-        
-            
+
+
         filename = os.path.join(save_path, self.name+".png")
         tf.keras.utils.plot_model(self.model, to_file=filename, show_shapes=True)
 
 
 
-    def getVariables(self):
+    def get_variables(self):
         """
         Return the variables of the model
         """

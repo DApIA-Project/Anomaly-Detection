@@ -32,7 +32,7 @@ class Model(AbstactModel):
     name = "Transformer_img"
 
     def __init__(self, CTX:dict):
-        """ 
+        """
         Generate model architecture
         Define loss function
         Define optimizer
@@ -46,7 +46,7 @@ class Model(AbstactModel):
 
         # save the number of training steps
         self.nb_train = 0
-    
+
 
         # build model's architecture
         feature_in = self.CTX["FEATURES_IN"] * (2 if self.CTX["ADD_TAKE_OFF_CONTEXT"] else 1)
@@ -82,10 +82,10 @@ class Model(AbstactModel):
         z_img = Conv2DModule(32, 3, padding="same")(z_img)
         z_img = Flatten()(z_img)
 
-        
+
         z = Concatenate()([z, z_img])
         z = DenseModule(1024, dropout=self.dropout)(z)
-        
+
         z = Dense(self.CTX["FF_DIM"], activation="relu")(z)
         z = Dropout(self.CTX["DROPOUT"])(z)
 
@@ -101,10 +101,10 @@ class Model(AbstactModel):
         # define optimizer
         self.opt = tf.keras.optimizers.Adam(learning_rate=CTX["LEARNING_RATE"])
 
-        
+
     def predict(self, x, x_img):
         """
-        Make prediction for x 
+        Make prediction for x
         """
         return self.model([x, x_img])
 
@@ -136,18 +136,18 @@ class Model(AbstactModel):
         """
         Generate a visualization of the model's architecture
         """
-        
-        # Only plot if we train on CPU 
-        # Assuming that if you train on GPU (GPU cluster) it mean that 
+
+        # Only plot if we train on CPU
+        # Assuming that if you train on GPU (GPU cluster) it mean that
         # you don't need to check your model's architecture
         device = tf.test.gpu_device_name()
         if "GPU" not in device:
-            
+
             filename = os.path.join(save_path, self.name+".png")
             tf.keras.utils.plot_model(self.model, to_file=filename, show_shapes=True)
-    
 
-    def getVariables(self):
+
+    def get_variables(self):
         """
         Return the variables of the model
         """

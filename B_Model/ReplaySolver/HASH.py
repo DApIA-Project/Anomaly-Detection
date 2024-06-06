@@ -32,7 +32,7 @@ class Model(AbstactModel):
     ###################################################
 
     def __init__(self, CTX:dict):
-        
+
         # load context
         self.CTX = CTX
 
@@ -55,19 +55,19 @@ class Model(AbstactModel):
         if not os.path.exists(self.ARTIFACTS):
             os.makedirs(self.ARTIFACTS)
 
-    
-
-    
 
 
 
 
 
 
-        
+
+
+
+
     def predict(self, x):
         return self.compute_loss(x, [""]*len(x))[1]
-        
+
 
 
     def compute_loss(self, x, y):
@@ -76,7 +76,7 @@ class Model(AbstactModel):
         that will be used for training
         """
         """
-        Make prediction for x 
+        Make prediction for x
         """
         start = time.time()
         serialized_x = []
@@ -98,8 +98,8 @@ class Model(AbstactModel):
         for i in range(len(serialized_x)):
             ts.append(hashing.make_fingerprint(serialized_x[i], serialized_y[i], self.CTX))
 
-    
-            
+
+
         # plot ts
         plt_ts = []
         plot_labels = []
@@ -180,7 +180,7 @@ class Model(AbstactModel):
             occ = {}
             for match in matches:
                 occ[match[0]] = occ.get(match[0], 0) + 1
-            
+
             # sort
             occ = list(occ.items())
             occ.sort(key=lambda x: x[1], reverse=True)
@@ -250,7 +250,7 @@ class Model(AbstactModel):
         plt.savefig(self.ARTIFACTS+"/clusters.png",bbox_inches='tight', dpi=300)
         plt.clf()
 
-        
+
         # remove each files that already have been fingerprinted
         to_drop = []
         for i in range(len(files)):
@@ -263,27 +263,27 @@ class Model(AbstactModel):
         for i in range(len(labels)):
             if (files[i] not in self.ts):
                 self.ts[files[i]] = []
-            
-            self.ts[files[i]].append(labels[i])   
+
+            self.ts[files[i]].append(labels[i])
 
         lens = [len(self.ts[f]) for f in self.ts]
         mean = sum(lens) / len(lens)
-        prntC(C.INFO, "Mean length : ", C.BLUE, mean)    
-        prntC(C.INFO, "Max length : ", C.BLUE, max(lens), "\n") 
+        prntC(C.INFO, "Mean length : ", C.BLUE, mean)
+        prntC(C.INFO, "Max length : ", C.BLUE, max(lens), "\n")
 
         # for each new files add new hashes
         prntC(C.INFO, "Hashing : ")
         BAR.reset(max=len(x))
 
         self.hashes = {}
-        hash_count = 0 
+        hash_count = 0
         fn = 0
 
         for file in self.ts:
             # split each file into fingerprints
             for w in range(len(self.ts[file]) - self.CTX["HISTORY"] + 1):
                 fp = self.ts[file][w:w+self.CTX["HISTORY"]]
-                
+
                 # check if the fingerprint is interesting
                 changes = 1
                 last = fp[0]
@@ -306,7 +306,7 @@ class Model(AbstactModel):
 
             fn += 1
             BAR.update(fn)
-            
+
         prntC(C.INFO, "Hash count : ", C.BLUE, hash_count)
 
         # stat : count the hash that has collisions
@@ -319,7 +319,7 @@ class Model(AbstactModel):
 
         for hash in to_del:
             self.hashes.pop(hash, None)
-        
+
         prntC(C.INFO, "Collisions : ", C.BLUE, collisions, C.RESET, "/", C.BLUE, len(self.hashes))
         prntC()
         return 0, 0
@@ -332,9 +332,9 @@ class Model(AbstactModel):
         """
         Generate a visualization of the model's architecture
         """
-        
 
-    def getVariables(self):
+
+    def get_variables(self):
         """
         Return the variables of the model
         """
