@@ -219,16 +219,16 @@ class Model(AbstactModel):
 
         labels = hashing.make_fingerprint(serialized_x, serialized_y, self.CTX)
 
-        # plot clusters
-        import matplotlib.pyplot as plt
-        colors = {"L":"#e74c3c", "R":"#3498db", "N":"#2ecc71"}
-        #square figure
-        plt.figure(figsize=(10,10))
-        plt.scatter(serialized_x[:50000], serialized_y[:50000], c=[colors[i] for i in labels[:50000]], s=0.35)
-        plt.title("Clusters")
-        plt.axis('equal')
-        plt.savefig(self.ARTIFACTS+"/clusters.png",bbox_inches='tight', dpi=300)
-        plt.clf()
+        # # plot clusters
+        # import matplotlib.pyplot as plt
+        # colors = {"L":"#e74c3c", "R":"#3498db", "N":"#2ecc71"}
+        # #square figure
+        # plt.figure(figsize=(10,10))
+        # plt.scatter(serialized_x[:50000], serialized_y[:50000], c=[colors[i] for i in labels[:50000]], s=0.35)
+        # plt.title("Clusters")
+        # plt.axis('equal')
+        # plt.savefig(self.ARTIFACTS+"/clusters.png",bbox_inches='tight', dpi=300)
+        # plt.clf()
 
 
         # remove each files that already have been fingerprinted

@@ -14,6 +14,6 @@ if (WINDOWS):
 
     os_path_abspath = os.path.abspath
     def __abspath(path:str) -> str:
-        return os_path_abspath(path).replace("/", "\\")
+        return os_path_abspath(path).replace("\\", "/")
     os.path.abspath = __abspath
 
