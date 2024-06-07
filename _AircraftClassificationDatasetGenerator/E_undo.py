@@ -1,4 +1,4 @@
-import os
+from _Utils.os_wrapper import os
 
 
 os.system("mv ../A_Dataset/AircraftClassification/Train/* ./C_dataset/ToulouseV2/Train/")

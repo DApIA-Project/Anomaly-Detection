@@ -1,4 +1,4 @@
-import os
+from _Utils.os_wrapper import os
 import pyautogui
 import time 
 

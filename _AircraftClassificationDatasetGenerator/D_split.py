@@ -1,5 +1,5 @@
 import pandas as pd
-import os
+from _Utils.os_wrapper import os
 from _Utils.numpy import np, ax
 
 EVAL_PROP = 0.075

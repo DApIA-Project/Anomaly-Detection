@@ -1,6 +1,6 @@
 # create a bot wich simulate key and mouse
 
-import os
+from _Utils.os_wrapper import os
 import requests
 import json
 import time

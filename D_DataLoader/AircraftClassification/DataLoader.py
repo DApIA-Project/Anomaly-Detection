@@ -1,5 +1,5 @@
 
-import os
+from _Utils.os_wrapper import os
 
 import _Utils.FeatureGetter as FG
 import _Utils.Color as C

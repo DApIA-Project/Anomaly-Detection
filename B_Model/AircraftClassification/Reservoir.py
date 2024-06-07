@@ -2,7 +2,7 @@
 
 from B_Model.AbstractModel import Model as AbstactModel
 from B_Model.Utils.Reservoir.modules import RC_model
-import os
+from _Utils.os_wrapper import os
 from _Utils.numpy import np, ax
 
 

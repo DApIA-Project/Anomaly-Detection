@@ -1,4 +1,4 @@
-import os
+from _Utils.os_wrapper import os
 import pandas as pd
 
 icao2aircraft = open("./labels/B_icao2aircraft.csv", "r")

@@ -8,7 +8,7 @@ from B_Model.Utils.TF_Modules import *
 
 from _Utils.numpy import np, ax
 
-import os
+from _Utils.os_wrapper import os
 
 def transformer_encoder(inputs, head_size, num_heads, ff_dim, dropout=0):
     # Normalization and Attention

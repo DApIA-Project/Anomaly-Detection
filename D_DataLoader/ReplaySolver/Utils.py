@@ -43,15 +43,15 @@ def alloc_batch(CTX:dict, batch_size:int) -> """tuple[
         np.str_1d[ax.sample]]""":
 
     x_batch = np.zeros((batch_size, CTX["INPUT_LEN"],CTX["FEATURES_IN"]), dtype=np.float64)
-    y_batch = np.full((batch_size, CTX["FEATURES_OUT"]), np.nan, dtype="U256")
+    y_batch = np.full((batch_size,), np.nan, dtype="U256")
     return x_batch, y_batch
 
 
-def gen_sample(CTX:dict, x:"list[np.float64_2d[ax.time, ax.feature]]", i:int, t:int, valid:bool=False)\
+def gen_sample(CTX:dict, x:"list[np.float64_2d[ax.time, ax.feature]]", i:int, t:int, valid:bool=None)\
         -> "tuple[np.float64_2d[ax.time, ax.feature], bool]":
 
     if (valid is None): valid = check_sample(CTX, x, i, t)
-    if (not valid): return None, None, False
+    if (not valid): return None, False
 
     start, end, _, _, _ = U.window_slice(CTX, t)
     x_sample = x[i][start:end]

@@ -21,11 +21,17 @@ class DataLoader:
 
         return DataLoader.__dataset__
 
-    def __split__(self, x:T1, y:T2=None) -> "T1|tuple[T1, T2]":
+    def __split__(self, x:T1, y:T2=None, size:int=None) -> "T1|tuple[T1, T2]":
+        if (size is not None):
+            if (y is None):
+                split = U.splitDataset([x], size=size)
+                return split[0][0], split[1][0]
+            split = U.splitDataset([x, y], size=size)
+            return split[0][0], split[0][1], split[1][0], split[1][1]
+
         if (y is None):
             split = U.splitDataset([x], self.CTX["TEST_RATIO"])
             return split[0][0], split[1][0]
-
         split = U.splitDataset([x, y], self.CTX["TEST_RATIO"])
         return split[0][0], split[0][1], split[1][0], split[1][1]
 

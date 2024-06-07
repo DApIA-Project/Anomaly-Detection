@@ -1,4 +1,4 @@
-import os
+from _Utils.os_wrapper import os
 from _Utils.numpy import np, ax
 HERE = os.path.abspath(os.path.dirname(__file__))
 from ._Utils_module import module_to_dict

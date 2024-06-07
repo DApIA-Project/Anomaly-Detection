@@ -1,6 +1,6 @@
 from _Utils.numpy import np, ax
 import time
-import os
+from _Utils.os_wrapper import os
 
 from B_Model.AbstractModel import Model as AbstactModel
 

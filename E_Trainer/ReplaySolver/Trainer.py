@@ -1,4 +1,4 @@
-import os
+from _Utils.os_wrapper import os
 import time
 
 from   B_Model.AbstractModel import Model as _Model_

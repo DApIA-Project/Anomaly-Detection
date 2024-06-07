@@ -1,5 +1,5 @@
 import pandas as pd
-import os
+from _Utils.os_wrapper import os
 from typing import overload
 
 import _Utils.Color as C
@@ -341,16 +341,23 @@ def genPadValues(CTX:dict, flights:"list[np.float64_2d[ax.time, ax.feature]]") -
             padValues[f] = 0
     return padValues
 
-def splitDataset(data, ratio):
+def splitDataset(data, ratio:float=None, size:int=None):
     """
     Split data into train, test and validation set
     """
+    if (ratio is None and size is None):
+        raise ValueError("splitDataset: ratio or size must be specified")
     train = []
     test = []
     for i in range(len(data)):
-        split_index = int(len(data[i]) * (1 - ratio))
-        train.append(data[i][:split_index])
-        test.append(data[i][split_index:])
+        if (ratio is not None):
+            split_index = int(len(data[i]) * (1 - ratio))
+            train.append(data[i][:split_index])
+            test .append(data[i][split_index:])
+        else:
+            train.append(data[i][:-size])
+            test .append(data[i][-size:])
+
     return train, test
 
 # |====================================================================================================================

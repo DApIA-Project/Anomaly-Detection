@@ -13,7 +13,7 @@ from E_Trainer.AircraftClassification.Trainer import Trainer
 # Choose the training method
 from F_Runner.FitOnce import fitOnce
 
-import os
+from _Utils.os_wrapper import os
 
 
 

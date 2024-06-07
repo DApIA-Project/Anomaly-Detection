@@ -1,4 +1,4 @@
-import os
+from _Utils.os_wrapper import os
 import subprocess
 
 
@@ -205,8 +205,8 @@ os.system("cp ../A_Dataset/AircraftClassification/labels.csv ./AdsbAnomalyDetect
 
 
 file_content_remplace("./AdsbAnomalyDetector/D_DataLoader_AircraftClassification_Utils.py",
-                      "import os",
-                      "import os\nHERE = os.path.abspath(os.path.dirname(__file__))")
+                      "from _Utils.os_wrapper import os",
+                      "from _Utils.os_wrapper import os\nHERE = os.path.abspath(os.path.dirname(__file__))")
 
 file_content_remplace("./AdsbAnomalyDetector/D_DataLoader_AircraftClassification_Utils.py",
                       "\"A_Dataset/AircraftClassification/map.png\"",

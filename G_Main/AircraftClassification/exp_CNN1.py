@@ -14,7 +14,7 @@ from E_Trainer.AircraftClassification.Trainer import Trainer
 from F_Runner.FitOnce import fitOnce
 from F_Runner.MultiFit import multiFit
 
-import os
+from _Utils.os_wrapper import os
 
 def __main__() -> None:
     parent_dir = os.path.dirname(os.path.abspath(__file__)).split("/")[-1]

@@ -1,7 +1,7 @@
 import numpy  as np
 import pandas as pd
 import math
-import os
+from _Utils.os_wrapper import os
 from PIL import Image
 
 import _Utils.Color         as C

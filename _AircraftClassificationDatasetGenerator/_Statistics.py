@@ -1,5 +1,5 @@
 import pandas as pd
-import os
+from _Utils.os_wrapper import os
 import math
 from _Utils.numpy import np, ax
 

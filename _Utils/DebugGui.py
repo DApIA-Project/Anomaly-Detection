@@ -77,7 +77,7 @@ def import_all():
     import dearpygui.dearpygui as dpg
     import folium
 
-    import os
+    from _Utils.os_wrapper import os
 
 
 

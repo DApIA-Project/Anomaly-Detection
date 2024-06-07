@@ -1,5 +1,5 @@
 import pandas as pd
-import os
+from _Utils.os_wrapper import os
 
 from A_parquet2csv import FOLDER
 

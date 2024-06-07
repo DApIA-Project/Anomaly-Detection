@@ -2,7 +2,7 @@
 
 from _Utils.numpy import np, ax
 import matplotlib.pyplot as plt
-import os
+from _Utils.os_wrapper import os
 import math
 
 import _Utils.FeatureGetter as FG
@@ -25,6 +25,9 @@ from D_DataLoader.AbstractDataLoader import DataLoader as AbstractDataLoader
 
 BAR = ProgressBar()
 STREAMER = Streamer()
+
+
+TEST_SIZE = 60
 
 
 # |====================================================================================================================
@@ -53,7 +56,9 @@ class DataLoader(AbstractDataLoader):
 
         if (training):
             x, files = self.__get_dataset__(path)
-            self.x_train, self.y_train, self.x_test, self.y_test = self.__split__(x, files)
+            self.x_train, self.y_train, self.x_test, self.y_test = self.__split__(x, files, size = TEST_SIZE)
+            prntC(C.INFO, "Dataset loaded train :", C.BLUE, len(self.x_train), C.RESET,
+                                          "test :", C.BLUE, len(self.x_test))
         else:
             prntC(C.INFO, "Training, deactivated, only evaluation will be launched.")
             prntC(C.WARNING, "Make sure everything is loaded from the disk, especially the PAD values.")
@@ -65,7 +70,7 @@ class DataLoader(AbstractDataLoader):
         # path can be a folder or a file
         is_folder = os.path.isdir(path)
         if (is_folder):
-            filenames = U.list_flights(path, limit=100)
+            filenames = U.list_flights(path, limit=300)
             prntC(C.INFO, "Dataset loading")
         else:
             path = path.split("/")
@@ -81,10 +86,7 @@ class DataLoader(AbstractDataLoader):
             x.append(array)
             if (is_folder): BAR.update()
 
-        if (self.PAD is None): self.PAD = U.genPadValues(CTX, x)
-        x = fill_nan_3d(x, self.PAD)
 
-        prntC()
         return x, filenames
 
 # |====================================================================================================================
@@ -116,28 +118,35 @@ class DataLoader(AbstractDataLoader):
         for i in range(len(self.x_train)):
             size += len(self.x_train[i]) - CTX["HISTORY"] + 1
 
-        x_batches, y_batches = SU.alloc_batches(CTX, size)
+        x_batches, y_batches = SU.alloc_batch(CTX, size)
 
         sample_i = 0
         for i in range(len(self.x_train)):
             for t in range(CTX["HISTORY"] - 1, len(self.x_train[i])):
 
-                sample, valid = SU.gen_sample(CTX, self.x_train, self.y_train, i, t)
-                y = self.y_train[i]
+                sample, valid = SU.gen_sample(CTX, self.x_train, i, t)
                 if not(valid):
                     continue
 
-                x_batches[sample_i], y_batches[sample_i] = sample[0], sample[1]
+                y = self.y_train[i]
+
+                x_batches[sample_i] = sample[0]
                 y_batches[sample_i] = y
                 sample_i += 1
 
-        x_batches = x_batches[:sample_i]
-        y_batches = y_batches[:sample_i]
 
-        batch_size = min(CTX["MAX_BATCH_SIZE"], len(x_batches))
-        nb_batches = math.ceil(len(x_batches) / batch_size)
+        print("sample_i", sample_i, len(x_batches))
 
-        x_batches, y_batches = self.__reshape__(x_batches, y_batches, batch_size, nb_batches)
+
+        batch_size = min(CTX["MAX_BATCH_SIZE"], sample_i)
+        nb_batches = math.ceil(sample_i / batch_size)
+
+        size = nb_batches * batch_size
+
+        x_batches = x_batches[:size]
+        y_batches = y_batches[:size]
+
+        x_batches, y_batches = self.__reshape__(x_batches, y_batches, nb_batches, batch_size)
         return x_batches, y_batches
 
 
@@ -151,8 +160,7 @@ class DataLoader(AbstractDataLoader):
             np.str_2d[ax.batch, ax.sample]]""":
 
         CTX = self.CTX
-        TEST_SIZE = 60
-        x_batches, y_batches = SU.alloc_batches(CTX, TEST_SIZE)
+        x_batches, y_batches = SU.alloc_batch(CTX, TEST_SIZE)
 
         for i in range(TEST_SIZE):
             if (i < TEST_SIZE // 2): x, y = self.x_train, self.y_train
