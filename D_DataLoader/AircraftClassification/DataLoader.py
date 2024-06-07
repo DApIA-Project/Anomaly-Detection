@@ -98,16 +98,16 @@ class DataLoader(AbstractDataLoader):
 # |    SCALERS
 # |====================================================================================================================
 
-    def __scalers_transform__(self, CTX, x_batch, x_batch_takeoff, x_batch_airport):
+    def __scalers_transform__(self, x_batch, x_batch_takeoff, x_batch_airport):
         # fit the scaler on the first epoch
         if not(self.xScaler.is_fitted()):
             self.xScaler.fit(x_batch)
-            if (CTX["ADD_TAKE_OFF_CONTEXT"]): self.xTakeOffScaler.fit(x_batch_takeoff)
-            if (CTX["ADD_AIRPORT_CONTEXT"]): self.xAirportScaler.fit(x_batch_airport)
+            if (self.CTX["ADD_TAKE_OFF_CONTEXT"]): self.xTakeOffScaler.fit(x_batch_takeoff)
+            if (self.CTX["ADD_AIRPORT_CONTEXT"]): self.xAirportScaler.fit(x_batch_airport)
 
         x_batch = self.xScaler.transform(x_batch)
-        if (CTX["ADD_TAKE_OFF_CONTEXT"]): x_batch_takeoff = self.xTakeOffScaler.transform(x_batch_takeoff)
-        if (CTX["ADD_AIRPORT_CONTEXT"]): x_batch_airport = self.xAirportScaler.transform(x_batch_airport)
+        if (self.CTX["ADD_TAKE_OFF_CONTEXT"]): x_batch_takeoff = self.xTakeOffScaler.transform(x_batch_takeoff)
+        if (self.CTX["ADD_AIRPORT_CONTEXT"]): x_batch_airport = self.xAirportScaler.transform(x_batch_airport)
         return x_batch, x_batch_takeoff, x_batch_airport
 
 
@@ -119,14 +119,14 @@ class DataLoader(AbstractDataLoader):
 # |     SPLIT IN BATCHES
 # |--------------------------------------------------------------------------------------------------------------------
 
-    def __reshape__(self, CTX:dict,
-                    x_batch:np.ndarray,
+    def __reshape__(x_batch:np.ndarray,
                     x_batch_takeoff:np.ndarray, x_batch_map:np.ndarray, x_batch_airport:np.ndarray,
                     y_batch:np.ndarray,
                     nb_batch:int, batch_size:int)\
             ->"tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]":
 
         # Reshape the data into [nb_batch, batch_size, timestep, features]
+        CTX = self.CTX
         x_batches = x_batch.reshape(nb_batch, batch_size, CTX["INPUT_LEN"],CTX["FEATURES_IN"])
         if CTX["ADD_TAKE_OFF_CONTEXT"]:
             x_batches_takeoff = x_batch_takeoff.reshape(nb_batch, batch_size, CTX["INPUT_LEN"],CTX["FEATURES_IN"])
@@ -173,10 +173,9 @@ class DataLoader(AbstractDataLoader):
             ->"tuple[list[np.ndarray], np.ndarray]":
 
         x_batch, x_batch_takeoff, x_batch_airport =\
-            self.__scalers_transform__(CTX, x_batch, x_batch_takeoff, x_batch_airport)
+            self.__scalers_transform__(x_batch, x_batch_takeoff, x_batch_airport)
         x_batches, x_batches_takeoff, x_batches_map, x_batches_airport, y_batches =\
-            self.__reshape__(CTX,
-                             x_batch, x_batch_takeoff, x_batch_map, x_batch_airport,
+            self.__reshape__(x_batch, x_batch_takeoff, x_batch_map, x_batch_airport,
                              y_batches,
                              nb_batches, batch_size)
         return self.__format_return__(CTX, x_batches, x_batches_takeoff, x_batches_map, x_batches_airport, y_batches)
@@ -186,7 +185,7 @@ class DataLoader(AbstractDataLoader):
 # |    GENERATE A TRAINING SET
 # |====================================================================================================================
 
-    def genEpochTrain(self)\
+    def get_train(self)\
             ->"tuple[list[np.ndarray], np.ndarray]":
 
         CTX = self.CTX
@@ -235,7 +234,7 @@ class DataLoader(AbstractDataLoader):
 # |     GENERATE A TEST SET
 # |====================================================================================================================
 
-    def genEpochTest(self)\
+    def get_test(self)\
             ->"tuple[list[np.ndarray], np.ndarray]":
 
         CTX = self.CTX

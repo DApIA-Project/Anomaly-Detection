@@ -3,7 +3,9 @@ import D_DataLoader.Utils as U
 
 
 def serialize_lat_lon(lat, lon, CTX):
-    _x, _y, _z = np.cos(np.radians(lon)) * np.cos(np.radians(lat)), np.sin(np.radians(lon)) * np.cos(np.radians(lat)), np.sin(np.radians(lat))
+    _x = np.cos(np.radians(lon)) * np.cos(np.radians(lat))
+    _y = np.sin(np.radians(lon)) * np.cos(np.radians(lat))
+    _z = np.sin(np.radians(lat))
     x, y, z = _x.copy(), _y.copy(), _z.copy()
     for t in range(0, len(lat)):
         if (t == 0):
@@ -35,7 +37,7 @@ def make_fingerprint(x, y, CTX):
     - R : right turn
     - N : netral (cannot be determined)
     """
-        
+
     a = np.arctan2(y, x)
     d = np.sqrt(x**2 + y**2)
 
@@ -54,8 +56,8 @@ def make_fingerprint(x, y, CTX):
             else:
                 res += "N"
     return res
-    
-    
+
+
 def sub_fp(fp):
     """
     List all the possible fingerprint variants when there is the N placeholder (same as . from regex)
@@ -67,7 +69,7 @@ def sub_fp(fp):
         return [fp]
     if (m_count > 5):
         return ["N"*len(fp)]
-    
+
     for c in range(len(fp)):
         if (fp[c] == "N"):
             l = len(res)
@@ -79,7 +81,7 @@ def sub_fp(fp):
             for i in range(len(res)):
                 res[i] += fp[c]
     return res
-      
+
 
 def compute_hash(fp):
     """

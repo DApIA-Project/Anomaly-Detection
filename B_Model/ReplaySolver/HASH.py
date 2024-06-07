@@ -11,58 +11,38 @@ from _Utils.Color import prntC
 from _Utils.ProgressBar import ProgressBar
 from B_Model.ReplaySolver.Utils import hashing
 
-###################################################
-# GLOBAL VARIABLES
-###################################################
+
+# |====================================================================================================================
+# | GLOBAL VARIABLES
+# |====================================================================================================================
+
 
 PBM_NAME = os.path.dirname(os.path.abspath(__file__)).split("/")[-1]
 BAR = ProgressBar()
 
-###################################################
-# UTILITARY FUNCTIONS
-###################################################
 
 
 class Model(AbstactModel):
 
     name = "HASH"
 
-    ###################################################
-    # Initialization
-    ###################################################
+# |====================================================================================================================
+# |    INITIALIZATION
+# |====================================================================================================================
 
-    def __init__(self, CTX:dict):
+    def __init__(self, CTX:dict) -> None:
 
-        # load context
+        # Public attributes
         self.CTX = CTX
-
-        self.makes_artifacts()
-
-        slice = 2
-        levels = 1
-        self.CLUSTERS = slice * levels + 1
         self.MIN_CHANGE = 3
         self.ts = {}
         self.hashes = {}
 
-    def makes_artifacts(self):
-        self.ARTIFACTS = "./_Artifacts/"+PBM_NAME+"/"+self.name
-
-        if not os.path.exists("./_Artifacts"):
-            os.makedirs("./_Artifacts")
-        if not os.path.exists("./_Artifacts/"+PBM_NAME):
-            os.makedirs("./_Artifacts/"+PBM_NAME)
-        if not os.path.exists(self.ARTIFACTS):
-            os.makedirs(self.ARTIFACTS)
 
 
-
-
-
-
-
-
-
+# |====================================================================================================================
+# |    PREDICTION
+# |====================================================================================================================
 
 
     def predict(self, x):

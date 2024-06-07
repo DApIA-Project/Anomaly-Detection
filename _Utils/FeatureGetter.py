@@ -209,14 +209,15 @@ def get(args:any=None) -> np.ndarray:
 # | GENERIC SETTER
 # |====================================================================================================================
 
-def __axis_i__(arr, ind, axis:int):
+def __axis_i__(arr:np.ndarray, ind:slice, axis:int) -> "tuple[slice]":
     # return (:, :, ..., axis, :, :,)
     if (axis == -1): return tuple([slice(None) for _ in range(arr.ndim-1)] + [ind])
     if (axis < 0): axis = arr.ndim + axis
     return tuple([slice(None) if i != axis else ind for i in range(arr.ndim)])
 
-def set(slf:np.ndarray, feature:str, value:"float|np.ndarray", axis:int=-1) -> None:
+def set(slf:np.ndarray, feature:str, value:"float|np.ndarray", axis:int=-1) -> np.ndarray:
     slf[__axis_i__(slf, __FEATURE_MAP__[feature], axis)] = value
+    return slf
 
 # |====================================================================================================================
 # | check if a feature exists

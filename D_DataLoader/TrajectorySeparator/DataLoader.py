@@ -65,7 +65,7 @@ class DataLoader(AbstractDataLoader):
         return x, y, df
 
 
-    def genEpochTrain(self) -> None:
+    def get_train(self) -> None:
         prntC(C.WARNING, "No training needed for TrajectorySeparator")
 
 

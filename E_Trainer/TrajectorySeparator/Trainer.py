@@ -133,7 +133,7 @@ class Trainer(AbstractTrainer):
 # |====================================================================================================================
 
 
-    def __give_icao__(self, assoc:np.int32_1d[ax.sample], msgs:"list[dict[str,object]]", tags:"list[str]")\
+    def __give_icao__(self, assoc:np.int64_1d[ax.sample], msgs:"list[dict[str,object]]", tags:"list[str]")\
             -> "list[str]":
 
         icao = msgs[0]["icao24"]
@@ -155,7 +155,7 @@ class Trainer(AbstractTrainer):
 # |====================================================================================================================
 
     def __first_associate__(self, mat:np.float64_2d[ax.sample, ax.sample])\
-            -> "tuple[np.int32_1d[ax.sample], np.int32_1d[ax.sample]]":
+            -> "tuple[np.int64_1d[ax.sample], np.int64_1d[ax.sample]]":
 
         VALID_DIST = 20
 
@@ -188,7 +188,7 @@ class Trainer(AbstractTrainer):
     def __area_associate__(self, mat:np.float64_2d[ax.sample, ax.sample],
                                  y_:np.float64_2d[ax.sample, ax.feature],
                                  y :np.float64_2d[ax.sample, ax.feature])\
-            -> "tuple[np.int32_1d[ax.sample], np.int32_1d[ax.sample]]":
+            -> "tuple[np.int64_1d[ax.sample], np.int64_1d[ax.sample]]":
 
         assoc = np.full((mat.shape[0],), -1, dtype=int)
         assoc_inv = np.full((mat.shape[1],), -1, dtype=int)
@@ -230,7 +230,7 @@ class Trainer(AbstractTrainer):
 # |====================================================================================================================
 
     def __combination_associate__(self, mat:np.float64_2d[ax.sample, ax.sample])\
-            -> "tuple[np.int32_1d[ax.sample], np.int32_1d[ax.sample]]":
+            -> "tuple[np.int64_1d[ax.sample], np.int64_1d[ax.sample]]":
 
         assoc = np.full((mat.shape[0],), -1, dtype=int)
         assoc[:mat.shape[1]] = np.arange(mat.shape[1])
@@ -247,7 +247,7 @@ class Trainer(AbstractTrainer):
         return assoc, mat
 
     def __nearest_associate__(self, mat:np.float64_2d[ax.sample, ax.sample])\
-            -> "tuple[np.int32_1d[ax.sample], np.int32_1d[ax.sample]]":
+            -> "tuple[np.int64_1d[ax.sample], np.int64_1d[ax.sample]]":
 
         assoc = np.full((mat.shape[0],), -1, dtype=int)
 
@@ -261,9 +261,9 @@ class Trainer(AbstractTrainer):
 
 
 
-    def __debug_assoc__(self, y:np.float32_2d[ax.sample, ax.feature], y_:np.float32_2d[ax.sample, ax.feature],
-                        remain_y:np.int32_1d[ax.sample], remain_y_:np.int32_1d[ax.sample],
-                        sub_assoc:np.int32_1d[ax.sample],
+    def __debug_assoc__(self, y:np.float64_2d[ax.sample, ax.feature], y_:np.float64_2d[ax.sample, ax.feature],
+                        remain_y:np.int64_1d[ax.sample], remain_y_:np.int64_1d[ax.sample],
+                        sub_assoc:np.int64_1d[ax.sample],
                         sample:"list[np.float64_2d[ax.time, ax.feature]]",
                         step:STEP) -> None:
 
@@ -302,7 +302,7 @@ class Trainer(AbstractTrainer):
             self.__nth_debug__ = 0
 
     def __associate__(self, msgs:"list[dict[str,object]]",
-                            y_:np.float32_2d[ax.sample, ax.feature], tags:"list[str]",
+                            y_:np.float64_2d[ax.sample, ax.feature], tags:"list[str]",
                             sample:"list[np.float64_2d[ax.time, ax.feature]]") -> "list[str]":
 
         if (len(tags) == 0):
@@ -375,10 +375,10 @@ class Trainer(AbstractTrainer):
 # |--------------------------------------------------------------------------------------------------------------------
 
     def __plot_assoc__(self, plot_axis:int,
-                            y :np.float32_2d[ax.sample, ax.feature],
-                            y_:np.float32_2d[ax.sample, ax.feature],
+                            y :np.float64_2d[ax.sample, ax.feature],
+                            y_:np.float64_2d[ax.sample, ax.feature],
                             sample:"list[np.float64_2d[ax.time, ax.feature]]",
-                            assoc:np.int32_1d[ax.sample]) -> None:
+                            assoc:np.int64_1d[ax.sample]) -> None:
 
         SAMPLE_LEN = 5
         for i in range(len(sample)):

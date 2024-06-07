@@ -8,8 +8,8 @@ import _Utils.geographic_maths as GEO
 # |====================================================================================================================
 
 
-def loss_matrix(y:np.float32_2d[ax.sample, ax.feature], y_:np.float32_2d[ax.sample, ax.feature])\
-            -> np.float32_2d[ax.sample, ax.sample]:
+def loss_matrix(y:np.float64_2d[ax.sample, ax.feature], y_:np.float64_2d[ax.sample, ax.feature])\
+            -> np.float64_2d[ax.sample, ax.sample]:
 
     mat = np.zeros((len(y), len(y_)), dtype=np.float64)
     for i in range(len(y)):
@@ -32,8 +32,8 @@ def print_loss_matrix(mat:np.float64_2d[ax.sample, ax.sample]) -> None:
 
 
 
-def eval_association(mat:np.float32_2d[ax.sample, ax.sample], combination:np.int32_1d[ax.sample])\
-        -> np.float32:
+def eval_association(mat:np.float64_2d[ax.sample, ax.sample], combination:np.int64_1d[ax.sample])\
+        -> np.float64:
 
     loss = 0
     for i in range(len(combination)):
@@ -47,9 +47,9 @@ def eval_association(mat:np.float32_2d[ax.sample, ax.sample], combination:np.int
 # |====================================================================================================================
 
 def apply_sub_associations(
-            assoc:np.int32_1d, mat:np.float64_2d[ax.sample, ax.sample],
-            sub_assoc:np.int32_1d, sub_mat:np.float64_2d[ax.sample, ax.sample],
-            remain_y:np.int32_1d, remain_y_:np.int32_1d,) -> "tuple[np.int32_1d, np.int32_1d]":
+            assoc:np.int64_1d, mat:np.float64_2d[ax.sample, ax.sample],
+            sub_assoc:np.int64_1d, sub_mat:np.float64_2d[ax.sample, ax.sample],
+            remain_y:np.int64_1d, remain_y_:np.int64_1d,) -> "tuple[np.int64_1d, np.int64_1d]":
 
     # locs = np.where(assoc != -1)[0]
     # assoc[remain_y[locs]] = remain_y_[sub_assoc[locs]]
@@ -64,8 +64,8 @@ def apply_sub_associations(
     return assoc, mat
 
 
-def compute_remaining_loss_matrix(mat:np.float64_2d[ax.sample, ax.sample], assoc:np.int32_1d)\
-        -> "tuple[np.float64_2d[ax.sample, ax.sample], np.int32_1d[ax.sample], np.int32_1d[ax.sample]]":
+def compute_remaining_loss_matrix(mat:np.float64_2d[ax.sample, ax.sample], assoc:np.int64_1d)\
+        -> "tuple[np.float64_2d[ax.sample, ax.sample], np.int64_1d[ax.sample], np.int64_1d[ax.sample]]":
 
     remain_y = np.where(assoc == -1)[0]
     if (len(remain_y) == 0):

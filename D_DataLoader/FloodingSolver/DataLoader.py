@@ -8,12 +8,12 @@ from   D_DataLoader.AbstractDataLoader import DataLoader as AbstractDataLoader
 import _Utils.FeatureGetter as FG
 import _Utils.Color as C
 from   _Utils.Color import prntC
-from _Utils import Limits
+from   _Utils import Limits
 from   _Utils.Scaler3D import  StandardScaler3D, SigmoidScaler2D, fill_nan_3d, fill_nan_2d
 from   _Utils.ProgressBar import ProgressBar
-from _Utils.plotADSB import PLT
+from   _Utils.plotADSB import PLT
 from   _Utils.ADSB_Streamer import Streamer
-from _Utils.numpy import np, ax
+from   _Utils.numpy import np, ax
 
 
 
@@ -21,17 +21,24 @@ from _Utils.numpy import np, ax
 # | GLOBAL VARIABLES
 # |====================================================================================================================
 
+
 BAR = ProgressBar()
 STREAMER = Streamer()
-
 
 
 # |====================================================================================================================
 # | DATA LOADER
 # |====================================================================================================================
 
-# managing the data preprocessing
 class DataLoader(AbstractDataLoader):
+
+    CTX:dict
+    PAD:np.float64_1d[ax.feature]
+
+    streamer:"StreamerInterface"
+
+    xScaler:StandardScaler3D
+    yScaler:SigmoidScaler2D
 
     x_train:"list[np.float64_2d[ax.time, ax.feature]]"
     x_test :"list[np.float64_2d[ax.time, ax.feature]]"
@@ -44,7 +51,7 @@ class DataLoader(AbstractDataLoader):
         self.CTX = CTX
         self.PAD = None
 
-        self.streamer:StreamerInterface = StreamerInterface(self)
+        self.streamer = StreamerInterface(self)
 
         self.xScaler = StandardScaler3D()
         self.yScaler = SigmoidScaler2D()
@@ -82,8 +89,7 @@ class DataLoader(AbstractDataLoader):
 # |    SCALERS
 # |====================================================================================================================
 
-    def __scalers_transform__(self, CTX:dict,
-                                    x_batch:np.float64_3d[ax.sample, ax.time, ax.feature],
+    def __scalers_transform__(self, x_batch:np.float64_3d[ax.sample, ax.time, ax.feature],
                                     y_batch:np.float64_2d[ax.sample, ax.feature]=None) \
             -> """tuple[np.float64_3d[ax.sample, ax.time, ax.feature], np.float64_2d[ax.sample, ax.feature]]
                 | np.float64_3d[ax.sample, ax.time, ax.feature]""":
@@ -106,15 +112,14 @@ class DataLoader(AbstractDataLoader):
 # |     UTILS
 # |====================================================================================================================
 
-    def __reshape__(self, CTX:dict,
-                          x_batch:np.float64_3d[ax.sample, ax.time, ax.feature],
+    def __reshape__(self, x_batch:np.float64_3d[ax.sample, ax.time, ax.feature],
                           y_batch:np.float64_2d[ax.sample, ax.feature],
                           nb_batches:int, batch_size:int) -> """tuple[
             np.float64_4d[ax.batch, ax.sample, ax.time, ax.feature],
             np.float64_3d[ax.batch, ax.sample, ax.feature]]""":
 
-        x_batches = x_batch.reshape(nb_batches, batch_size, CTX["INPUT_LEN"],CTX["FEATURES_IN"])
-        y_batches = y_batch.reshape(nb_batches, batch_size, CTX["FEATURES_OUT"])
+        x_batches = x_batch.reshape(nb_batches, batch_size, self.CTX["INPUT_LEN"], self.CTX["FEATURES_IN"])
+        y_batches = y_batch.reshape(nb_batches, batch_size, self.CTX["FEATURES_OUT"])
 
         return x_batches, y_batches
 
@@ -124,7 +129,7 @@ class DataLoader(AbstractDataLoader):
 # |    GENERATE A TRAINING SET
 # |====================================================================================================================
 
-    def genEpochTrain(self) -> """tuple[
+    def get_train(self) -> """tuple[
             np.float64_4d[ax.batch, ax.sample, ax.time, ax.feature],
             np.float64_3d[ax.batch, ax.sample, ax.feature]]""":
 
@@ -141,8 +146,8 @@ class DataLoader(AbstractDataLoader):
 
         self.__plot_flight__(x_sample, y_sample, origin)
 
-        x_batch, y_batch = self.__scalers_transform__(CTX, x_batch, y_batch)
-        x_batches, y_batches = self.__reshape__(CTX, x_batch, y_batch, CTX["NB_BATCH"], CTX["BATCH_SIZE"])
+        x_batch, y_batch = self.__scalers_transform__(x_batch, y_batch)
+        x_batches, y_batches = self.__reshape__(x_batch, y_batch, CTX["NB_BATCH"], CTX["BATCH_SIZE"])
 
         return x_batches, y_batches
 
@@ -186,7 +191,7 @@ class DataLoader(AbstractDataLoader):
 # |     GENERATE A TEST SET
 # |====================================================================================================================
 
-    def genEpochTest(self) -> """tuple[
+    def get_test(self) -> """tuple[
             np.float64_4d[ax.batch, ax.sample, ax.time, ax.feature],
             np.float64_3d[ax.batch, ax.sample, ax.feature]]""":
 
@@ -203,8 +208,8 @@ class DataLoader(AbstractDataLoader):
         batch_size = min(CTX["MAX_BATCH_SIZE"], len(x_batch))
         nb_batches = len(x_batch) // batch_size
 
-        x_batch, y_batch = self.__scalers_transform__(CTX, x_batch, y_batch)
-        x_batches, y_batches = self.__reshape__(CTX, x_batch, y_batch, nb_batches, batch_size)
+        x_batch, y_batch = self.__scalers_transform__(x_batch, y_batch)
+        x_batches, y_batches = self.__reshape__(x_batch, y_batch, nb_batches, batch_size)
         return x_batches, y_batches
 
 
@@ -252,8 +257,8 @@ class StreamerInterface:
         y_batch[0] = FG.lat_lon(y)
 
 
-        x_batch, y_batch = self.dl.__scalers_transform__(self.CTX, x_batch, y_batch)
-        x_batches, y_batches = self.dl.__reshape__(self.CTX, x_batch, y_batch, 1, 1)
+        x_batch, y_batch = self.dl.__scalers_transform__(x_batch, y_batch)
+        x_batches, y_batches = self.dl.__reshape__(x_batch, y_batch, 1, 1)
         return x_batches[0], y_batches[0], valid, origin
 
 

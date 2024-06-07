@@ -162,8 +162,8 @@ class Trainer(AbstractTrainer):
         for ep in range(1, CTX["EPOCHS"] + 1):
 
             # Allocate variables
-            x_train, y_train = self.dl.genEpochTrain()
-            x_test,  y_test  = self.dl.genEpochTest()
+            x_train, y_train = self.dl.get_train()
+            x_test,  y_test  = self.dl.get_test()
 
             _y_train, _y_test, loss_train, loss_test = __alloc_pred_batches__(
                 CTX, len(x_train), len(x_train[0][0]), len(x_test),  len(x_test[0][0]))
@@ -260,11 +260,11 @@ class Trainer(AbstractTrainer):
     def __plot_epoch_stats__(self) -> None:
 
         # plot loss curves
-        Metrics.plotLoss(self.__history__[H_TRAIN_LOSS], self.__history__[H_TEST_LOSS],
+        Metrics.plot_loss(self.__history__[H_TRAIN_LOSS], self.__history__[H_TEST_LOSS],
                          self.__history_mov_avg__[H_TRAIN_LOSS], self.__history_mov_avg__[H_TEST_LOSS],
                             type="loss", path=self.ARTIFACTS+"/loss.png")
 
-        Metrics.plotLoss(self.__history__[H_TRAIN_ACC], self.__history__[H_TEST_ACC],
+        Metrics.plot_loss(self.__history__[H_TRAIN_ACC], self.__history__[H_TEST_ACC],
                          self.__history_mov_avg__[H_TRAIN_ACC], self.__history_mov_avg__[H_TEST_ACC],
                             type="accuracy", path=self.ARTIFACTS+"/accuracy.png")
 
@@ -366,7 +366,7 @@ class Trainer(AbstractTrainer):
         y, y_ = [], []
         for f in range(len(files)):
 
-            df = U.read_trajectory(EVAL_FOLDER, files[f])
+            df = U.read_trajectory(files[f])
             df["icao24"] = df["icao24"]+"_"+str(f)
 
             l = SU.getLabel(self.CTX, df["icao24", 0])

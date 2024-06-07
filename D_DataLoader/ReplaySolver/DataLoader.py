@@ -3,47 +3,57 @@
 from _Utils.numpy import np, ax
 import matplotlib.pyplot as plt
 import os
+import math
 
 import _Utils.FeatureGetter as FG
 import _Utils.Color as C
-from _Utils.Color import prntC
-from _Utils.Scaler3D import StandardScaler3D, fill_nan_3d, StandardScaler2D,MinMaxScaler2D
-from _Utils.SparceLabelBinarizer import SparceLabelBinarizer
-from _Utils.ProgressBar import ProgressBar
-from _Utils.Limits import *
-from _Utils.DebugGui import GUI
+from   _Utils.Color import prntC
+from   _Utils import Limits
+from   _Utils.Scaler3D import fill_nan_3d, fill_nan_2d
+from   _Utils.ProgressBar import ProgressBar
+from   _Utils.ADSB_Streamer import Streamer
 
 import D_DataLoader.Utils as U
 import D_DataLoader.ReplaySolver.Utils as SU
 from D_DataLoader.AbstractDataLoader import DataLoader as AbstractDataLoader
 
 
-###################################################
-# GLOBAL VARIABLES
-###################################################
+# |====================================================================================================================
+# | GLOBAL VARIABLES
+# |====================================================================================================================
+
 
 BAR = ProgressBar()
+STREAMER = Streamer()
 
 
-###################################################
-# DATA LOADER
-###################################################
+# |====================================================================================================================
+# | DATA LOADER
+# |====================================================================================================================
 
 class DataLoader(AbstractDataLoader):
 
-    ###################################################
-    # LOADING DATASET FROM DISK
-    ###################################################
+    CTX:dict
 
-    def __init__(self, CTX, path="") -> None:
+    streamer:"StreamerInterface"
+
+    x_train:"list[np.float64_2d[ax.time, ax.feature]]"
+    x_test :"list[np.float64_2d[ax.time, ax.feature]]"
+    y_train:"list[str]"
+    y_test :"list[str]"
+
+# |====================================================================================================================
+# |     INITIALISATION : LOADING RAW DATASET FROM DISK
+# |====================================================================================================================
+
+    def __init__(self, CTX:dict, path:str="") -> None:
         self.CTX = CTX
-        self.PAD = None
 
         training = (CTX["EPOCHS"] and path != "")
 
         if (training):
-            self.x, self.files = self.__get_dataset__(path)
-            self.x_train, self.y_train, self.x_test, self.y_test = self.__split__(self.x, self.files)
+            x, files = self.__get_dataset__(path)
+            self.x_train, self.y_train, self.x_test, self.y_test = self.__split__(x, files)
         else:
             prntC(C.INFO, "Training, deactivated, only evaluation will be launched.")
             prntC(C.WARNING, "Make sure everything is loaded from the disk, especially the PAD values.")
@@ -51,12 +61,13 @@ class DataLoader(AbstractDataLoader):
 
 
 
-    def __load_dataset__(self, CTX, path):
+    def __load_dataset__(self, CTX:dict, path:str) -> "tuple[list[np.float64_2d[ax.time, ax.feature]], list[str]]":
+        # path can be a folder or a file
         is_folder = os.path.isdir(path)
         if (is_folder):
-            filenames = U.list_flights(path, limit=INT_MAX) #INT_MAX
+            filenames = U.list_flights(path, limit=100)
             prntC(C.INFO, "Dataset loading")
-        else: # allow to load a single file (can be useful for eval)
+        else:
             path = path.split("/")
             filenames = [path[-1]]
             path = "/".join(path[:-1])
@@ -65,12 +76,10 @@ class DataLoader(AbstractDataLoader):
 
         x = []
         for f in range(len(filenames)):
-            df = U.read_trajectory(path, filenames[f])
+            df = U.read_trajectory(filenames[f])
             array = U.df_to_feature_array(CTX, df)
-
             x.append(array)
-
-            if (is_folder): BAR.update(f+1)
+            if (is_folder): BAR.update()
 
         if (self.PAD is None): self.PAD = U.genPadValues(CTX, x)
         x = fill_nan_3d(x, self.PAD)
@@ -78,109 +87,120 @@ class DataLoader(AbstractDataLoader):
         prntC()
         return x, filenames
 
+# |====================================================================================================================
+# |     UTILS
+# |====================================================================================================================
 
+    def __reshape__(self, x_batch:np.float64_3d[ax.sample, ax.time, ax.feature],
+                          y_batch:np.str_1d[ax.sample],
+                          nb_batches:int, batch_size:int) -> """tuple[
+            np.float64_4d[ax.batch, ax.sample, ax.time, ax.feature],
+            np.str_2d[ax.batch, ax.sample]]""":
 
-    ###################################################
-    # SCALERS
-    ###################################################
+        x_batches = x_batch.reshape(nb_batches, batch_size, self.CTX["INPUT_LEN"],self.CTX["FEATURES_IN"])
+        y_batches = y_batch.reshape(nb_batches, batch_size)
 
-    def __scalers_transform__(self, CTX, x_batches):
-        return x_batches
+        return x_batches, y_batches
 
+# |====================================================================================================================
+# |    GENERATE A TRAINING SET
+# |====================================================================================================================
 
-    ###################################################
-    # UTILS
-    ###################################################
-
-    def __reshape__(self, CTX, x_batches, y_batches, x_alters=None):
-        if (x_alters is not None):
-            return [x_batches], [y_batches], [x_alters]
-        return [x_batches], [y_batches]
-
-
-    ###################################################
-    # GENERATING TRAINING SET
-    ###################################################
-
-    def genEpochTrain(self, ):
+    def get_train(self) -> """tuple[
+            np.float64_4d[ax.batch, ax.sample, ax.time, ax.feature],
+            np.str_2d[ax.batch, ax.sample]]""":
 
         CTX = self.CTX
 
-        if (CTX["NB_BATCH"] == 1 and CTX["BATCH_SIZE"] == None):
-            x_batches = self.x_train.copy()
-            y_batches = self.y_train.copy()
+        size = 0
+        for i in range(len(self.x_train)):
+            size += len(self.x_train[i]) - CTX["HISTORY"] + 1
 
-            x_batches =\
-                self.__scalers_transform__(CTX, x_batches)
-            return self.__reshape__(CTX, x_batches, y_batches)
+        x_batches, y_batches = SU.alloc_batches(CTX, size)
 
-        prntC(C.ERROR, "Not implemented yet : impossible to generate multiple batches for now")
-        exit(1)
+        sample_i = 0
+        for i in range(len(self.x_train)):
+            for t in range(CTX["HISTORY"] - 1, len(self.x_train[i])):
+
+                sample, valid = SU.gen_sample(CTX, self.x_train, self.y_train, i, t)
+                y = self.y_train[i]
+                if not(valid):
+                    continue
+
+                x_batches[sample_i], y_batches[sample_i] = sample[0], sample[1]
+                y_batches[sample_i] = y
+                sample_i += 1
+
+        x_batches = x_batches[:sample_i]
+        y_batches = y_batches[:sample_i]
+
+        batch_size = min(CTX["MAX_BATCH_SIZE"], len(x_batches))
+        nb_batches = math.ceil(len(x_batches) / batch_size)
+
+        x_batches, y_batches = self.__reshape__(x_batches, y_batches, batch_size, nb_batches)
+        return x_batches, y_batches
 
 
-    ###################################################
-    # GENERATING TEST SET
-    ###################################################
+# |====================================================================================================================
+# |     GENERATE A TEST SET
+# |====================================================================================================================
 
-    def genEpochTest(self):
+
+    def get_test(self) -> """tuple[
+            np.float64_4d[ax.batch, ax.sample, ax.time, ax.feature],
+            np.str_2d[ax.batch, ax.sample]]""":
 
         CTX = self.CTX
-        NB_TEST = 60
+        TEST_SIZE = 60
+        x_batches, y_batches = SU.alloc_batches(CTX, TEST_SIZE)
 
-        if (CTX["NB_BATCH"] == 1 and CTX["BATCH_SIZE"] == None):
-            x_batches = []
-            y_batches = []
+        for i in range(TEST_SIZE):
+            if (i < TEST_SIZE // 2): x, y = self.x_train, self.y_train
+            else: x = self.x_test
 
-            for _ in range(NB_TEST):
-                x, y, known = SU.getRandomFlight(CTX, self.x_train, self.y_train, self.x_test, self.y_test)
+            x_sample, (ith, _) = SU.gen_random_sample(CTX, x)
+            if (y is not None): y_sample = y[ith]
+            else: y_sample = "unknown"
 
-                if known:
-                    x_batches.insert(0, x)
-                    y_batches.insert(0, y)
-                else:
-                    x_batches.append(x)
-                    y_batches.append(y)
+            x_batches[i], y_batches[i] = x_sample, y_sample
 
-            x_batches =\
-                self.__scalers_transform__(CTX, x_batches)
-            return self.__reshape__(CTX, x_batches, y_batches)
+        x_batches, y_batches = self.__reshape__(x_batches, y_batches, 1, TEST_SIZE)
+        return x_batches, y_batches
 
 
-        prntC(C.ERROR, "Not implemented yet : impossible to generate multiple batches for now")
-        exit(1)
+# |====================================================================================================================
+# | STREAMING ADS-B MESSAGE TO EVALUATE THE MODEL UNDER REAL CONDITIONS
+# |====================================================================================================================
 
 
-    ###################################################
-    # GENERATING EVAL SET
-    ###################################################
+class StreamerInterface:
 
-    def genEval(self) -> "tuple[np.ndarray, np.ndarray, list[list[str]]]":
-        CTX = self.CTX
-        if (CTX["NB_BATCH"] == 1 and CTX["BATCH_SIZE"] == None):
-            x_batches = []
-            x_alters = []
-            y_batches = []
+    def __init__(self, dl:DataLoader) -> None:
+        self.dl = dl
+        self.CTX = dl.CTX
 
-            for i in range(200):
-                alter = (i%2 == 0)
-                if alter:
-                    f = np.random.randint(len(self.x_train))
-                    x, type = SU.alter(self.x_train[f], CTX)
-                    x_batches.insert(0, x)
-                    x_alters.insert(0, type)
-                    y_batches.insert(0, self.files[f])
+    def stream(self, x:"dict[str, object]") -> """tuple[
+            np.float64_2d[ax.time, ax.feature],
+            bool]""":
 
-                else:
-                    f = np.random.randint(len(self.x_test))
-                    x_batches.append(self.x_test[f])
-                    x_alters.append("None")
-                    y_batches.append("Unknown-flight")
+        MAX_LENGTH_NEEDED = self.CTX["HISTORY"]
 
-            x_batches =\
-                self.__scalers_transform__(CTX, x_batches)
-            x_batches, y_batches, x_alters =\
-                self.__reshape__(CTX, x_batches, y_batches, x_alters)
-            return x_batches, y_batches, x_alters
+        tag = x.get("tag", x["icao24"])
+        raw_df = STREAMER.add(x, tag=tag)
+        cache = STREAMER.getCache("ReplaySolver", tag)
 
-        prntC(C.ERROR, "Not implemented yet : impossible to generate multiple batches for now")
-        exit(1)
+        array = U.df_to_feature_array(self.CTX, raw_df[-2:], check_length=False)
+        array = fill_nan_2d(array, self.dl.PAD)
+
+        if (cache is not None):
+            cache = np.concatenate([cache, array[1:]], axis=0)
+            cache = cache[-MAX_LENGTH_NEEDED:]
+        else:
+            cache = array
+        STREAMER.cache("FloodingSolver", tag, cache)
+
+        return cache, SU.check_sample(self.CTX, [cache], 0, len(cache) - 1)
+
+
+    def clear(self)-> None:
+        STREAMER.clear()

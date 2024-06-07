@@ -135,9 +135,9 @@ class Trainer(AbstractTrainer):
 
         for ep in range(1, CTX["EPOCHS"] + 1):
 
-            # Allocate variables
-            x_train, y_train = self.dl.genEpochTrain()
-            x_test,  y_test  = self.dl.genEpochTest()
+            # Allocate batches
+            x_train, y_train = self.dl.get_train()
+            x_test,  y_test  = self.dl.get_test()
 
             _y_train, _y_test, loss_train, loss_test = __alloc_pred_batches__(
                 CTX, len(x_train), len(x_train[0]), len(x_test),  len(x_test[0]))
@@ -226,11 +226,11 @@ class Trainer(AbstractTrainer):
     def __plot_epoch_stats__(self) -> None:
 
         # plot loss curves
-        Metrics.plotLoss(self.__history__[H_TRAIN_LOSS], self.__history__[H_TEST_LOSS],
+        Metrics.plot_loss(self.__history__[H_TRAIN_LOSS], self.__history__[H_TEST_LOSS],
                          self.__history_mov_avg__[H_TRAIN_LOSS], self.__history_mov_avg__[H_TEST_LOSS],
                             type="loss", path=self.ARTIFACTS+"/loss.png")
 
-        Metrics.plotLoss(self.__history__[H_TRAIN_DIST], self.__history__[H_TEST_DIST],
+        Metrics.plot_loss(self.__history__[H_TRAIN_DIST], self.__history__[H_TEST_DIST],
                          self.__history_mov_avg__[H_TRAIN_DIST], self.__history_mov_avg__[H_TEST_DIST],
                             type="distance", path=self.ARTIFACTS+"/distance.png")
 
@@ -400,6 +400,7 @@ class Trainer(AbstractTrainer):
 
         return files_df, max_lenght, y, y_, loss
 
+
     def __next_msgs__(self, dfs:"list[pd.DataFrame]", t:int)-> "list[dict[str:float]]":
         x, files = [], []
         for f in range(len(dfs)):
@@ -411,7 +412,7 @@ class Trainer(AbstractTrainer):
         return x, files
 
 
-    def eval(self):
+    def eval(self) -> "dict[str, float]":
 
         if (self.__eval_files__ is None):
             self.__eval_files__ = [U.list_flights(f"{EVAL_FOLDER}{f}") for f in os.listdir(EVAL_FOLDER)]
@@ -420,16 +421,13 @@ class Trainer(AbstractTrainer):
         for f in to_remove:
             os.remove(self.ARTIFACTS+"/"+f)
 
-
         for folder in self.__eval_files__:
 
+            self.dl.streamer.clear()
+            BAR.reset(max=max_len)
             prntC(C.INFO, "Evaluating model on : ", C.BLUE, folder[0].split("/")[-2])
 
-            self.dl.streamer.clear()
-
             dfs, max_len, y, y_, loss = self.__gen_eval_batch__(folder)
-
-            BAR.reset(max=max_len)
 
             for t in range(max_len):
                 x, files = self.__next_msgs__(dfs, t)
@@ -442,6 +440,8 @@ class Trainer(AbstractTrainer):
 
             name = folder[0].split("/")[-2]
             self.__eval_stats__(loss, y_, y, dfs, max_len, name=name)
+
+        return {}
 
 
 

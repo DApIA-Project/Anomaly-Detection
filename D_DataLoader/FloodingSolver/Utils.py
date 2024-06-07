@@ -1,6 +1,4 @@
 
-import _Utils.Color            as C
-from   _Utils.Color import prntC
 import _Utils.FeatureGetter    as FG
 import _Utils.geographic_maths as GEO
 import _Utils.plotADSB         as PLT
@@ -8,12 +6,10 @@ from _Utils.numpy import np, ax
 
 import D_DataLoader.Utils      as U
 
-import matplotlib.pyplot as plt
 
 # |====================================================================================================================
 # | CHECKING CLEANESS FOR TRAINING DATA
 # |====================================================================================================================
-
 
 def check_sample(CTX:"dict[str, object]", x:"np.ndarray", i:int, t:int) -> bool:
     lats = FG.lat(x[i])
@@ -53,33 +49,13 @@ def check_sample(CTX:"dict[str, object]", x:"np.ndarray", i:int, t:int) -> bool:
     return True
 
 
-# |====================================================================================================================
-# | BATCH GENERATION
-# |====================================================================================================================
-
-def alloc_sample(CTX:dict)\
-        -> "np.float64_2d[ax.time, ax.feature]":
-
-    x_sample = np.zeros((CTX["INPUT_LEN"],CTX["FEATURES_IN"]))
-    return x_sample
-
-def alloc_batch(CTX:dict, size:int) -> """tuple[
-        np.float64_3d[ax.batch, ax.time, ax.feature],
-        np.float64_2d[ax.batch, ax.feature]]""":
-
-    x_batch = np.zeros((size, CTX["INPUT_LEN"],CTX["FEATURES_IN"]))
-    y_batch = np.zeros((size, CTX["FEATURES_OUT"]))
-    return x_batch, y_batch
-
-def gen_random_sample(CTX:dict, x:"list[np.float64_2d[ax.time, ax.feature]]", PAD:np.float64_1d)\
-        -> "tuple[np.float64_2d[ax.time, ax.feature], np.float64_1d[ax.feature], tuple[float, float]]":
-    i, t = pick_random_loc(CTX, x)
-    x_sample, y_sample, _, origin = gen_sample(CTX, x, PAD, i, t, valid=True)
-    y_sample = FG.lat_lon(y_sample)
-    return x_sample, y_sample, origin
-
 
 def eval_curvature(CTX:dict, x:"list[np.float64_2d[ax.time, ax.feature]]", i:int, t:int) -> float:
+    """
+    Evaluate the curvature degree of the trajectory.
+
+    Used in order to filter straight trajectories that are too easy for training the model.
+    """
     start = max(0, t-CTX["HISTORY"])
     end = t+CTX["HORIZON"]
     lat = FG.lat(x[i][start:end])
@@ -98,6 +74,12 @@ def eval_curvature(CTX:dict, x:"list[np.float64_2d[ax.time, ax.feature]]", i:int
     d2 = abs(U.angle_diff(b_m1_m2, b_m2b))
 
     return d1+d2
+
+
+# |====================================================================================================================
+# | RANDOM FLIGHT PICKING
+# |====================================================================================================================
+
 
 def pick_random_loc(CTX:dict, x:"list[np.float64_2d[ax.time, ax.feature]]") -> "tuple[int, int]":
     HORIZON = CTX["HORIZON"]
@@ -118,6 +100,34 @@ def pick_random_loc(CTX:dict, x:"list[np.float64_2d[ax.time, ax.feature]]") -> "
     return flight_i, t
 
 
+# |====================================================================================================================
+# | SAMPLE GENERATION
+# |====================================================================================================================
+
+
+def alloc_sample(CTX:dict)\
+        -> "np.float64_2d[ax.time, ax.feature]":
+
+    x_sample = np.zeros((CTX["INPUT_LEN"],CTX["FEATURES_IN"]), dtype=np.float64)
+    return x_sample
+
+def alloc_batch(CTX:dict, size:int) -> """tuple[
+        np.float64_3d[ax.sample, ax.time, ax.feature],
+        np.float64_2d[ax.sample, ax.feature]]""":
+
+    x_batch = np.zeros((size, CTX["INPUT_LEN"],CTX["FEATURES_IN"]), dtype=np.float64)
+    y_batch = np.zeros((size, CTX["FEATURES_OUT"]), dtype=np.float64)
+    return x_batch, y_batch
+
+
+
+def gen_random_sample(CTX:dict, x:"list[np.float64_2d[ax.time, ax.feature]]", PAD:np.float64_1d)\
+        -> "tuple[np.float64_2d[ax.time, ax.feature], np.float64_1d[ax.feature], tuple[float, float]]":
+    i, t = pick_random_loc(CTX, x)
+    x_sample, y_sample, _, origin = gen_sample(CTX, x, PAD, i, t, valid=True)
+    y_sample = FG.lat_lon(y_sample)
+    return x_sample, y_sample, origin
+
 
 def gen_sample(CTX:dict,
                x:"list[np.float64_2d[ax.time, ax.feature]]",
@@ -132,7 +142,7 @@ def gen_sample(CTX:dict,
     if (not(valid)): return x_sample, None, valid, (0, 0, 0)
 
 
-    start, end, length, pad_lenght, shift = U.window_slice(CTX, t)
+    start, end, _, pad_lenght, shift = U.window_slice(CTX, t)
     x_sample[pad_lenght:] = x[i][start+shift:end:CTX["DILATION_RATE"]]
     x_sample[:pad_lenght] = PAD
 

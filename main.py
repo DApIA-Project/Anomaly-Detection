@@ -17,11 +17,11 @@ import sys
 # algo = "FloodingSolver"
 # model = "LSTM"
 
-# algo = "ReplaySolver"
-# model = "HASH"
+algo = "ReplaySolver"
+model = "HASH"
 
-algo = "TrajectorySeparator"
-model = "GEO"
+# algo = "TrajectorySeparator"
+# model = "GEO"
 ###################################
 argv = sys.argv
 if ("-ui" in argv):

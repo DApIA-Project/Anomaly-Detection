@@ -14,7 +14,7 @@ from _Utils.numpy import np, ax
 def lerp(a:float, b:float, t:float) -> float:
     return a + (b-a)*t
 
-def lreg(x:np.float64_1d[ax.time], y:np.float64_1d[ax.feature], w:np.float32_1d) -> "tuple[float, float]":
+def lreg(x:np.float64_1d[ax.time], y:np.float64_1d[ax.feature], w:np.float64_1d) -> "tuple[float, float]":
 
     m_y = np.mean(y)
     v_t = y - m_y

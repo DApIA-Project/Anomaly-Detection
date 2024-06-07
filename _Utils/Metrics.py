@@ -1,6 +1,11 @@
+import os
+from typing import TypeVar
+
 from _Utils.numpy import np, ax
 from _Utils.plotADSB import Color
-import os
+
+
+T = TypeVar("T")
 
 # |====================================================================================================================
 # | Accuracy
@@ -48,7 +53,7 @@ def mse(y:np.ndarray, y_:np.ndarray) -> float:
 # | Confusion matrix
 # |====================================================================================================================
 
-def confusion_matrix(y:np.ndarray, y_:np.ndarray) -> np.ndarray:
+def confusion_matrix(y:np.ndarray, y_:np.ndarray) -> np.int32_2d[ax.label, ax.label]:
     """
     y : [0, 0, 1] with shape (batch_size, nb_class)
     y_ : [0.2, 0.1, 0.7] with shape (batch_size, nb_class)
@@ -58,7 +63,7 @@ def confusion_matrix(y:np.ndarray, y_:np.ndarray) -> np.ndarray:
     yi = np.argmax(y, axis=1)
     y_i = np.argmax(y_, axis=1)
 
-    matrix = np.zeros((nb_class, nb_class), dtype=int)
+    matrix = np.zeros((nb_class, nb_class), dtype=np.int32)
 
     for i in range(len(y)):
         if (y_[i, y_i[i]] > 0):
@@ -105,7 +110,7 @@ def plot_confusion_matrix(confusion_matrix:np.ndarray, path:str, label_names:"li
 
 
 
-def plotLoss(train:np.ndarray, test:np.ndarray,
+def plot_loss(train:np.ndarray, test:np.ndarray,
              train_avg:np.ndarray, test_avg:np.ndarray,
              type:str="loss", path:str="") -> None:
 
@@ -134,18 +139,18 @@ def plotLoss(train:np.ndarray, test:np.ndarray,
 
 
 
-def sigmoid(x):
+def sigmoid(x:T)->T:
     return 1 / (1 + np.exp(-x))
 
-def inv_sigmoid(x):
+def inv_sigmoid(x:T)->T:
     return np.log(x / (1 - x))
 
 
 
-def moving_average_at(x, i, w):
+def moving_average_at(x:np.float64_1d, i:int, w:int) -> float:
     return np.mean(x[max(0, i-w):i+1])
 
-def moving_average(x, w):
+def moving_average(x:np.float64_1d, w:int) -> np.float64_1d:
     r = np.zeros(len(x))
     for i in range(len(x)):
         r[i] = moving_average_at(x, i, w)

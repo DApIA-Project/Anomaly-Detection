@@ -113,10 +113,6 @@ def angle_diff(a:float, b:float) -> float:
         diff -= 360
     elif (diff < -180):
         diff += 360
-    if (diff > 180 or diff < -180):
-        prntC(C.WARNING, "[angle_diff]:", "angle diff > 180", a, b, diff)
-        prntC(C.WARNING, "[angle_diff]:", "angle diff > 180", a, b, diff)
-        prntC(C.WARNING, "[angle_diff]:", "angle diff > 180", a, b, diff)
     return diff
 
 
@@ -302,19 +298,22 @@ def pad(df:DataFrame, CTX):
     return df
 
 
-def analysis(CTX, dataframe):
+def analysis(CTX:dict, dataframe:"list[np.float64_2d[ax.time, ax.feature]]") -> """tuple[
+        np.float64_1d[ax.feature],
+        np.float64_1d[ax.feature]]""":
+
     """ dataframe : (sample, timestep, feature)"""
-    minValues = np.full(CTX["FEATURES_IN"], np.nan)
-    maxValues = np.full(CTX["FEATURES_IN"], np.nan)
+    mins = np.full(CTX["FEATURES_IN"], np.nan)
+    maxs = np.full(CTX["FEATURES_IN"], np.nan)
 
     for i in range(len(dataframe)):
-        minValues = np.nanmin([minValues, np.nanmin(dataframe[i], axis=0)], axis=0)
-        maxValues = np.nanmax([maxValues, np.nanmax(dataframe[i], axis=0)], axis=0)
+        mins = np.nanmin([mins, np.nanmin(dataframe[i], axis=0)], axis=0)
+        maxs = np.nanmax([maxs, np.nanmax(dataframe[i], axis=0)], axis=0)
 
-    return minValues, maxValues
+    return mins, maxs
 
-def genPadValues(CTX:dict, dataframe) -> np.float64_1d:
-    minValues = analysis(CTX, dataframe)[0]
+def genPadValues(CTX:dict, flights:"list[np.float64_2d[ax.time, ax.feature]]") -> np.float64_1d:
+    minValues = analysis(CTX, flights)[0]
     padValues = minValues
 
     for f in range(len(CTX["USED_FEATURES"])):

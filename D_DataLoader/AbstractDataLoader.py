@@ -1,9 +1,10 @@
-
-
+from typing import TypeVar
 
 import D_DataLoader.Utils as U
 
 
+T1 = TypeVar('T1')
+T2 = TypeVar('T2')
 
 # managing the data preprocessing
 class DataLoader:
@@ -11,17 +12,16 @@ class DataLoader:
     # saves of the dataset for caching (see __get_dataset__ method)
     __dataset__ = None
 
-
-    def __load_dataset__(CTX, path):
+    def __load_dataset__(self, CTX:dict, path:str) -> object:
         raise NotImplementedError("You must implement the __load_dataset__ function")
 
-    def __get_dataset__(self, path):
+    def __get_dataset__(self, path:str) -> object:
         if (DataLoader.__dataset__ is None):
             DataLoader.__dataset__ = self.__load_dataset__(self.CTX, path)
 
         return DataLoader.__dataset__
 
-    def __split__(self, x, y=None):
+    def __split__(self, x:T1, y:T2=None) -> "T1|tuple[T1, T2]":
         if (y is None):
             split = U.splitDataset([x], self.CTX["TEST_RATIO"])
             return split[0][0], split[1][0]
@@ -30,12 +30,12 @@ class DataLoader:
         return split[0][0], split[0][1], split[1][0], split[1][1]
 
 
-    def __init__(self, CTX, path) -> None:
+    def __init__(self, CTX:dict, path:str) -> None:
         raise NotImplementedError("Canot instantiate an abstract DataLoader")
 
 
 
-    def genEpochTrain(self, nb_batch, batch_size):
+    def get_train(self) -> object:
         """
         Generate the training batches for one epoch from x_train, y_train.
 
@@ -56,10 +56,10 @@ class DataLoader:
             The output must be directly usable by the model for the training
         """
 
-        raise NotImplementedError("You must implement the genEpochTrain method")
+        raise NotImplementedError("You must implement the get_train method")
 
 
-    def genEpochTest(self):
+    def get_test(self) -> object:
         """
         Generate the testing batches for one epoch from x_test, y_test.
 
@@ -71,24 +71,6 @@ class DataLoader:
             The output must be directly usable by the model
         """
 
-        raise NotImplementedError("You must implement the genEpochTest method")
+        raise NotImplementedError("You must implement the get_test method")
 
 
-
-    def genEval(self, path):
-        """
-        Generate the evaluation dataset from the path.
-
-        Parameters:
-        -----------
-
-        path: str
-            The path to the dataset
-
-        Returns:
-        --------
-        Whatever you want.
-        BUT: The output format must be usable by the Trainer for the evaluation
-        """
-
-        raise NotImplementedError("You must implement the genEval method")

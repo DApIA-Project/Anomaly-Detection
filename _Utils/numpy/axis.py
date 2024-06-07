@@ -11,3 +11,5 @@ class z: pass
 # colors
 class rgb: pass
 class rgba: pass
+
+class label: pass

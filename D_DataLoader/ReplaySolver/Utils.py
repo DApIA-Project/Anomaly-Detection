@@ -1,87 +1,160 @@
-from _Utils.numpy import np, ax
-from D_DataLoader.Utils import normalize_trajectory, latlondistance
-import _Utils.geographic_maths as GEO
+import D_DataLoader.Utils as U
+
+
+from   _Utils.numpy import np, ax
+import _Utils.FeatureGetter    as FG
+
+
+# |====================================================================================================================
+# | CHECKING CLEANESS FOR TRAINING DATA
+# |====================================================================================================================
+
+def check_sample(CTX:dict, x:"list[np.float64_2d[ax.time, ax.feature]]", i:int, t:int) -> bool:
+    if (t < CTX["HISTORY"] - 1): return False
+    if (t >= len(x[i])): return False
+    lat = FG.lat(x[i][t-CTX["HISTORY"]+1:t+1])
+    nan_loc = np.where(np.isnan(lat))[0]
+    if (len(nan_loc) > CTX["WHILDCARD_LIMIT"]): return False
+    return True
+
+# |====================================================================================================================
+# | RANDOM FLIGHT PICKING
+# |====================================================================================================================
+
+
+def pick_random_loc(CTX:dict, x:"list[np.float64_2d[ax.time, ax.feature]]") -> "tuple[int, int]":
+
+    i = np.random.randint(0, len(x))
+    t = np.random.randint(CTX["HISTORY"] - 1, len(x[i]))
+    while not(check_sample(CTX, x, i, t)):
+        i = np.random.randint(0, len(x))
+        t = np.random.randint(CTX["HISTORY"] - 1, len(x[i]))
+
+    return i, t
+
+
+# |====================================================================================================================
+# | SAMPLE GENERATION
+# |====================================================================================================================
+
+
+def alloc_batch(CTX:dict, batch_size:int) -> """tuple[
+        np.float64_3d[ax.sample, ax.time, ax.feature],
+        np.str_1d[ax.sample]]""":
+
+    x_batch = np.zeros((batch_size, CTX["INPUT_LEN"],CTX["FEATURES_IN"]), dtype=np.float64)
+    y_batch = np.full((batch_size, CTX["FEATURES_OUT"]), np.nan, dtype="U256")
+    return x_batch, y_batch
+
+
+def gen_sample(CTX:dict, x:"list[np.float64_2d[ax.time, ax.feature]]", i:int, t:int, valid:bool=False)\
+        -> "tuple[np.float64_2d[ax.time, ax.feature], bool]":
+
+    if (valid is None): valid = check_sample(CTX, x, i, t)
+    if (not valid): return None, None, False
+
+    start, end, _, _, _ = U.window_slice(CTX, t)
+    x_sample = x[i][start:end]
+    return x_sample, valid
+
+
+def gen_random_sample(CTX:dict, x:"list[np.float64_2d[ax.time, ax.feature]]")\
+        -> "tuple[np.float64_2d[ax.time, ax.feature], tuple[int, int]]":
+
+    i, t = pick_random_loc(CTX, x)
+    x_sample, _ = gen_sample(CTX, x, i, t, valid=True)
+    return x_sample, (i, t)
 
 
 
 
-def getRandomFlight(CTX, x_train, y_train, x_test, y_test):
-    known = bool(np.random.randint(0, 2))
 
-    if (known):
-        f = np.random.randint(len(x_train))
-        return x_train[f], y_train[f], known
-    else:
-        f = np.random.randint(len(x_test))
-        return x_test[f], "Unknown-flight", known
+# |====================================================================================================================
+# | SIMPLE GEOMETRIC TRANSFORMATIONS TO CHECK THE ROBUSTNESS OF THE MODEL
+# |====================================================================================================================
 
-
-
-def rotate(lon, lat, angle):
-        return np.cos(angle) * lon - np.sin(angle) * lat, np.sin(angle) * lon + np.cos(angle) * lat
-
-def alter(x, CTX):
+def alter(CTX:dict, x:np.float64_2d[ax.time, ax.feature]) -> "tuple[np.float64_2d[ax.time, ax.feature], str]":
         # Get the index of each feature by name for readability
     FEATURE_MAP = CTX["FEATURE_MAP"]
     lat = x[:, FEATURE_MAP["latitude"]]
     lon = x[:, FEATURE_MAP["longitude"]]
-    track = x[:, FEATURE_MAP["track"]]
 
-    i = np.random.choice(["rotate", "translate", "scale", "flip", "noise", "trim"])#, "drop"])
+    i = np.random.choice(["rotate", "translate", "scale", "flip", "noise", "trim"])
+        #, "drop"])
 
     if (i == "rotate"):
-        angle = np.random.uniform(-np.pi, np.pi)
-        lat, lon = rotate(lat, lon, angle)
-        x[:, FEATURE_MAP["latitude"]] = lat
-        x[:, FEATURE_MAP["longitude"]] = lon
-        return x, "rotate"
-    
+        return __rotate__(x)
     elif (i == "translate"):
-        lat += np.random.uniform(-0.1, 0.1)
-        lon += np.random.uniform(-0.1, 0.1)
-        x[:, FEATURE_MAP["latitude"]] = lat
-        x[:, FEATURE_MAP["longitude"]] = lon
-        return x, "translate"
-    
+        return __translate__(x)
     elif (i == "scale"):
-        slat, slon = np.random.uniform(0.9, 1.1), np.random.uniform(0.9, 1.1)
-        clat, clon = np.mean(lat), np.mean(lon)
-        lat = (lat - clat) * slat + clat
-        lon = (lon - clon) * slon + clon
-        x[:, FEATURE_MAP["latitude"]] = lat
-        x[:, FEATURE_MAP["longitude"]] = lon
-        return x, "scale"
-    
+        return __scale__(x)
     elif (i == "flip"):
-        slat, slon = np.random.choice(["ab", "ba"])
-        slat, slon = (1, -1) if slat == "ab" else (-1, 1)
-        lat = (lat) * slat 
-        lon = (lon) * slon
-        x[:, FEATURE_MAP["latitude"]] = lat
-        x[:, FEATURE_MAP["longitude"]] = lon
-        return x, "flip"
-
-    
+        return __flip__(x)
     elif (i == "noise"):
-        lat += np.random.uniform(-0.000005, 0.000005, size=(len(lat),))
-        lon += np.random.uniform(-0.000005, 0.000005, size=(len(lon),))
-        x[:, FEATURE_MAP["latitude"]] = lat
-        x[:, FEATURE_MAP["longitude"]] = lon
-        return x, "noise"
-    
+        return __noise__(x)
     elif (i == "trim"):
-        length = np.random.randint(CTX["HISTORY"] * 5, CTX["HISTORY"] * 10)
-        if (length > len(lat)):
-            length = len(lat)
-        start = np.random.randint(0, len(lat) - length)
-        return x[start:start+length], "trim"
-    
-    # elif (i == "drop"):
-    #     level = np.random.randint(50, 90)
-    #     p = level / 100
-    #     indexs = np.arange(len(lat))
-    #     indexs = indexs[np.random.uniform(0, 1, size=(len(indexs),)) > p]
-    #     x = x[indexs]
-    #     return x, "drop" + str(level)
+        return __trim__(x)
+    elif (i == "drop"):
+        return __drop__(x)
 
 
+def __rotate__(x):
+    lat, lon = FG.lat(x), FG.lon(x)
+    angle = np.random.uniform(-np.pi, np.pi)
+    lat, lon, _ = U.z_rotation(lat, lon, None, angle)
+    FG.set(x, "latitude", lat)
+    FG.set(x, "longitude", lon)
+    return x, "rotate"
+
+def __translate__(x):
+    lat, lon = FG.lat(x), FG.lon(x)
+    lat += np.random.uniform(-0.1, 0.1)
+    lon += np.random.uniform(-0.1, 0.1)
+    FG.set(x, "latitude", lat)
+    FG.set(x, "longitude", lon)
+    return x, "translate"
+
+def __scale__(x):
+    lat, lon = FG.lat(x), FG.lon(x)
+    slat, slon = np.random.uniform(0.9, 1.1), np.random.uniform(0.9, 1.1)
+    clat, clon = np.mean(lat), np.mean(lon)
+    lat = (lat - clat) * slat + clat
+    lon = (lon - clon) * slon + clon
+    FG.set(x, "latitude", lat)
+    FG.set(x, "longitude", lon)
+    return x, "scale"
+
+def __flip__(x):
+    lat, lon = FG.lat(x), FG.lon(x)
+    slat, slon = np.random.choice(["ab", "ba"])
+    slat, slon = (1, -1) if slat == "ab" else (-1, 1)
+    lat = (lat) * slat
+    lon = (lon) * slon
+    FG.set(x, "latitude", lat)
+    FG.set(x, "longitude", lon)
+    return x, "flip"
+
+def __noise__(x):
+    lat, lon = FG.lat(x), FG.lon(x)
+    lat += np.random.uniform(-0.000005, 0.000005, size=(len(lat),))
+    lon += np.random.uniform(-0.000005, 0.000005, size=(len(lon),))
+    FG.set(x, "latitude", lat)
+    FG.set(x, "longitude", lon)
+    return x, "noise"
+
+def __trim__(x):
+    lat, lon = FG.lat(x), FG.lon(x)
+    length = np.random.randint(CTX["HISTORY"] * 5, CTX["HISTORY"] * 10)
+    if (length > len(lat)):
+        length = len(lat)
+    start = np.random.randint(0, len(lat) - length)
+    return x[start:start+length], "trim"
+
+def __drop__(x):
+    lat, lon = FG.lat(x), FG.lon(x)
+    level = np.random.randint(50, 90)
+    p = level / 100
+    indexs = np.arange(len(lat))
+    indexs = indexs[np.random.uniform(0, 1, size=(len(indexs),)) > p]
+    x = x[indexs]
+    return x, "drop" + str(level)
