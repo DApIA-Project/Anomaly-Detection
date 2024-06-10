@@ -22,6 +22,13 @@ class DataFrame:
             self.from_numpy(arg)
             self.columns = {str(i):i for i in range(arg.shape[1])}
 
+    def copy(self):
+        df = DataFrame(self.array.shape[1])
+        df.array = self.array.copy()
+        df.len = self.len
+        df.columns = self.columns.copy()
+        return df
+
 
     def __insert__(self, i, value):
         if (i > self.len):
@@ -219,3 +226,9 @@ class DataFrame:
             return sub
 
         return value
+
+    def __setitem__(self, key, value):
+        if isinstance(key, str):
+            self.setColumValue(key, slice(0, self.len), value)
+        if (isinstance(key, tuple)):
+            self.setColumValue(key[0], key[1], value)

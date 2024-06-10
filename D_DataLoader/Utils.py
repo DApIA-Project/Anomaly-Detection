@@ -3,11 +3,12 @@ from _Utils.os_wrapper import os
 from typing import overload
 
 import _Utils.Color as C
-from _Utils.Color import prntC
-from _Utils.DataFrame import DataFrame
+from   _Utils.Color import prntC
+from   _Utils.DataFrame import DataFrame
 import _Utils.FeatureGetter as FG
-from _Utils.Limits import INT_MAX
-from _Utils.numpy import np, ax
+import _Utils.Limits as Limits
+from   _Utils.numpy import np, ax
+import _Utils.geographic_maths as GEO
 
 from D_DataLoader.Airports import TOULOUSE
 
@@ -62,7 +63,7 @@ def maxi(*args):
 # | LOADING FLIGHTS FROM DISK UTILS
 # |====================================================================================================================
 
-def list_flights(path:str, limit:int=INT_MAX) -> "list[str]":
+def list_flights(path:str, limit:int=Limits.INT_MAX) -> "list[str]":
     filenames = os.listdir(path)
     filenames = [os.path.join(path, f) for f in filenames if f.endswith(".csv")]
     filenames.sort()
@@ -218,6 +219,38 @@ def df_to_feature_array(CTX:dict, df:DataFrame, check_length:bool=True) -> np.fl
         for i in range(len(TOULOUSE)):
             df.add_column("toulouse_"+str(i), dists[:, i])
 
+    if ("fingerprint" in CTX["USED_FEATURES"]):
+        fingerprint, rot = rotation_speed(df["latitude"], df["longitude"])
+
+        test_finger = np.zeros((16, 32), dtype=np.int8)
+        sub_dfs = []
+        sub_rot = []
+        for i in range(8):
+            sub_df = rotate_df(df[0:32].copy())
+            sub_dfs.append(sub_df)
+            test_finger[i], r = rotation_speed(sub_df["latitude"], sub_df["longitude"])
+            sub_rot.append(r)
+        for i in range(8):
+            sub_df = scale_df(df[0:32].copy())
+            sub_dfs.append(sub_df)
+            test_finger[i+8], r = rotation_speed(sub_df["latitude"], sub_df["longitude"])
+            sub_rot.append(r)
+
+
+        plot_fingerprint(test_finger, sub_rot)
+
+        abnormal = [0, 3, 7, 11]
+        if (len(abnormal) > 1):
+            import matplotlib.pyplot as plt
+            fig, ax = plt.subplots(len(abnormal), 1, figsize=(10, 10*len(abnormal)))
+            for i in range(len(abnormal)):
+                ax[i].plot(sub_dfs[abnormal[i]]["latitude"], sub_dfs[abnormal[i]]["longitude"], c="tab:blue")
+                ax[i].scatter(sub_dfs[abnormal[i]]["latitude"], sub_dfs[abnormal[i]]["longitude"], c="tab:blue")
+            plt.show()
+
+
+
+        df.add_column("fingerprint", fingerprint)
 
 
     # remove too short flights
@@ -473,4 +506,98 @@ def batch_preprocess(CTX:dict, flight:"np.float64_2d[ax.time, ax.feature]",
     if (post_flight is not None):
         return x[:len(flight)], x[len(flight):]
     return x
+
+
+# |====================================================================================================================
+# | rotation speed feature
+# |====================================================================================================================
+
+
+def rotation_speed(lat:np.float64_1d, lon:np.float64_1d) -> np.int8_1d:
+    """
+    Compute the rotation speed of the aircraft
+    """
+
+    rot = np.zeros(len(lat), dtype=np.float64)
+    for i in range(0, len(lat)-1):
+
+        d = GEO.distance(lat[i], lon[i], lat[i+1], lon[i+1])
+        if (d < 0.000001):
+            rot[i] = np.nan
+            continue
+
+        bx, by, bz = spherical_to_cartesian(lat[i+1], lon[i+1])
+        ax, ay, az = spherical_to_cartesian(lat[i], lon[i])
+
+        bx, by, bz = z_rotation(bx, by, bz, np.radians(-lon[i]))
+        ax, ay, az = z_rotation(ax, ay, az, np.radians(-lon[i]))
+
+        bx, by, bz = y_rotation(bx, by, bz, np.radians(-lat[i]))
+        ax, ay, az = y_rotation(ax, ay, az, np.radians(-lat[i]))
+
+        rot[i] = np.degrees(np.arctan2(bz, by))
+
+    rot[-1] = rot[-2]
+
+
+    rot_speed = np.zeros(len(lat), dtype=np.float64)
+    for i in range(1, len(lat)-1):
+        rot_speed[i] = angle_diff(rot[i-1], rot[i])
+
+    fingerprint = np.zeros(len(lat), dtype=np.int8)
+
+    # remplace nan
+    fingerprint[np.isnan(rot_speed)] = 0
+    for i in range(len(rot_speed)):
+        if (abs(rot_speed[i]) < 0.1):
+            fingerprint[i] = 0
+        elif (rot_speed[i] > 0):
+            fingerprint[i] = 1
+        elif (rot_speed[i] < 0):
+            fingerprint[i] = -1
+
+    return fingerprint, rot_speed
+
+
+def rotate_df(df:DataFrame) -> DataFrame:
+    df = df.copy()
+    angle = np.random.uniform(-np.pi, np.pi)
+    lat, lon = df["latitude"], df["longitude"]
+    lat, lon, _ = z_rotation(lat, lon, None, angle)
+    df["latitude"] = lat
+    df["longitude"] = lon
+    return df
+
+def scale_df(df:DataFrame) -> DataFrame:
+    df = df.copy()
+    slat, slon = np.random.uniform(0.9, 1.1), np.random.uniform(0.9, 1.1)
+    clat, clon = np.mean(df["latitude"]), np.mean(df["longitude"])
+    lat = (df["latitude"] - clat) * slat + clat
+    lon = (df["longitude"] - clon) * slon + clon
+    df["latitude"] = lat
+    df["longitude"] = lon
+    return df
+
+
+
+def plot_fingerprint(fingerprint:np.int8_2d, sub_rot) -> None:
+    import matplotlib.pyplot as plt
+    from matplotlib.patches import Rectangle
+    COLORS = ["tab:green", "tab:blue", "tab:red"]
+
+    # fig size
+    ratio = len(fingerprint[0]) / len(fingerprint)
+
+    plt.figure(figsize=(10, 10/ratio))
+
+    for line in range(len(fingerprint)):
+        for i in range(len(fingerprint[line])):
+            plt.gca().add_patch(Rectangle((i, line), 1, 1, fill=True, color=COLORS[fingerprint[line][i]]))
+            # text
+
+            plt.text(i+0.5, line+0.5, str(round(sub_rot[line][i], 1)), ha='center', va='center', color="black", fontsize=8)
+
+    plt.xlim(0, len(fingerprint[0]))
+    plt.ylim(0, len(fingerprint))
+    plt.show()
 
