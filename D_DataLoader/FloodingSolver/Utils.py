@@ -42,7 +42,6 @@ def check_sample(CTX:"dict[str, object]", x:"np.ndarray", i:int, t:int) -> bool:
     if (np.max(dist_values) > 400 or np.min(dist_values) < 1.0):
         return False
 
-    # print(np.max(np.diff(dist_values)))
     if (np.max(np.diff(dist_values)) > 45):
         return False
 

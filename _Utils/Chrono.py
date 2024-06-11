@@ -69,7 +69,7 @@ class Chrono:
 
     # print
     def __str__(self) -> str:
-        return str(self.get_time_s())
+        return self.__repr__()
 
     def __repr__(self) -> str:
 

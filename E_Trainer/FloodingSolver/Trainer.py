@@ -203,7 +203,7 @@ class Trainer(AbstractTrainer):
             self.__history_mov_avg__[i, ep-1] = Metrics.moving_average_at(self.__history__[i], ep-1, w=5)
         write(self.ARTIFACTS+"/weights/"+str(ep)+".w", self.model.get_variables())
 
-        # Print & Display statistics !
+        # Display statistics !
         self.__print_epoch_stats__(ep, train_loss, test_loss, train_dist, test_dist)
         self.__plot_epoch_stats__()
         self.__plot_train_exemple__(y_train, _y_train)

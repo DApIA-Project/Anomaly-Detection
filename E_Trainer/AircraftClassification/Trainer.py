@@ -228,7 +228,7 @@ class Trainer(AbstractTrainer):
 
         per_class_acc = Metrics.per_class_accuracy(y_test, _y_test)
 
-        # Print & Display statistics !
+        # Display statistics !
         self.__print_epoch_stats__(ep, train_loss, test_loss, train_acc, test_acc, per_class_acc)
         self.__plot_epoch_stats__()
         self.__plot_train_exemple__(y_train, _y_train)

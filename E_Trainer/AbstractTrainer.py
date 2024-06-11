@@ -76,6 +76,7 @@ class Trainer:
         if (self.CTX["EPOCHS"] > 0):
             self.train()
         else:
+            prntC(C.WARNING, "Training is deactivated, loading model and evaluating")
             self.load()
 
         return self.eval()

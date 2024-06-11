@@ -45,12 +45,15 @@ class DataLoader(AbstractDataLoader):
     y_train:"list[str]"
     y_test :"list[str]"
 
+    __last_training_flight__:int
+
 # |====================================================================================================================
 # |     INITIALISATION : LOADING RAW DATASET FROM DISK
 # |====================================================================================================================
 
     def __init__(self, CTX:dict, path:str="") -> None:
         self.CTX = CTX
+        self.streamer = StreamerInterface(self)
 
         training = (CTX["EPOCHS"] and path != "")
 
@@ -59,6 +62,8 @@ class DataLoader(AbstractDataLoader):
             self.x_train, self.y_train, self.x_test, self.y_test = self.__split__(x, files, size = TEST_SIZE)
             prntC(C.INFO, "Dataset loaded train :", C.BLUE, len(self.x_train), C.RESET,
                                           "test :", C.BLUE, len(self.x_test))
+
+            self.__last_training_flight__ = 0
         else:
             prntC(C.INFO, "Training, deactivated, only evaluation will be launched.")
             prntC(C.WARNING, "Make sure everything is loaded from the disk, especially the PAD values.")
@@ -66,11 +71,12 @@ class DataLoader(AbstractDataLoader):
 
 
 
+
     def __load_dataset__(self, CTX:dict, path:str) -> "tuple[list[np.float64_2d[ax.time, ax.feature]], list[str]]":
         # path can be a folder or a file
         is_folder = os.path.isdir(path)
         if (is_folder):
-            filenames = U.list_flights(path, limit=300)
+            filenames = U.list_flights(path, limit=Limits.INT_MAX)
             prntC(C.INFO, "Dataset loading")
         else:
             path = path.split("/")
@@ -84,6 +90,7 @@ class DataLoader(AbstractDataLoader):
             df = U.read_trajectory(filenames[f])
             array = U.df_to_feature_array(CTX, df)
             x.append(array)
+            filenames[f] = filenames[f].split("/")[-1]
             if (is_folder): BAR.update()
 
 
@@ -108,43 +115,64 @@ class DataLoader(AbstractDataLoader):
 # |    GENERATE A TRAINING SET
 # |====================================================================================================================
 
+
+    def __next__(self) -> "tuple[int, int, int]":
+        # If we have already used all the dataset -> reset !
+        first_flight = self.__last_training_flight__
+        if (first_flight >= len(self.x_train)):
+            self.__last_training_flight__ = 0
+            return 0, 0, 0
+
+
+        # pick the following flights until the batch is full
+        size = 0
+        limit = self.CTX["MAX_BATCH_SIZE"] * self.CTX["MAX_NB_BATCH"]
+        for i in range(first_flight, len(self.x_train)):
+            samples = len(self.x_train[i]) - self.CTX["HISTORY"] + 1
+            if (size + samples < limit):
+                size += len(self.x_train[i]) - self.CTX["HISTORY"] + 1
+                self.__last_training_flight__ = i
+            else:
+                break
+        self.__last_training_flight__ += 1
+        last_flight = self.__last_training_flight__
+
+        return first_flight, last_flight, size
+
+
     def get_train(self) -> """tuple[
             np.float64_4d[ax.batch, ax.sample, ax.time, ax.feature],
             np.str_2d[ax.batch, ax.sample]]""":
 
         CTX = self.CTX
 
-        size = 0
-        for i in range(len(self.x_train)):
-            size += len(self.x_train[i]) - CTX["HISTORY"] + 1
+        first_flight, last_flight, size = self.__next__()
+        if (size == 0):
+            return np.zeros((0, 0, 0, 0)), np.zeros((0, 0))
 
+        # Allocate the batch and fill it
         x_batches, y_batches = SU.alloc_batch(CTX, size)
 
         sample_i = 0
-        for i in range(len(self.x_train)):
+        for i in range(first_flight, last_flight):
             for t in range(CTX["HISTORY"] - 1, len(self.x_train[i])):
 
                 sample, valid = SU.gen_sample(CTX, self.x_train, i, t)
+
                 if not(valid):
                     continue
 
-                y = self.y_train[i]
-
-                x_batches[sample_i] = sample[0]
-                y_batches[sample_i] = y
+                x_batches[sample_i] = sample
+                y_batches[sample_i] = self.y_train[i]
                 sample_i += 1
 
-
-        print("sample_i", sample_i, len(x_batches))
-
-
+        # compute final shape & clean unused samples (invalid samples)
         batch_size = min(CTX["MAX_BATCH_SIZE"], sample_i)
         nb_batches = math.ceil(sample_i / batch_size)
 
         size = nb_batches * batch_size
 
-        x_batches = x_batches[:size]
-        y_batches = y_batches[:size]
+        x_batches, y_batches = x_batches[:size],  y_batches[:size]
 
         x_batches, y_batches = self.__reshape__(x_batches, y_batches, nb_batches, batch_size)
         return x_batches, y_batches
@@ -164,7 +192,7 @@ class DataLoader(AbstractDataLoader):
 
         for i in range(TEST_SIZE):
             if (i < TEST_SIZE // 2): x, y = self.x_train, self.y_train
-            else: x = self.x_test
+            else: x, y = self.x_test, None
 
             x_sample, (ith, _) = SU.gen_random_sample(CTX, x)
             if (y is not None): y_sample = y[ith]
@@ -188,27 +216,37 @@ class StreamerInterface:
         self.CTX = dl.CTX
 
     def stream(self, x:"dict[str, object]") -> """tuple[
-            np.float64_2d[ax.time, ax.feature],
+            np.float64_3d[ax.sample, ax.time, ax.feature],
             bool]""":
 
         MAX_LENGTH_NEEDED = self.CTX["HISTORY"]
 
         tag = x.get("tag", x["icao24"])
         raw_df = STREAMER.add(x, tag=tag)
-        cache = STREAMER.getCache("ReplaySolver", tag)
+        cache = STREAMER.cache("ReplaySolver", tag)
 
-        array = U.df_to_feature_array(self.CTX, raw_df[-2:], check_length=False)
-        array = fill_nan_2d(array, self.dl.PAD)
+        array = U.df_to_feature_array(self.CTX, raw_df[-3:], check_length=False)
 
         if (cache is not None):
-            cache = np.concatenate([cache, array[1:]], axis=0)
+            cache = np.concatenate([cache, array[1:2]], axis=0)
             cache = cache[-MAX_LENGTH_NEEDED:]
         else:
             cache = array
+        STREAMER.cache("ReplaySolver", tag, cache)
+
+        x_batch, y_batch = SU.alloc_batch(self.CTX, 1)
+
+        x_batch, valid = SU.gen_sample(self.CTX, [cache], 0, len(cache) - 1)
+        if (not valid):
+            return np.zeros((0, 0, 0)), False
+
+        x_batches, _ = self.dl.__reshape__(x_batch, y_batch, 1, 1)
+        return x_batches[0], valid
+
+    def cache(self, tag:str, cache:object) -> None:
         STREAMER.cache("FloodingSolver", tag, cache)
-
-        return cache, SU.check_sample(self.CTX, [cache], 0, len(cache) - 1)
-
+    def get_cache(self, tag:str) -> object:
+        return STREAMER.cache("FloodingSolver", tag)
 
     def clear(self)-> None:
         STREAMER.clear()

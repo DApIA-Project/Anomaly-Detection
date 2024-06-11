@@ -1,100 +1,71 @@
 from _Utils.numpy import np, ax
-import D_DataLoader.Utils as U
 
 
-def serialize_lat_lon(lat, lon, CTX):
-    _x = np.cos(np.radians(lon)) * np.cos(np.radians(lat))
-    _y = np.sin(np.radians(lon)) * np.cos(np.radians(lat))
-    _z = np.sin(np.radians(lat))
-    x, y, z = _x.copy(), _y.copy(), _z.copy()
-    for t in range(0, len(lat)):
-        if (t == 0):
-            x[t], y[t], z[t] = (1, 0, 0)
 
-        x[t], y[t], z[t] = U.z_rotation(x[t], y[t], z[t], np.radians(-lon[t-1]))
-        x[t], y[t], z[t] = U.y_rotation(x[t], y[t], z[t], np.radians(-lat[t-1]))
 
-        if (t >= 2):
-            lx, ly, lz = _x[t-2], _y[t-2], _z[t-2]
-            lx, ly, lz = U.z_rotation(lx, ly, lz, np.radians(-lon[t-1]))
-            lx, ly, lz = U.y_rotation(lx, ly, lz, np.radians(-lat[t-1]))
-            R = -np.arctan2(-lz, -ly)
+# max wildcards in the fingerprint
+MAX_SUB_FP_LEVEL = 5
+def sub_fingerprint(fp:np.int8_1d[ax.time]) -> np.int8_2d[ax.sample, ax.time]:
 
-        else:
-            R = -np.arctan2(z[t], y[t])
+    wildcard_loc = np.where(fp == 0)[0]
+    if (len(wildcard_loc) > MAX_SUB_FP_LEVEL):
+        return np.zeros((0, len(fp)), dtype=np.int8)
 
-        x[t], y[t], z[t] = U.x_rotation(x[t], y[t], z[t], -R)
+    if (len(wildcard_loc) == 0):
+        return np.array([fp])
 
-    x = y
-    y = z
-    return x[1:], y[1:]
+    nb_sub_fp = 2**len(wildcard_loc)
+    res = np.tile(fp, (nb_sub_fp, 1))
+    for i in range(nb_sub_fp):
+        comb = [-1 if x == "0" else 1 for x in bin(i)[2:].zfill(len(wildcard_loc))]
+        for j in range(len(wildcard_loc)):
+            res[i, wildcard_loc[j]] = comb[j]
 
-def make_fingerprint(x, y, CTX):
-    """
-    Compute the fingerprint of a trajectory
-    fingerprint is a string of L, R, N
-    - L : left turn
-    - R : right turn
-    - N : netral (cannot be determined)
-    """
-
-    a = np.arctan2(y, x)
-    d = np.sqrt(x**2 + y**2)
-
-    MARGIN = 0.002
-
-    res = ""
-    for i in range(len(x)):
-        if (d[i] < 0.000001):
-            res+="N"
-
-        else:
-            if (a[i] < -MARGIN and a[i] > -np.pi + MARGIN):
-                res += "L"
-            elif (a[i] > MARGIN and a[i] < np.pi - MARGIN):
-                res += "R"
-            else:
-                res += "N"
     return res
 
 
-def sub_fp(fp):
-    """
-    List all the possible fingerprint variants when there is the N placeholder (same as . from regex)
-    """
-    # remplace each N by R and L variants
-    res = [""]
-    m_count = sum([1 for c in fp if c == "N"])
-    if (m_count == 0):
-        return [fp]
-    if (m_count > 5):
-        return ["N"*len(fp)]
-
-    for c in range(len(fp)):
-        if (fp[c] == "N"):
-            l = len(res)
-            res = res + res
-            for i in range(l):
-                res[i+l*0] += "R"
-                res[i+l*1] += "L"
-        else:
-            for i in range(len(res)):
-                res[i] += fp[c]
-    return res
 
 
-def compute_hash(fp):
+MAX_HASH = None
+FP_LEN = None
+POWERS = None
+def init_hash(max_len:int) -> None:
+    global MAX_HASH, FP_LEN, POWERS
+    MAX_HASH = 2**(max_len-1)
+    FP_LEN = max_len
+    POWERS = [2**i for i in range(max_len+1)]
+
+
+def __hash_one__(fp:np.int8_1d) -> int:
+    v = 0
+    for i in range(FP_LEN):
+        if (fp[i] == 1):
+            v += POWERS[i]
+    if v >= MAX_HASH:
+        v = POWERS[FP_LEN] - v - 1
+    return v
+
+
+
+def hash(fp:np.int8_2d[ax.sample, ax.time]) -> np.int64_1d:
     """
     Compute the hash of a fingerprint
     """
-    hash = 0
-    for i in range(len(fp)):
-        v = 0
-        if (fp[i] == "L"):
-            v = 1
-        elif (fp[i] == "R"):
-            v= -1
+    hashes = np.zeros(fp.shape[0], dtype=np.int64)
+    for s in range(len(fp)):
+        hashes[s] = __hash_one__(fp[s])
+    return hashes
 
-        hash += v * (3 ** i)
-    hash = abs(hash)
-    return hash
+
+
+def match(hashes:np.int64_1d, hashtable:"dict[int, list[str]]") -> "list[str]":
+    """
+    Match the hash with the hashtable
+    """
+    res = []
+    for i in range(len(hashes)):
+        if (hashes[i] in hashtable):
+            res.extend(hashtable[hashes[i]])
+
+    return res
+

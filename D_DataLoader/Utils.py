@@ -180,7 +180,7 @@ def df_to_feature_array(CTX:dict, df:DataFrame, check_length:bool=True) -> np.fl
     """
     if isinstance(df, pd.DataFrame):
         df = DataFrame(df)
-    df = pad(df, CTX)
+    df = __pad__(CTX, df)
 
     # if no padding check there is no nan in latitude
     if (CTX["INPUT_PADDING"] == "valid"):
@@ -203,54 +203,29 @@ def df_to_feature_array(CTX:dict, df:DataFrame, check_length:bool=True) -> np.fl
     df.setColumValue("altitude", slice(0, len(df)), np.clip(df["altitude"], 0, None))
     df.setColumValue("geoaltitude", slice(0, len(df)), np.clip(df["geoaltitude"], 0, None))
 
-    # add relative track
-    track = df["track"]
-    relative_track = track.copy()
-    for i in range(1, len(relative_track)):
-        relative_track[i] = angle_diff(track[i-1], track[i])
-    relative_track[0] = 0
-    df.add_column("relative_track", relative_track)
-    df.setColumValue("timestamp", slice(0, len(df)), df["timestamp"]) # 01/01/2015
+    # SECONDARY FEATURES
+    if ("relative_track" in CTX["FEATURE_MAP"]):
+        track = df["track"]
+        relative_track = track.copy()
+        for i in range(1, len(relative_track)):
+            relative_track[i] = angle_diff(track[i-1], track[i])
+        relative_track[0] = 0
+        df.add_column("relative_track", relative_track)
+        df.setColumValue("timestamp", slice(0, len(df)), df["timestamp"]) # 01/01/2015
 
 
-    if ("toulouse_0" in CTX["USED_FEATURES"]):
-        dists = toulouse_airportDistance(df["latitude"], df["longitude"])
+    if ("toulouse_0" in CTX["FEATURE_MAP"]):
+        dists = toulouse_airport_distance(df["latitude"], df["longitude"])
 
         for i in range(len(TOULOUSE)):
             df.add_column("toulouse_"+str(i), dists[:, i])
 
-    if ("fingerprint" in CTX["USED_FEATURES"]):
-        fingerprint, rot = rotation_speed(df["latitude"], df["longitude"])
-
-        test_finger = np.zeros((16, 32), dtype=np.int8)
-        sub_dfs = []
-        sub_rot = []
-        for i in range(8):
-            sub_df = rotate_df(df[0:32].copy())
-            sub_dfs.append(sub_df)
-            test_finger[i], r = rotation_speed(sub_df["latitude"], sub_df["longitude"])
-            sub_rot.append(r)
-        for i in range(8):
-            sub_df = scale_df(df[0:32].copy())
-            sub_dfs.append(sub_df)
-            test_finger[i+8], r = rotation_speed(sub_df["latitude"], sub_df["longitude"])
-            sub_rot.append(r)
-
-
-        plot_fingerprint(test_finger, sub_rot)
-
-        abnormal = [0, 3, 7, 11]
-        if (len(abnormal) > 1):
-            import matplotlib.pyplot as plt
-            fig, ax = plt.subplots(len(abnormal), 1, figsize=(10, 10*len(abnormal)))
-            for i in range(len(abnormal)):
-                ax[i].plot(sub_dfs[abnormal[i]]["latitude"], sub_dfs[abnormal[i]]["longitude"], c="tab:blue")
-                ax[i].scatter(sub_dfs[abnormal[i]]["latitude"], sub_dfs[abnormal[i]]["longitude"], c="tab:blue")
-            plt.show()
-
-
-
-        df.add_column("fingerprint", fingerprint)
+    if ("fingerprint" in CTX["FEATURE_MAP"]):
+        fgp, _ = fingerprint(df["latitude"], df["longitude"])
+        df.add_column("fingerprint", fgp)
+        # if the only feature is fingerprint, input data can be reduced to int8 instead of float64
+        if (len(CTX["USED_FEATURES"]) == 1):
+            df.cast(np.int8)
 
 
     # remove too short flights
@@ -258,52 +233,18 @@ def df_to_feature_array(CTX:dict, df:DataFrame, check_length:bool=True) -> np.fl
         prntC(C.WARNING, "[df_to_feature_array]: flight too short")
         return []
 
-    # Cast booleans into numeric
-    for col in df.columns:
-        if (df[col].dtype == bool):
-            df[col] = df[col].astype(int)
+    # filter selected features
+    array = df.getColumns(CTX["USED_FEATURES"])
 
 
-    # Remove useless columns
-    df = df.getColumns(CTX["USED_FEATURES"])
-
-
-    array = df.astype(np.float64)
 
     if (len(array) == 0): return None
     return array
 
-TOULOUSE_LATS = np.array([TOULOUSE[i]['lat'] for i in range(len(TOULOUSE))], dtype=np.float64)
-TOULOUSE_LONS = np.array([TOULOUSE[i]['long'] for i in range(len(TOULOUSE))], dtype=np.float64)
-
-def toulouse_airportDistance(lats:"list[float]", lons:"list[float]"):
-    """
-    Compute the distance to the nearest airport
-    """
-    dtype_number = False
-    if (isinstance(lats, int) or isinstance(lats, float)):
-        lats = [lats]
-        lons = [lons]
-        dtype_number = True
-
-    dists = np.zeros((len(lats), len(TOULOUSE)), dtype=np.float64)
-    for i in range(len(lats)):
-        dists[i] = latlondistance(lats[i], lons[i], TOULOUSE_LATS, TOULOUSE_LONS)
 
 
-    # cap distance to 50km max
-    dists = dists / 1000
-    dists = np.clip(dists, 0, 50)
-    for i in range(len(dists)):
-        for j in range(len(dists[i])):
-            if (lats[i] == 0 and lons[i] == 0):
-                dists[i][j] = 0
 
-    if (dtype_number):
-        return dists[0]
-    return dists
-
-def pad(df:DataFrame, CTX):
+def __pad__(CTX:dict, df:DataFrame) -> DataFrame:
     """
     Pad a dataframe with the right padding method
     """
@@ -329,6 +270,39 @@ def pad(df:DataFrame, CTX):
 
     df.from_numpy(pad_df)
     return df
+
+
+
+TOULOUSE_LATS = np.array([TOULOUSE[i]['lat'] for i in range(len(TOULOUSE))], dtype=np.float64)
+TOULOUSE_LONS = np.array([TOULOUSE[i]['long'] for i in range(len(TOULOUSE))], dtype=np.float64)
+def toulouse_airport_distance(lats:"list[float]", lons:"list[float]") -> "np.float64_2d[ax.sample, ax.feature]":
+    """
+    Compute the distance to the nearest airport
+    """
+    dtype_number = False
+    if (isinstance(lats, int) or isinstance(lats, float)):
+        lats = [lats]
+        lons = [lons]
+        dtype_number = True
+
+    dists = np.zeros((len(lats), len(TOULOUSE)), dtype=np.float64)
+    for i in range(len(lats)):
+        dists[i] = GEO.distance(lats[i], lons[i], TOULOUSE_LATS, TOULOUSE_LONS)
+
+
+    # cap distance to 50km max
+    dists = dists / 1000
+    dists = np.clip(dists, 0, 50)
+    for i in range(len(dists)):
+        for j in range(len(dists[i])):
+            if (lats[i] == 0 and lons[i] == 0):
+                dists[i][j] = 0
+
+    if (dtype_number):
+        return dists[0]
+    return dists
+
+
 
 
 def analysis(CTX:dict, dataframe:"list[np.float64_2d[ax.time, ax.feature]]") -> """tuple[
@@ -508,15 +482,16 @@ def batch_preprocess(CTX:dict, flight:"np.float64_2d[ax.time, ax.feature]",
     return x
 
 
-# |====================================================================================================================
-# | rotation speed feature
-# |====================================================================================================================
 
 
-def rotation_speed(lat:np.float64_1d, lon:np.float64_1d) -> np.int8_1d:
+
+def fingerprint(lat:np.float64_1d, lon:np.float64_1d) -> np.int8_1d:
     """
-    Compute the rotation speed of the aircraft
+    Convert a trajectory into a fingerprint
     """
+
+    if (len(lat) < 3):
+        return np.zeros(len(lat), dtype=np.int8), np.zeros(len(lat), dtype=np.float64)
 
     rot = np.zeros(len(lat), dtype=np.float64)
     for i in range(0, len(lat)-1):
@@ -559,45 +534,45 @@ def rotation_speed(lat:np.float64_1d, lon:np.float64_1d) -> np.int8_1d:
     return fingerprint, rot_speed
 
 
-def rotate_df(df:DataFrame) -> DataFrame:
-    df = df.copy()
-    angle = np.random.uniform(-np.pi, np.pi)
-    lat, lon = df["latitude"], df["longitude"]
-    lat, lon, _ = z_rotation(lat, lon, None, angle)
-    df["latitude"] = lat
-    df["longitude"] = lon
-    return df
+# def rotate_df(df:DataFrame) -> DataFrame:
+#     df = df.copy()
+#     angle = np.random.uniform(-np.pi, np.pi)
+#     lat, lon = df["latitude"], df["longitude"]
+#     lat, lon, _ = z_rotation(lat, lon, None, angle)
+#     df["latitude"] = lat
+#     df["longitude"] = lon
+#     return df
 
-def scale_df(df:DataFrame) -> DataFrame:
-    df = df.copy()
-    slat, slon = np.random.uniform(0.9, 1.1), np.random.uniform(0.9, 1.1)
-    clat, clon = np.mean(df["latitude"]), np.mean(df["longitude"])
-    lat = (df["latitude"] - clat) * slat + clat
-    lon = (df["longitude"] - clon) * slon + clon
-    df["latitude"] = lat
-    df["longitude"] = lon
-    return df
+# def scale_df(df:DataFrame) -> DataFrame:
+#     df = df.copy()
+#     slat, slon = np.random.uniform(0.9, 1.1), np.random.uniform(0.9, 1.1)
+#     clat, clon = np.mean(df["latitude"]), np.mean(df["longitude"])
+#     lat = (df["latitude"] - clat) * slat + clat
+#     lon = (df["longitude"] - clon) * slon + clon
+#     df["latitude"] = lat
+#     df["longitude"] = lon
+#     return df
 
 
 
-def plot_fingerprint(fingerprint:np.int8_2d, sub_rot) -> None:
-    import matplotlib.pyplot as plt
-    from matplotlib.patches import Rectangle
-    COLORS = ["tab:green", "tab:blue", "tab:red"]
+# def plot_fingerprint(fingerprint:np.int8_2d, sub_rot) -> None:
+#     import matplotlib.pyplot as plt
+#     from matplotlib.patches import Rectangle
+#     COLORS = ["tab:green", "tab:blue", "tab:red"]
 
-    # fig size
-    ratio = len(fingerprint[0]) / len(fingerprint)
+#     # fig size
+#     ratio = len(fingerprint[0]) / len(fingerprint)
 
-    plt.figure(figsize=(10, 10/ratio))
+#     plt.figure(figsize=(10, 10/ratio))
 
-    for line in range(len(fingerprint)):
-        for i in range(len(fingerprint[line])):
-            plt.gca().add_patch(Rectangle((i, line), 1, 1, fill=True, color=COLORS[fingerprint[line][i]]))
-            # text
+#     for line in range(len(fingerprint)):
+#         for i in range(len(fingerprint[line])):
+#             plt.gca().add_patch(Rectangle((i, line), 1, 1, fill=True, color=COLORS[fingerprint[line][i]]))
+#             # text
 
-            plt.text(i+0.5, line+0.5, str(round(sub_rot[line][i], 1)), ha='center', va='center', color="black", fontsize=8)
+#             plt.text(i+0.5, line+0.5, str(round(sub_rot[line][i], 1)), ha='center', va='center', color="black", fontsize=8)
 
-    plt.xlim(0, len(fingerprint[0]))
-    plt.ylim(0, len(fingerprint))
-    plt.show()
+#     plt.xlim(0, len(fingerprint[0]))
+#     plt.ylim(0, len(fingerprint))
+#     plt.show()
 

@@ -291,11 +291,11 @@ def gen_sample(CTX, x, PAD, i, t, valid:bool=None):
 
     # Airport Distance
     if (CTX["ADD_AIRPORT_CONTEXT"]):
-        dists = U.toulouse_airportDistance(lat, lon)
+        dists = U.toulouse_airport_distance(lat, lon)
         if (CTX["ADD_TAKE_OFF_CONTEXT"]):
             # reverse the trajectory to get the first position (not the last as default)
             to_lat, to_lon = get_aircraft_position(CTX, x_batch_takeoff[::-1])
-            airport = U.toulouse_airportDistance(to_lat, to_lon)
+            airport = U.toulouse_airport_distance(to_lat, to_lon)
             dists = np.concatenate([dists, airport])
         x_batch_airport = dists
 

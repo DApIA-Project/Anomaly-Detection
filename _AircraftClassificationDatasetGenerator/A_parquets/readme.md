@@ -1,1 +1,0 @@
-Store the ads-b parquet data

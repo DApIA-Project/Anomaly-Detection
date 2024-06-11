@@ -65,7 +65,6 @@ class Streamer:
         self.__icao_to_tag__[x['icao24']].add(tag)
         self.__tag_to_icao__[tag] = x["icao24"]
 
-
         if tag not in self.trajectories:
             self.trajectories[tag] = DataFrame(len(__FEATURES__))
             self.trajectories[tag].setColums(__FEATURES__)

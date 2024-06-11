@@ -201,7 +201,7 @@ def get(feature:str) -> int: ...
 def __get__(slf:np.ndarray, feature:str, axis:int=-1) -> np.ndarray:
     return slf.take(__FEATURE_MAP__[feature], axis)
 
-def get(args:any=None) -> np.ndarray:
+def get(*args) -> np.ndarray:
     if (isinstance(args, str)): return __FEATURE_MAP__[args]
     return __get__(*args)
 

@@ -3,6 +3,9 @@ warnings.filterwarnings("ignore")
 import tensorflow as tf
 import sys
 
+import numpy as np
+np.set_printoptions(linewidth=200)
+
 
 
 ##################################

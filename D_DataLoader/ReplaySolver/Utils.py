@@ -12,9 +12,14 @@ import _Utils.FeatureGetter    as FG
 def check_sample(CTX:dict, x:"list[np.float64_2d[ax.time, ax.feature]]", i:int, t:int) -> bool:
     if (t < CTX["HISTORY"] - 1): return False
     if (t >= len(x[i])): return False
-    lat = FG.lat(x[i][t-CTX["HISTORY"]+1:t+1])
-    nan_loc = np.where(np.isnan(lat))[0]
-    if (len(nan_loc) > CTX["WHILDCARD_LIMIT"]): return False
+
+    sample = x[i][t-CTX["HISTORY"]+1:t+1]
+    nb_left, nb_wild, nb_right = np.bincount(FG.get(sample, "fingerprint")+1, minlength=3)
+
+    if (nb_wild > CTX["WHILDCARD_LIMIT"]): return False
+    if (nb_left < CTX["MIN_DIVERSITY"]): return False
+    if (nb_right < CTX["MIN_DIVERSITY"]): return False
+
     return True
 
 # |====================================================================================================================
@@ -73,11 +78,7 @@ def gen_random_sample(CTX:dict, x:"list[np.float64_2d[ax.time, ax.feature]]")\
 # | SIMPLE GEOMETRIC TRANSFORMATIONS TO CHECK THE ROBUSTNESS OF THE MODEL
 # |====================================================================================================================
 
-def alter(CTX:dict, x:np.float64_2d[ax.time, ax.feature]) -> "tuple[np.float64_2d[ax.time, ax.feature], str]":
-        # Get the index of each feature by name for readability
-    FEATURE_MAP = CTX["FEATURE_MAP"]
-    lat = x[:, FEATURE_MAP["latitude"]]
-    lon = x[:, FEATURE_MAP["longitude"]]
+def alter(x:np.float64_2d[ax.time, ax.feature]) -> "tuple[np.float64_2d[ax.time, ax.feature], str]":
 
     i = np.random.choice(["rotate", "translate", "scale", "flip", "noise", "trim"])
         #, "drop"])
@@ -98,7 +99,7 @@ def alter(CTX:dict, x:np.float64_2d[ax.time, ax.feature]) -> "tuple[np.float64_2
         return __drop__(x)
 
 
-def __rotate__(x):
+def __rotate__(x:np.float64_2d[ax.time, ax.feature]) -> "tuple[np.float64_2d[ax.time, ax.feature], str]":
     lat, lon = FG.lat(x), FG.lon(x)
     angle = np.random.uniform(-np.pi, np.pi)
     lat, lon, _ = U.z_rotation(lat, lon, None, angle)
@@ -106,7 +107,7 @@ def __rotate__(x):
     FG.set(x, "longitude", lon)
     return x, "rotate"
 
-def __translate__(x):
+def __translate__(x:np.float64_2d[ax.time, ax.feature]) -> "tuple[np.float64_2d[ax.time, ax.feature], str]":
     lat, lon = FG.lat(x), FG.lon(x)
     lat += np.random.uniform(-0.1, 0.1)
     lon += np.random.uniform(-0.1, 0.1)
@@ -114,7 +115,7 @@ def __translate__(x):
     FG.set(x, "longitude", lon)
     return x, "translate"
 
-def __scale__(x):
+def __scale__(x:np.float64_2d[ax.time, ax.feature]) -> "tuple[np.float64_2d[ax.time, ax.feature], str]":
     lat, lon = FG.lat(x), FG.lon(x)
     slat, slon = np.random.uniform(0.9, 1.1), np.random.uniform(0.9, 1.1)
     clat, clon = np.mean(lat), np.mean(lon)
@@ -124,7 +125,7 @@ def __scale__(x):
     FG.set(x, "longitude", lon)
     return x, "scale"
 
-def __flip__(x):
+def __flip__(x:np.float64_2d[ax.time, ax.feature]) -> "tuple[np.float64_2d[ax.time, ax.feature], str]":
     lat, lon = FG.lat(x), FG.lon(x)
     slat, slon = np.random.choice(["ab", "ba"])
     slat, slon = (1, -1) if slat == "ab" else (-1, 1)
@@ -134,7 +135,7 @@ def __flip__(x):
     FG.set(x, "longitude", lon)
     return x, "flip"
 
-def __noise__(x):
+def __noise__(x:np.float64_2d[ax.time, ax.feature]) -> "tuple[np.float64_2d[ax.time, ax.feature], str]":
     lat, lon = FG.lat(x), FG.lon(x)
     lat += np.random.uniform(-0.000005, 0.000005, size=(len(lat),))
     lon += np.random.uniform(-0.000005, 0.000005, size=(len(lon),))
@@ -142,7 +143,7 @@ def __noise__(x):
     FG.set(x, "longitude", lon)
     return x, "noise"
 
-def __trim__(x):
+def __trim__(x:np.float64_2d[ax.time, ax.feature]) -> "tuple[np.float64_2d[ax.time, ax.feature], str]":
     lat, lon = FG.lat(x), FG.lon(x)
     length = np.random.randint(CTX["HISTORY"] * 5, CTX["HISTORY"] * 10)
     if (length > len(lat)):
@@ -150,7 +151,7 @@ def __trim__(x):
     start = np.random.randint(0, len(lat) - length)
     return x[start:start+length], "trim"
 
-def __drop__(x):
+def __drop__(x:np.float64_2d[ax.time, ax.feature]) -> "tuple[np.float64_2d[ax.time, ax.feature], str]":
     lat, lon = FG.lat(x), FG.lon(x)
     level = np.random.randint(50, 90)
     p = level / 100
