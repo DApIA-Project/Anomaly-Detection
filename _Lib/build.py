@@ -1,4 +1,4 @@
-from _Utils.os_wrapper import os
+import os
 import subprocess
 
 
@@ -23,8 +23,11 @@ def list_imports(py_lines):
         line = py_lines[i]
         if line.startswith("from"):
             l = line.split("import")
-            file = l[0].split(" ")[1]
+            file = l[0].strip().split(" ")[-1]
             if (file in ALL_PY):
+                imports.append(file)
+            # if is directory
+            elif (os.path.isdir(f"../{file.replace('.', '/')}/")):
                 imports.append(file)
             else:
                 imports.append(l[0].split(" ")[1] + "." + l[1].strip())
@@ -36,6 +39,8 @@ def list_imports(py_lines):
     return imports, locs
 
 def read_lines(file):
+    if (os.path.isdir(file)):
+        return []
     flux = open(file, "r")
     content = flux.read()
     flux.close()
@@ -54,7 +59,7 @@ def compute_trg_name(file:str):
 
 
 files_map = {}
-def add_file_to_lib(file, level = 0):
+def add_file_to_lib(file, level = 0, folder = False):
     global files_map
 
     # get file register
@@ -65,9 +70,13 @@ def add_file_to_lib(file, level = 0):
     # the target file name
     trg_name = compute_trg_name(file)
 
-    os.system(f"cp {file} ./AdsbAnomalyDetector/{trg_name}.py")
+    if not(folder):
+        os.system(f"cp {file} ./AdsbAnomalyDetector/{trg_name}.py")
+    else:
+        os.system(f"cp -r {file} ./AdsbAnomalyDetector/{trg_name}")
     files_map[file] = trg_name
     print("\t"*level + f"> cp {file} ./AdsbAnomalyDetector/{trg_name}")
+
 
     lines = read_lines(file)
     imports, locs = list_imports(lines)
@@ -75,15 +84,25 @@ def add_file_to_lib(file, level = 0):
     # print all imports
     print("\t"*(level) + f"{file.split('/')[-1]} imports :")
     for i, imp in zip(locs, imports):
-        if imp in ALL_PY:
+
+        valid = imp in ALL_PY
+        folder = False
+        path = f"../{imp.replace('.', '/')}/"
+        if (os.path.isdir(path)):
+            valid = True
+            folder = True
+
+        if valid:
             print("\t"*(level+1) + f"{imp}")
 
             filename = "../"+imp.replace(".", "/")+ ".py"
-            add_file_to_lib(filename, level = level + 1)
+            if (folder):
+                filename = path
+                add_file_to_lib(filename, level = level + 1, folder = True)
+            else: add_file_to_lib(filename, level = level + 1)
 
             imp_new_name = files_map[filename]
 
-            print(lines[i])
             if lines[i].startswith("from"):
 
                 lines[i] = f"from .{imp_new_name} import {lines[i].split('import')[1].strip()}"
@@ -92,7 +111,6 @@ def add_file_to_lib(file, level = 0):
                     lines[i] = f"from . import {imp_new_name} as {lines[i].split(' as ')[1].strip()}"
                 else:
                     lines[i] = f"from .  import {imp_new_name}"
-            print(lines[i])
 
     # write the file
     flux = open(f"./AdsbAnomalyDetector/{trg_name}.py", "w")
@@ -128,8 +146,12 @@ for root, dirs, files in os.walk(f"./AdsbAnomalyDetector/"):
     for file in files:
         if file != "AdsbAnomalyDetector.py" and file != "__init__.py":
             to_reomve.append(os.path.join(root, file))
+    for dir in dirs:
+        if dir != "__pycache__":
+            to_reomve.append(os.path.join(root, dir))
+
 for file in to_reomve:
-    os.system(f"rm {file}")
+    os.system(f"rm -r {file}")
 
 
 
@@ -137,11 +159,15 @@ for file in to_reomve:
 # list required imports
 files = [
     "../G_Main/AircraftClassification/exp_CNN2.py",
-    "../G_Main/TrajectorySeparator/exp_ALG.py"
+    "../G_Main/TrajectorySeparator/exp_GEO.py",
+    "../G_Main/ReplaySolver/exp_HASH.py",
+    "../G_Main/FloodingSolver/exp_LSTM.py"
 ]
 MODELS = [
     "CNN2",
-    "ALG"
+    "ALG",
+    "HASH",
+    "LSTM"
 ]
 
 imports = set()

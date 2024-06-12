@@ -4,7 +4,7 @@ from _Utils.os_wrapper import os
 from B_Model.AbstractModel import Model as AbstactModel
 
 from _Utils.ProgressBar import ProgressBar
-from B_Model.ReplaySolver.Utils import hashing
+import B_Model.ReplaySolver.Utils.hashing as hashing
 
 
 # |====================================================================================================================

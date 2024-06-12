@@ -8,7 +8,7 @@ import math
 import _Utils.FeatureGetter as FG
 import _Utils.Color as C
 from   _Utils.Color import prntC
-from   _Utils import Limits
+import _Utils.Limits as Limits
 from   _Utils.Scaler3D import fill_nan_3d, fill_nan_2d
 from   _Utils.ProgressBar import ProgressBar
 from   _Utils.ADSB_Streamer import Streamer

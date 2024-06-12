@@ -8,7 +8,7 @@ from   D_DataLoader.AbstractDataLoader import DataLoader as AbstractDataLoader
 import _Utils.FeatureGetter as FG
 import _Utils.Color as C
 from   _Utils.Color import prntC
-from   _Utils import Limits
+import _Utils.Limits as Limits
 from   _Utils.Scaler3D import  StandardScaler3D, SigmoidScaler2D, fill_nan_3d, fill_nan_2d
 from   _Utils.ProgressBar import ProgressBar
 from   _Utils.plotADSB import PLT

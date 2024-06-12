@@ -94,8 +94,6 @@ class Model(AbstactModel):
         """
         Generate a visualization of the model's architecture
         """
-
-
         filename = os.path.join(save_path, self.name+".png")
         tf.keras.utils.plot_model(self.model, to_file=filename, show_shapes=True)
 
