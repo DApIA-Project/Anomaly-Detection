@@ -267,7 +267,7 @@ def gen_sample(CTX, x, PAD, i, t, valid:bool=None):
     last_message = U.get_aircraft_last_message(CTX, x_batch)
     lat, lon = FG.lat(last_message), FG.lon(last_message)
     if (lat == FG.lat(PAD) or lon == FG.lon(PAD)):
-        prntC(C.ERROR, "ERROR: lat or lon is 0")Z
+        prntC(C.ERROR, "ERROR: lat or lon is 0")
         prntC(list(range(start, end, CTX["DILATION_RATE"])))
         prntC(FG.lat(x[i][start:end]))
         prntC(i, t, start, end, length, pad_lenght, shift)
@@ -294,12 +294,13 @@ def gen_sample(CTX, x, PAD, i, t, valid:bool=None):
         dists = U.toulouse_airport_distance(lat, lon)
         if (CTX["ADD_TAKE_OFF_CONTEXT"]):
             # reverse the trajectory to get the first position (not the last as default)
-            to_lat, to_lon = get_aircraft_position(CTX, x_batch_takeoff[::-1])
+            to_lat, to_lon = U.get_aircraft_position(CTX, x_batch_takeoff[::-1])
             airport = U.toulouse_airport_distance(to_lat, to_lon)
             dists = np.concatenate([dists, airport])
         x_batch_airport = dists
 
-    x_batch = U.batch_preprocess(CTX, x_batch, PAD, CTX["RELATIVE_POSITION"], CTX["RELATIVE_TRACK"], CTX["RANDOM_TRACK"])
+    x_batch = U.batch_preprocess(CTX, x_batch, PAD,
+                                 CTX["RELATIVE_POSITION"], CTX["RELATIVE_TRACK"], CTX["RANDOM_TRACK"])
     if CTX["ADD_TAKE_OFF_CONTEXT"]:
         x_batch_takeoff = U.batch_preprocess(CTX, x_batch_takeoff, PAD, relative_position=False)
 

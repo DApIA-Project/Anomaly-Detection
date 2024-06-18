@@ -1,6 +1,6 @@
 from AdsbAnomalyDetector import predict
 import pandas as pd
-from _Utils.numpy import np, ax
+import numpy as np
 
 # utilisation du modèle sur deux vols simultanés
 flight_1 = pd.read_csv("./2022-01-12_13-19-13_SAMU31_39ac45.csv", dtype=str)
@@ -29,6 +29,11 @@ for t in range(0, max_lenght):
     # retourne une prédiction pour chaque avion dans un dictionnaire icao -> proba_array
     messages = predict(messages)
 
-    prnt = [(messages[i]["icao24"] + " - Spoofing: " + str(messages[i]["spoofing"])) for i in range(len(messages))]
-    
+    prnt = [messages[i]["icao24"] \
+            + " - Spoofing: " + str(messages[i]["spoofing"])
+            + " - Replay: " + str(messages[i]["replay"])
+            + " - Flooding: " + str(messages[i]["flooding"])
+
+            for i in range(len(messages))]
+
     print(prnt)

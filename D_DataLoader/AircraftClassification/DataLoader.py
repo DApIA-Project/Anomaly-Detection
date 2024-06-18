@@ -119,7 +119,7 @@ class DataLoader(AbstractDataLoader):
 # |     SPLIT IN BATCHES
 # |--------------------------------------------------------------------------------------------------------------------
 
-    def __reshape__(x_batch:np.ndarray,
+    def __reshape__(self, x_batch:np.ndarray,
                     x_batch_takeoff:np.ndarray, x_batch_map:np.ndarray, x_batch_airport:np.ndarray,
                     y_batch:np.ndarray,
                     nb_batch:int, batch_size:int)\

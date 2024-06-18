@@ -68,7 +68,7 @@ class DataLoader(AbstractDataLoader):
 
     def __load_dataset__(self, CTX:dict, path:str) -> "list[np.float64_2d[ax.time, ax.feature]]":
 
-        filenames = U.list_flights(path, limit=Limits.INT_MAX) #Limit.INT_MAX
+        filenames = U.list_flights(path, limit=100) #Limit.INT_MAX
         BAR.reset(max=len(filenames))
 
         x = []
@@ -184,6 +184,35 @@ class DataLoader(AbstractDataLoader):
         PLT.scatter(NAME, y_lon, y_lat, color="tab:green", marker="+")
 
         PLT.attach_data(NAME+"Origin", (o_lat, o_lon, o_track))
+
+
+        # plot
+        track = np.zeros((len(lat),))
+        lat_n1, lon_n1, _ = U.normalize_trajectory(self.CTX, lat, lon, track, o_lat, o_lon, 0, True, True, False)
+        lat_n2, lon_n2, _ = U.normalize_trajectory(self.CTX, lat, lon, track, o_lat, o_lon, o_track, True, True, False)
+
+        import matplotlib.pyplot as plt
+        fig, ax = plt.subplots(1, 3, figsize=(15, 5))
+        ax[0].plot(lat, lon, color="tab:blue")
+        ax[0].scatter(lat, lon, color="tab:blue", marker="x")
+        ax[0].scatter([lat[-1]], [lon[-1]], color="tab:red", marker="o")
+        ax[0].title.set_text("Trajectory")
+        ax[0].axis('square')
+
+        ax[1].plot(lat_n1, lon_n1, color="tab:blue")
+        ax[1].scatter(lat_n1, lon_n1, color="tab:blue", marker="x")
+        ax[1].scatter([lat_n1[-1]], [lon_n1[-1]], color="tab:red", marker="o")
+        ax[1].title.set_text("Normalized lat lon")
+        ax[1].axis('square')
+
+        ax[2].plot(lat_n2, lon_n2, color="tab:blue")
+        ax[2].scatter(lat_n2, lon_n2, color="tab:blue", marker="x")
+        ax[2].scatter([lat_n2[-1]], [lon_n2[-1]], color="tab:red", marker="o")
+        ax[2].title.set_text("Normalized lat lon with track")
+        ax[2].axis('square')
+
+        fig.tight_layout()
+        plt.savefig("./_Artifacts/FloodingSolver/normalisation_example.png")
 
 
 

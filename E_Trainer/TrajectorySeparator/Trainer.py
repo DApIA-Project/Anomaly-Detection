@@ -40,7 +40,7 @@ MAX_PLOT = 10
 NB_PLOT = {}
 
 DEBUG_PER_TIMESTEPS = False
-DEBUG = True
+DEBUG = False
 NB_STEPS = 3
 DEBUG_PLOT = "TrajectorySeparatorDebug"
 
@@ -418,6 +418,7 @@ class Trainer(AbstractTrainer):
 
 
     def predict(self, x:"list[dict[str,object]]", __EVAL__:bool=False) -> "list[str]":
+        if (len(x) == 0): return []
 
         per_icao:dict[str, list[dict[str, object]]] = {}
 

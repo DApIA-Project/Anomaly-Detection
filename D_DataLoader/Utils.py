@@ -287,7 +287,7 @@ def toulouse_airport_distance(lats:"list[float]", lons:"list[float]") -> "np.flo
 
     dists = np.zeros((len(lats), len(TOULOUSE)), dtype=np.float64)
     for i in range(len(lats)):
-        dists[i] = GEO.distance(lats[i], lons[i], TOULOUSE_LATS, TOULOUSE_LONS)
+        dists[i] = GEO.np.distance(lats[i], lons[i], TOULOUSE_LATS, TOULOUSE_LONS)
 
 
     # cap distance to 50km max

@@ -13,3 +13,5 @@ BOX_CENTER = (
 )
 
 INPUT_PADDING = "valid"
+
+THRESHOLD = 150

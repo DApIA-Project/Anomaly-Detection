@@ -283,7 +283,10 @@ class Trainer(AbstractTrainer):
 # |====================================================================================================================
 
 
-    def predict(self, x:"list[dict[str,object]]") -> np.float64_2d[ax.sample, ax.feature]:
+    def predict(self, x:"list[dict[str,object]]") -> """tuple[
+            np.float64_2d[ax.sample, ax.feature],
+            np.float64_2d[ax.sample, ax.feature]]""":
+        if (len(x) == 0): return np.zeros((0, self.CTX["FEATURES_OUT"])), np.zeros((0, self.CTX["FEATURES_OUT"]))
 
         # allocate memory
         x_batch  = np.zeros((len(x), self.CTX["INPUT_LEN"], self.CTX["FEATURES_IN"]))

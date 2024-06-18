@@ -218,21 +218,23 @@ for import_ in imports:
     add_file_to_lib(f)
 
 
-
+# |====================================================================================================================
+# | AIRCRAFT CLASSIFICATION
+# |====================================================================================================================
 # # copy weights
-os.system(f"cp ../_Artifacts/AircraftClassification/{MODELS[0]}/w ./AdsbAnomalyDetector/w")
-os.system(f"cp ../_Artifacts/AircraftClassification/{MODELS[0]}/xs ./AdsbAnomalyDetector/xs")
-os.system(f"cp ../_Artifacts/AircraftClassification/{MODELS[0]}/xts ./AdsbAnomalyDetector/xts")
-os.system(f"cp ../_Artifacts/AircraftClassification/{MODELS[0]}/xas ./AdsbAnomalyDetector/xas")
-os.system(f"cp ../_Artifacts/AircraftClassification/{MODELS[0]}/pad ./AdsbAnomalyDetector/pad")
+os.system(f"mkdir ./AdsbAnomalyDetector/AircraftClassification")
+os.system(f"cp ../_Artifacts/AircraftClassification/{MODELS[0]}/w ./AdsbAnomalyDetector/AircraftClassification/w")
+os.system(f"cp ../_Artifacts/AircraftClassification/{MODELS[0]}/xs ./AdsbAnomalyDetector/AircraftClassification/xs")
+os.system(f"cp ../_Artifacts/AircraftClassification/{MODELS[0]}/xts ./AdsbAnomalyDetector/AircraftClassification/xts")
+os.system(f"cp ../_Artifacts/AircraftClassification/{MODELS[0]}/xas ./AdsbAnomalyDetector/AircraftClassification/xas")
+os.system(f"cp ../_Artifacts/AircraftClassification/{MODELS[0]}/pad ./AdsbAnomalyDetector/AircraftClassification/pad")
 # # copy geo map
 os.system("cp ../A_Dataset/AircraftClassification/map.png ./AdsbAnomalyDetector/map.png")
 os.system("cp ../A_Dataset/AircraftClassification/labels.csv ./AdsbAnomalyDetector/labels.csv")
 
-
 file_content_remplace("./AdsbAnomalyDetector/D_DataLoader_AircraftClassification_Utils.py",
-                      "from _Utils.os_wrapper import os",
-                      "from _Utils.os_wrapper import os\nHERE = os.path.abspath(os.path.dirname(__file__))")
+                      "from ._Utils_os_wrapper import os",
+                      "from ._Utils_os_wrapper import os\nHERE = os.path.abspath(os.path.dirname(__file__))")
 
 file_content_remplace("./AdsbAnomalyDetector/D_DataLoader_AircraftClassification_Utils.py",
                       "\"A_Dataset/AircraftClassification/map.png\"",
@@ -241,6 +243,51 @@ file_content_remplace("./AdsbAnomalyDetector/D_DataLoader_AircraftClassification
 file_content_remplace("./AdsbAnomalyDetector/D_DataLoader_AircraftClassification_Utils.py",
                       "\"./A_Dataset/AircraftClassification/labels.csv\"",
                       "HERE+\"/labels.csv\"")
+
+file_content_remplace("./AdsbAnomalyDetector/E_Trainer_TrajectorySeparator_Trainer.py",
+                      "DEBUG_PER_TIMESTEPS = True",
+                      "DEBUG_PER_TIMESTEPS = False")
+file_content_remplace("./AdsbAnomalyDetector/E_Trainer_TrajectorySeparator_Trainer.py",
+                      "DEBUG = True",
+                      "DEBUG = False")
+
+
+# |====================================================================================================================
+# | FLODDING SOLVER
+# |====================================================================================================================
+# FloodingSolver
+# # copy weights
+os.system(f"mkdir ./AdsbAnomalyDetector/FloodingSolver")
+os.system(f"cp ../_Artifacts/FloodingSolver/{MODELS[3]}/w ./AdsbAnomalyDetector/FloodingSolver/w")
+os.system(f"cp ../_Artifacts/FloodingSolver/{MODELS[3]}/xs ./AdsbAnomalyDetector/FloodingSolver/xs")
+os.system(f"cp ../_Artifacts/FloodingSolver/{MODELS[3]}/ys ./AdsbAnomalyDetector/FloodingSolver/ys")
+os.system(f"cp ../_Artifacts/FloodingSolver/{MODELS[3]}/pad ./AdsbAnomalyDetector/FloodingSolver/pad")
+
+# |====================================================================================================================
+# | REPLAY SOLVER
+# |====================================================================================================================
+
+# ReplaySolver
+# # copy weights
+os.system(f"mkdir ./AdsbAnomalyDetector/ReplaySolver")
+os.system(f"cp ../_Artifacts/ReplaySolver/{MODELS[2]}/w ./AdsbAnomalyDetector/ReplaySolver/w")
+
+
+# list every files starting with C_Constants
+# find lines starting with EPOCHS
+# remplace by EPOCHS = 0
+
+files = os.listdir("./AdsbAnomalyDetector")
+files = [f for f in files if f.startswith("C_Constants")]
+for file in files:
+    lines = read_lines(f"./AdsbAnomalyDetector/{file}")
+    for i in range(len(lines)):
+        if lines[i].startswith("EPOCHS"):
+            lines[i] = "EPOCHS = 0"
+    flux = open(f"./AdsbAnomalyDetector/{file}", "w")
+    flux.write("\n".join(lines))
+    flux.close()
+
 
 
 

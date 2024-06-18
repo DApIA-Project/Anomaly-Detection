@@ -21,6 +21,8 @@ from   _Utils.ProgressBar import ProgressBar
 
 PBM_NAME = os.path.dirname(os.path.abspath(__file__)).split("/")[-1]+"/"
 ARTIFACTS = "./_Artifacts/"
+
+TRAIN_FOLDER = "./A_Dataset/AircraftClassification/Train/"
 EVAL_FOLDER = "./A_Dataset/ReplaySolver/Eval"
 
 BAR = ProgressBar(max = 100)
@@ -46,7 +48,7 @@ class Trainer(AbstractTrainer):
         self.__makes_artifacts__()
         self.__init_GUI__()
         self.viz_model(self.ARTIFACTS)
-        self.dl = DataLoader(CTX, "./A_Dataset/AircraftClassification/Train")
+        self.dl = DataLoader(CTX, TRAIN_FOLDER)
 
         # Private attributes
 
@@ -73,8 +75,12 @@ class Trainer(AbstractTrainer):
     def save(self) -> None:
         write(self.ARTIFACTS+"/w", self.model.get_variables())
 
-    def load(self) -> None:
-        self.model.set_variables(load(self.ARTIFACTS+"/w"))
+    def load(self, path=None) -> None:
+
+        if (path is None):
+            path = self.ARTIFACTS
+
+        self.model.set_variables(load(path+"/w"))
 
 # |====================================================================================================================
 # |     TRAINING
@@ -127,6 +133,7 @@ class Trainer(AbstractTrainer):
 
 
     def predict(self, x:"list[dict[str,object]]") -> "list[str]":
+        if(len(x) == 0): return []
 
         x_batch = np.zeros((len(x), self.CTX["INPUT_LEN"], self.CTX["FEATURES_IN"]), dtype=np.float64)
         is_interesting:"list[int]" = []

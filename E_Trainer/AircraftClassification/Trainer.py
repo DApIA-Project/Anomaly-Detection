@@ -313,6 +313,7 @@ class Trainer(AbstractTrainer):
 # |====================================================================================================================
 
     def predict(self, x:"list[dict[str,object]]") -> "tuple[np.ndarray, np.ndarray]":
+        if (len(x) == 0): return np.ndarray((0,)), np.ndarray((0,))
 
         x_inputs, is_interesting = None, []
 
