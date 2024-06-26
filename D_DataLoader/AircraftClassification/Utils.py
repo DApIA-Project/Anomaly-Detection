@@ -203,7 +203,7 @@ def alloc_batch(CTX:dict, size:int)\
                   np.float64_2d[ax.sample, ax.feature]]""":
 
     x_batch = np.zeros((size, CTX["INPUT_LEN"],CTX["FEATURES_IN"]))
-    y_batch = np.zeros((size, CTX["FEATURES_OUT"]))
+    y_batch = np.zeros((size, CTX["LABELS_OUT"]))
     x_batch_takeoff, x_batch_map, x_batch_airport = None, None, None
     if (CTX["ADD_TAKE_OFF_CONTEXT"]): x_batch_takeoff = np.zeros((size, CTX["INPUT_LEN"],CTX["FEATURES_IN"]))
     if (CTX["ADD_MAP_CONTEXT"]): x_batch_map = np.zeros((size, CTX["IMG_SIZE"], CTX["IMG_SIZE"],3), dtype=np.float64)
@@ -211,24 +211,29 @@ def alloc_batch(CTX:dict, size:int)\
     return x_batch, y_batch, x_batch_takeoff, x_batch_map, x_batch_airport
 
 
-def gen_random_sample(CTX:dict, x, y, PAD, size, filenames=[]):
-    i, ts = pick_random_loc(CTX, x, y, size, filenames)
-    batches = ([], [], [], [], [])
-    for t in ts:
-        x_batch, x_batch_takeoff, x_batch_map, x_batch_airport, _ = gen_sample(CTX, x, PAD, i, t, valid=True)
-        batches[0].append(x_batch)
-        batches[1].append(y[i])
-        batches[2].append(x_batch_takeoff)
-        batches[3].append(x_batch_map)
-        batches[4].append(x_batch_airport)
-    filenames = [filenames[i]] * size
-    return tuple((np.array(b) for b in batches)) + (filenames,)
+def gen_random_sample(CTX:dict, x:"list[np.float64_2d[ax.time, ax.feature]]",
+                                y:np.float64_2d[ax.sample, ax.label],
+                                PAD:np.float64_1d[ax.feature], filenames:"list[str]"=[]) -> """tuple[
+        np.float64_2d[ax.time, ax.feature],
+        np.float64_2d[ax.label],
+        np.float64_2d[ax.time, ax.feature] | None,
+        np.float64_3d[ax.x, ax.y, ax.rgb] | None,
+        np.float64_1d[ax.feature] | None,
+        str]""":
+
+    i, t = pick_random_loc(CTX, x, y, filenames)
+    x_batch, x_batch_takeoff, x_batch_map, x_batch_airport, _ = gen_sample(CTX, x, PAD, i, t, valid=True)
+    return x_batch, y[i], x_batch_takeoff, x_batch_map, x_batch_airport, filenames[i]
 
 
-def pick_random_loc(CTX, x, y, size=1, filenames=[]):
+def pick_random_loc(CTX:"dict[str, object]",
+                    x:"list[np.float64_2d[ax.time, ax.feature]]",
+                    y:np.float64_2d[ax.sample, ax.label],
+                    filenames:"list[str]"=[]) -> "tuple[int, int]":
+
     ON_TAKE_OFF = 5.0/100.0#%
     # pick a label
-    label = np.random.randint(0, CTX["FEATURES_OUT"])
+    label = np.random.randint(0, CTX["LABELS_OUT"])
 
     # pick a flight
     i = -1
@@ -241,17 +246,27 @@ def pick_random_loc(CTX, x, y, size=1, filenames=[]):
 
         if (np.random.uniform(0, 1) < ON_TAKE_OFF):
             t = np.random.randint(CTX["HISTORY"]//4, CTX["HISTORY"]-1)
-        else: t = np.random.randint(CTX["HISTORY"]-1, len(x[i])-(size-1))
+        else: t = np.random.randint(CTX["HISTORY"]-1, len(x[i]))
 
         tries += 1
         if (tries > 1000):
             prntC(C.WARNING, "Failed to a clean window aircraft in", filenames[i])
-            return pick_random_loc(CTX, x, y, label, size, filenames)
+            return pick_random_loc(CTX, x, y, filenames)
 
-    return i, np.arange(t, t+size)
+    return i, t
 
 
-def gen_sample(CTX, x, PAD, i, t, valid:bool=None):
+def gen_sample(CTX:"dict[str, object]",
+                x:"list[np.float64_2d[ax.time, ax.feature]]",
+                PAD:np.float64_1d[ax.feature],
+                i:int, t:int,
+                valid:bool=None) -> """tuple[
+          np.float64_2d[ax.time, ax.feature],
+          np.float64_2d[ax.time, ax.feature] | None,
+          np.float64_3d[ax.x, ax.y, ax.rgb] | None,
+          np.float64_1d[ax.feature] | None,
+          bool]""":
+
     if (valid is None): valid = check_sample(CTX, x, i, t)
     x_batch, x_batch_takeoff, x_batch_map, x_batch_airport = alloc_sample(CTX)
     if (not valid):
@@ -280,10 +295,10 @@ def gen_sample(CTX, x, PAD, i, t, valid:bool=None):
 
         # if onground => valid takeoff
         if(FG.baroAlt(x[i][0]) > 2000 or FG.geoAlt(x[i][0]) > 2000):
-            pass
-            # takeoff = np.full((len(x_batch), CTX["FEATURES_IN"]), pad)
-        x_batch_takeoff[pad_lenght:] = x[i][start+shift:end:CTX["DILATION_RATE"]]
-        x_batch_takeoff[:pad_lenght] = PAD
+            x_batch_takeoff = np.full((len(x_batch), CTX["FEATURES_IN"]), PAD)
+        else:
+            x_batch_takeoff[pad_lenght:] = x[i][start+shift:end:CTX["DILATION_RATE"]]
+            x_batch_takeoff[:pad_lenght] = PAD
 
     # Map
     if CTX["ADD_MAP_CONTEXT"]:

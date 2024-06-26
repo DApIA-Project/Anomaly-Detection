@@ -4,7 +4,7 @@ from _Utils.os_wrapper import os
 import _Utils.FeatureGetter as FG
 import _Utils.Color as C
 from   _Utils.Color import prntC
-from   _Utils.Scaler3D import StandardScaler3D, MinMaxScaler2D, fill_nan_3d, fill_nan_2d
+from   _Utils.Scaler3D import StandardScaler3D, MinMaxScaler3D, MinMaxScaler2D, fill_nan_3d, fill_nan_2d
 from   _Utils.SparceLabelBinarizer import SparceLabelBinarizer
 from   _Utils.ProgressBar import ProgressBar
 import _Utils.Limits as Limits
@@ -41,8 +41,10 @@ class DataLoader(AbstractDataLoader):
 
         self.streamer:StreamerInterface = StreamerInterface(self)
 
-        self.xScaler = StandardScaler3D()
-        if (self.CTX["ADD_TAKE_OFF_CONTEXT"]): self.xTakeOffScaler = StandardScaler3D()
+        Scaler = self.getScalerClass(self.CTX["SCALER"])
+
+        self.xScaler:StandardScaler3D = Scaler()
+        if (self.CTX["ADD_TAKE_OFF_CONTEXT"]): self.xTakeOffScaler:StandardScaler3D = Scaler()
         if (self.CTX["ADD_AIRPORT_CONTEXT"]): self.xAirportScaler = MinMaxScaler2D()
         self.yScaler = SparceLabelBinarizer(self.CTX["USED_LABELS"])
 
@@ -56,7 +58,11 @@ class DataLoader(AbstractDataLoader):
 
 
 
-    def __load_dataset__(self, CTX:dict, path:str) -> "tuple[np.ndarray, np.ndarray, list[str]]":
+    def __load_dataset__(self, CTX:dict, path:str) -> """tuple[
+            list[np.float64_2d[ax.time, ax.feature]],
+            np.float64_2d[ax.sample, ax.label],
+            list[str]]""":
+
         is_folder = os.path.isdir(path)
         if (is_folder):
             filenames = U.list_flights(path, limit=Limits.INT_MAX)
@@ -73,8 +79,7 @@ class DataLoader(AbstractDataLoader):
         x, y = [], []
         for f in range(len(filenames)):
             df = U.read_trajectory(filenames[f])
-
-            label = SU.getLabel(CTX, df["icao24", 0])
+            label = SU.getLabel(CTX, df["icao24"].iloc[0])
             if (label == 0):
                 continue
 
@@ -88,7 +93,6 @@ class DataLoader(AbstractDataLoader):
         if (self.PAD is None): self.PAD = U.genPadValues(CTX, x)
         x = fill_nan_3d(x, self.PAD)
         y = self.yScaler.transform(y)
-
         return x, y, filenames
 
 
@@ -98,7 +102,14 @@ class DataLoader(AbstractDataLoader):
 # |    SCALERS
 # |====================================================================================================================
 
-    def __scalers_transform__(self, x_batch, x_batch_takeoff, x_batch_airport):
+    # def __scalers_transform__(self, x_batch, x_batch_takeoff, x_batch_airport):
+    def __scalers_transform__(self, x_batch:np.float64_3d[ax.sample, ax.time, ax.feature],
+                             x_batch_takeoff:np.float64_3d[ax.sample, ax.time, ax.feature],
+                             x_batch_airport:np.float64_2d[ax.sample, ax.feature])->"""tuple[
+            np.float64_3d[ax.sample, ax.time, ax.feature],
+            np.float64_3d[ax.sample, ax.time, ax.feature],
+            np.float64_2d[ax.sample, ax.feature]]""":
+
         # fit the scaler on the first epoch
         if not(self.xScaler.is_fitted()):
             self.xScaler.fit(x_batch)
@@ -110,6 +121,10 @@ class DataLoader(AbstractDataLoader):
         if (self.CTX["ADD_AIRPORT_CONTEXT"]): x_batch_airport = self.xAirportScaler.transform(x_batch_airport)
         return x_batch, x_batch_takeoff, x_batch_airport
 
+    def getScalerClass(self, name:str) -> "type":
+        if (name == "standard") : return StandardScaler3D
+        if (name == "minmax") : return MinMaxScaler3D
+        return None
 
 # |====================================================================================================================
 # |     UTILS
@@ -119,22 +134,30 @@ class DataLoader(AbstractDataLoader):
 # |     SPLIT IN BATCHES
 # |--------------------------------------------------------------------------------------------------------------------
 
-    def __reshape__(self, x_batch:np.ndarray,
-                    x_batch_takeoff:np.ndarray, x_batch_map:np.ndarray, x_batch_airport:np.ndarray,
-                    y_batch:np.ndarray,
-                    nb_batch:int, batch_size:int)\
-            ->"tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]":
+    def __reshape__(self, x_batch:np.float64_3d[ax.sample, ax.time, ax.feature],
+                    x_batch_takeoff:np.float64_3d[ax.sample, ax.time, ax.feature],
+                    x_batch_map:np.float64_4d[ax.sample, ax.x, ax.y, ax.feature],
+                    x_batch_airport:np.float64_2d[ax.sample, ax.feature],
+                    y_batch:np.float64_2d[ax.sample, ax.label],
+                    nb_batch:int, batch_size:int)->"""tuple[
+            np.float64_4d[ax.batch, ax.sample, ax.time, ax.feature],
+            np.float64_4d[ax.batch, ax.sample, ax.time, ax.feature],
+            np.ndarray,
+            np.float64_3d[ax.batch, ax.sample, ax.feature],
+            np.float64_3d[ax.batch, ax.sample, ax.label]]""":
+
 
         # Reshape the data into [nb_batch, batch_size, timestep, features]
         CTX = self.CTX
         x_batches = x_batch.reshape(nb_batch, batch_size, CTX["INPUT_LEN"],CTX["FEATURES_IN"])
+        x_batches_takeoff, x_batches_map, x_batches_airport = None, None, None
         if CTX["ADD_TAKE_OFF_CONTEXT"]:
             x_batches_takeoff = x_batch_takeoff.reshape(nb_batch, batch_size, CTX["INPUT_LEN"],CTX["FEATURES_IN"])
         if CTX["ADD_MAP_CONTEXT"]:
             x_batches_map = x_batch_map.reshape(nb_batch, batch_size, CTX["IMG_SIZE"], CTX["IMG_SIZE"], 3)
         if CTX["ADD_AIRPORT_CONTEXT"]:
             x_batches_airport = x_batch_airport.reshape(nb_batch, batch_size, CTX["AIRPORT_CONTEXT_IN"])
-        y_batches = y_batch.reshape(nb_batch, batch_size, CTX["FEATURES_OUT"])
+        y_batches = y_batch.reshape(nb_batch, batch_size, CTX["LABELS_OUT"])
         return x_batches, x_batches_takeoff, x_batches_map, x_batches_airport, y_batches
 
 
@@ -143,10 +166,18 @@ class DataLoader(AbstractDataLoader):
 # |--------------------------------------------------------------------------------------------------------------------
 
     def __format_return__(self, CTX:dict,
-                          x_batches:np.ndarray,
-                          x_batches_takeoff:np.ndarray, x_batches_map:np.ndarray, x_batches_airport:np.ndarray,
-                          y_batches:np.ndarray)\
-            ->"tuple[list[np.ndarray], np.ndarray]":
+                          x_batches:np.float64_4d[ax.batch, ax.sample, ax.time, ax.feature],
+                          x_batches_takeoff:np.float64_4d[ax.batch, ax.sample, ax.time, ax.feature],
+                          x_batches_map:np.ndarray,
+                          x_batches_airport:np.float64_3d[ax.batch, ax.sample, ax.feature],
+                          y_batches:np.float64_3d[ax.batch, ax.sample, ax.label])->"""tuple[
+                list[
+                    tuple[
+                        np.float64_3d[ax.sample, ax.time, ax.feature],
+                        np.float64_3d[ax.sample, ax.time, ax.feature],
+                        np.float64_4d[ax.sample, ax.x, ax.y, ax.feature],
+                        np.float64_3d[ax.sample, ax.feature]]],
+                np.float64_3d[ax.batch, ax.sample, ax.label]]""":
 
         x_inputs = []
         for i in range(len(x_batches)):
@@ -169,8 +200,14 @@ class DataLoader(AbstractDataLoader):
                                  x_batch_map:np.ndarray,
                                  x_batch_airport:np.ndarray,
                                  y_batches:np.ndarray,
-                                 nb_batches:np.ndarray, batch_size:np.ndarray)\
-            ->"tuple[list[np.ndarray], np.ndarray]":
+                                 nb_batches:np.ndarray, batch_size:np.ndarray) ->"""tuple[
+                list[
+                    tuple[
+                        np.float64_3d[ax.sample, ax.time, ax.feature],
+                        np.float64_3d[ax.sample, ax.time, ax.feature],
+                        np.float64_4d[ax.sample, ax.x, ax.y, ax.feature],
+                        np.float64_3d[ax.sample, ax.feature]]],
+                np.float64_3d[ax.batch, ax.sample, ax.label]]""":
 
         x_batch, x_batch_takeoff, x_batch_airport =\
             self.__scalers_transform__(x_batch, x_batch_takeoff, x_batch_airport)
@@ -189,17 +226,14 @@ class DataLoader(AbstractDataLoader):
             ->"tuple[list[np.ndarray], np.ndarray]":
 
         CTX = self.CTX
-        NB=self.CTX["NB_TRAIN_SAMPLES"]
         x_batch, y_batch, x_batch_takeoff, x_batch_map, x_batch_airport =\
             SU.alloc_batch(self.CTX, CTX["NB_BATCH"] * CTX["BATCH_SIZE"])
         filenames = []
 
-        for nth in range(0, len(x_batch), NB):
-            nb = min(NB, len(x_batch) - nth)
-            s = slice(nth, nth+nb)
+        for s in range(0, len(x_batch)):
 
             x_sample, y_sample, x_sample_takeoff, x_sample_map, x_sample_airport, filename =\
-                SU.gen_random_sample(CTX, self.x_train, self.y_train, self.PAD, nb, filenames=self.filenames)
+                SU.gen_random_sample(CTX, self.x_train, self.y_train, self.PAD, filenames=self.filenames)
             x_batch[s] = x_sample
             y_batch[s] = y_sample
             filenames += filename
@@ -215,7 +249,7 @@ class DataLoader(AbstractDataLoader):
                     CTX["NB_BATCH"], CTX["BATCH_SIZE"])
 
 
-    def __plot_flight__(self, x, y, filename):
+    def __plot_flight__(self, x:np.float64_2d[ax.time, ax.feature], y:np.float64_1d[ax.label], filename:str) -> None:
         NAME = "train_example"
         COLORS = ["orange", "yellow", "green"]
         lat = FG.lat(x)
@@ -245,7 +279,7 @@ class DataLoader(AbstractDataLoader):
 
         for nth in range(0, len(x_batch)):
             x_sample, y_sample, x_sample_takeoff, x_sample_map, x_sample_airport, filenames =\
-                SU.gen_random_sample(CTX, self.x_test, self.y_test, self.PAD, size=1, filenames=self.filenames)
+                SU.gen_random_sample(CTX, self.x_test, self.y_test, self.PAD, filenames=self.filenames)
             x_batch[nth] = x_sample
             y_batch[nth] = y_sample
             if (CTX["ADD_TAKE_OFF_CONTEXT"]): x_batch_takeoff[nth] = x_sample_takeoff
@@ -270,32 +304,44 @@ class StreamerInterface:
         self.dl = dl
         self.CTX = dl.CTX
 
-    def stream(self, x:"dict[str, object]"):
-        tag = x.get("tag", x['icao24'])
+    def stream(self, x:"dict[str, object]")-> """tuple[
+            tuple[
+                np.float64_3d[ax.sample, ax.time, ax.feature],
+                np.float64_3d[ax.sample, ax.time, ax.feature],
+                np.float64_4d[ax.sample, ax.x, ax.y, ax.rgb],
+                np.float64_3d[ax.sample, ax.feature],
+                np.float64_3d[ax.sample, ax.label]
+            ],
+            list[bool]]""":
 
+        tag = x.get("tag", x['icao24'])
         raw_df = STREAMER.add(x, tag=tag)
-        cache = STREAMER.cache("AircraftClassification", tag)
+        last_df = STREAMER.cache("AircraftClassification", tag)
 
         array = U.df_to_feature_array(self.CTX, raw_df[-2:], check_length=False)
         array = fill_nan_2d(array, self.dl.PAD)
 
-        # concatenate the new array to the cache
-        # remove the first element of the array
-        # as it is the last element of the previous array but unformatted
-        if (cache is not None):
-            cache = np.concatenate([cache, array[1:]], axis=0)
+
+        if (last_df is not None):
+            df = np.concatenate([last_df, array[1:]], axis=0)
         else:
-            cache = array
-        STREAMER.cache("AircraftClassification", tag, cache)
+            df = array
+        STREAMER.cache("AircraftClassification", tag, df)
 
         # batch assembly
         x_batch, _, x_batch_takeoff, x_batch_map, x_batch_airport =\
             SU.alloc_batch(self.CTX, 1)
-        x_batch[0], x_batch_takeoff[0], x_batch_map[0], x_batch_airport[0], valid =\
-            SU.gen_sample(self.CTX, [cache], self.dl.PAD, 0, len(cache)-1)
+        x_sample, x_sample_takeoff, x_sample_map, x_sample_airport, valid =\
+            SU.gen_sample(self.CTX, [df], self.dl.PAD, 0, len(df)-1)
+
+        x_batch[0] = x_sample
+        if (self.CTX["ADD_TAKE_OFF_CONTEXT"]): x_batch_takeoff[0] = x_sample_takeoff
+        if (self.CTX["ADD_MAP_CONTEXT"]): x_batch_map[0] = x_sample_map
+        if (self.CTX["ADD_AIRPORT_CONTEXT"]): x_batch_airport[0] = x_sample_airport
+
         x_batches, _ =  self.dl.__post_process_batch__(self.CTX,
                     x_batch, x_batch_takeoff, x_batch_map, x_batch_airport,
-                    np.zeros((1, self.CTX["FEATURES_OUT"])),
+                    np.zeros((1, self.CTX["LABELS_OUT"])),
                     1, 1)
         return x_batches[0], valid
 

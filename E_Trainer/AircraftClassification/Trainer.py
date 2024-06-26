@@ -60,8 +60,8 @@ def __alloc_pred_batches__(CTX:dict, train_batches:int, train_size:int,
         np.float64_3d[ax.batch, ax.sample, ax.feature],
         np.float64_1d, np.float64_1d]""":
 
-    return np.zeros((train_batches, train_size, CTX["FEATURES_OUT"]), dtype=np.float64), \
-           np.zeros((test_batches,  test_size,  CTX["FEATURES_OUT"]), dtype=np.float64), \
+    return np.zeros((train_batches, train_size, CTX["LABELS_OUT"]), dtype=np.float64), \
+           np.zeros((test_batches,  test_size,  CTX["LABELS_OUT"]), dtype=np.float64), \
            np.zeros(train_batches, dtype=np.float64), np.zeros(test_size, dtype=np.float64)
 
 
@@ -171,7 +171,6 @@ class Trainer(AbstractTrainer):
 
             CHRONO.start()
             BAR.reset(max=len(x_train) + len(x_test))
-
 
             # Training
             for batch in range(len(x_train)):
@@ -333,10 +332,10 @@ class Trainer(AbstractTrainer):
         # add if interesting flag
         i_loc = np.arange(0, len(is_interesting), dtype=int)[is_interesting]
         x_batch =  [x_inputs[d][i_loc] for d in range(len(x_inputs))]
-        y_ = np.full((len(x_inputs[0]), self.CTX["FEATURES_OUT"]), np.nan, dtype=np.float64)
+        y_ = np.full((len(x_inputs[0]), self.CTX["LABELS_OUT"]), np.nan, dtype=np.float64)
         # exit(0)
         y_[i_loc] = self.model.predict(x_batch)
-        y_agg = np.zeros((len(y_), self.CTX["FEATURES_OUT"]), dtype=np.float64)
+        y_agg = np.zeros((len(y_), self.CTX["LABELS_OUT"]), dtype=np.float64)
         for i in range(len(y_)):
             all_y_ = self.dl.streamer.predicted(x[i], y_[i])
             # use mean method for now
@@ -360,7 +359,11 @@ class Trainer(AbstractTrainer):
         return batch_size
 
 
-    def __gen_eval_batch__(self, files:"list[str]")->"tuple[list[pd.DataFrame], int, np.ndarray, list[np.ndarray]]":
+    def __gen_eval_batch__(self, files:"list[str]")->"""tuple[
+            list[pd.DataFrame],
+            int,
+            np.float64_2d[ax.sample, ax.feature],
+            list[np.ndarray]]""":
 
         # load all ressources needed for the batch
         files_df, max_lenght = [], 0
@@ -368,16 +371,17 @@ class Trainer(AbstractTrainer):
         for f in range(len(files)):
 
             df = U.read_trajectory(files[f])
-            df["icao24"] = df["icao24"]+"_"+str(f)
+            df["tag"] = df["icao24"]+"_"+str(f)
 
-            l = SU.getLabel(self.CTX, df["icao24", 0])
+            l = SU.getLabel(self.CTX, df["icao24"].iloc[0])
             if (l == 0):
                 prntC(C.WARNING, "No label found for", files[f])
+
 
             files_df.append(df)
 
             y.append(l)
-            y_.append(np.zeros((len(df), self.CTX["FEATURES_OUT"]), dtype=np.float64))
+            y_.append(np.zeros((len(df), self.CTX["LABELS_OUT"]), dtype=np.float64))
 
             max_lenght = max(max_lenght, len(df))
 
@@ -391,8 +395,6 @@ class Trainer(AbstractTrainer):
             # only if there is a message at this time and if the aircraft has a label
             if (t < len(dfs[f]) and np.max(y[f]) > 0):
                 msg = dfs[f].iloc[t].to_dict()
-                # separate flight with same icao
-                msg["id"] = msg["icao24"]+"_"+str(dfs[f].iloc[0]["timestamp"])
                 x.append(msg)
                 files.append(f)
         return x, files
@@ -403,12 +405,12 @@ class Trainer(AbstractTrainer):
         if (self.__eval_files__ is None):
             self.__eval_files__ = U.list_flights(EVAL_FOLDER)[0:]
 
-        # TODO remove batch spliting from there and put it in the predict function
+        # To avoid memory overflow, we limit the number of files loaded at once to MAX_BATCH_SIZE
         NB_BATCH = (len(self.__eval_files__)-1) // CTX["MAX_BATCH_SIZE"] + 1
         BAR.reset(max=len(self.__eval_files__))
         file_i = 0
 
-        y = np.zeros((len(self.__eval_files__), self.CTX["FEATURES_OUT"]), dtype=np.float64)
+        y = np.zeros((len(self.__eval_files__), self.CTX["LABELS_OUT"]), dtype=np.float64)
         y_ = [np.ndarray((0,)) for _ in range(len(self.__eval_files__))]
 
         for batch in range(NB_BATCH):
@@ -438,18 +440,25 @@ class Trainer(AbstractTrainer):
 # |====================================================================================================================
 
 
-    def __compute_prediction__(self, y_:np.ndarray) -> "tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]":
+    def __compute_prediction__(self, y_:np.float64_2d[ax.time, ax.label])-> """tuple[
+            np.float64_1d[ax.label],
+            np.float64_1d[ax.label],
+            np.float64_1d[ax.label],
+            np.float64_1d[ax.label]]""":
+
+        y_ = y_[~np.isnan(y_).any(axis=1)]
+
         confidence = Metrics.confidence(y_)
         agg_mean = np.mean(y_, axis=0)
         agg_max = y_[np.argmax(confidence)]
-        agg_count = np.bincount(np.argmax(y_, axis=1), minlength=self.CTX["FEATURES_OUT"])
+        agg_count = np.bincount(np.argmax(y_, axis=1), minlength=self.CTX["LABELS_OUT"])
         agg_count = agg_count / np.sum(agg_count)
-        agg_nth_max = np.mean(y_[np.argsort(confidence)[-20:]])
+        agg_nth_max = np.mean(y_[np.argsort(confidence)[-20:]], axis=0)
         return agg_mean, agg_max, agg_count, agg_nth_max
 
 
-    def __eval_stats__(self, y:np.ndarray, y_:np.ndarray) -> None:
-        OUT = np.ndarray((len(y), self.CTX["FEATURES_OUT"]), dtype=np.float64)
+    def __eval_stats__(self, y:np.float64_2d[ax.sample, ax.label], y_:"list[np.float64_2d[ax.time, ax.label]]") -> None:
+        OUT = np.ndarray((len(y), self.CTX["LABELS_OUT"]), dtype=np.float64)
         agg_mean, agg_max, agg_count, agg_nth_max = OUT.copy(), OUT.copy(), OUT.copy(), OUT.copy()
 
         for f in range(len(self.__eval_files__)):
@@ -463,7 +472,7 @@ class Trainer(AbstractTrainer):
         best_method = np.argmax(accuracy_per_method)
 
         for i in range(len(methods)):
-            prntC(C.INFO, "with", methods[i], " aggregation, accuracy : ", accuracy_per_method[i])
+            prntC(C.INFO, "with", methods[i], " aggregation, accuracy : ", round(accuracy_per_method[i] * 100, 2))
         prntC(C.INFO, "Best method is :", methods[best_method])
 
         confusion_matrix = Metrics.confusion_matrix(y, prediction_methods[best_method])

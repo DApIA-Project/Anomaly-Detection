@@ -223,20 +223,20 @@ class StreamerInterface:
 
         tag = x.get("tag", x["icao24"])
         raw_df = STREAMER.add(x, tag=tag)
-        cache = STREAMER.cache("ReplaySolver", tag)
+        last_df = STREAMER.cache("ReplaySolver", tag)
 
         array = U.df_to_feature_array(self.CTX, raw_df[-3:], check_length=False)
 
-        if (cache is not None):
-            cache = np.concatenate([cache, array[1:2]], axis=0)
-            cache = cache[-MAX_LENGTH_NEEDED:]
+        if (last_df is not None):
+            df = np.concatenate([last_df, array[1:2]], axis=0)
+            df = df[-MAX_LENGTH_NEEDED:]
         else:
-            cache = array
-        STREAMER.cache("ReplaySolver", tag, cache)
+            df = array
+        STREAMER.cache("ReplaySolver", tag, df)
 
         x_batch, y_batch = SU.alloc_batch(self.CTX, 1)
 
-        x_batch, valid = SU.gen_sample(self.CTX, [cache], 0, len(cache) - 1)
+        x_batch, valid = SU.gen_sample(self.CTX, [df], 0, len(df) - 1)
         if (not valid):
             return np.zeros((0, 0, 0)), False
 

@@ -22,11 +22,6 @@ FEATURE_MAP = dict([[USED_FEATURES[i], i] for i in range(FEATURES_IN)])
 
 
 
-
-TRAIN_WINDOW = 8
-STEP = 2
-
-
 # Reservoir hyperparameters
 
 n_internal_units = 450        # size of the reservoir

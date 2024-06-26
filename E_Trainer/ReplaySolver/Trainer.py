@@ -145,6 +145,7 @@ class Trainer(AbstractTrainer):
                 x_batch[i] = x_sample
                 is_interesting.append(i)
 
+        # TODO check x_batch size < MAX_BATCH_SIZE
         y_is_interesting = self.model.predict(x_batch[is_interesting])
         for i in range(len(is_interesting)):
             y_[is_interesting[i]] = y_is_interesting[i]

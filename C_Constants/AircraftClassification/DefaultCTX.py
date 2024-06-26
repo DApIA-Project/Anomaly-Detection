@@ -25,7 +25,7 @@ LABEL_NAMES = [
 ]
 
 # by default labels are not merged
-MERGE_LABELS = { 
+MERGE_LABELS = {
     1: [1],
     2: [2],
     # 3: [3], # remove JET not enought data
@@ -40,7 +40,7 @@ MERGE_LABELS = {
     12: [12]
 }
 
-FEATURES_OUT = len(MERGE_LABELS)
+LABELS_OUT = len(MERGE_LABELS)
 USED_LABELS = [k for k in MERGE_LABELS.keys() if k != 0]
 
 
@@ -56,8 +56,10 @@ BOX_CENTER = (
 
 ADD_TAKE_OFF_CONTEXT = False
 ADD_MAP_CONTEXT = False
+ADD_AIRPORT_CONTEXT = False
+
+SCALER = "standard"
 
 
 INPUT_PADDING = "valid"
 
-NB_TRAIN_SAMPLES = 1

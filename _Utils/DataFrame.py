@@ -1,13 +1,16 @@
 
-
-
 from _Utils.numpy import np, ax
 import pandas as pd
 
 from typing import overload
 from typing_extensions import Self
 
+
+
 class DataFrame:
+
+    array:np.float64_2d[ax.time, ax.feature]
+
     @overload
     def __init__(self, len:int) -> None: ...
     @overload

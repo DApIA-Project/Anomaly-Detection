@@ -5,7 +5,6 @@ from keras.layers import *
 from B_Model.AbstractModel import Model as AbstactModel
 from B_Model.Utils.TF_Modules import *
 
-from _Utils.numpy import np, ax
 
 from _Utils.os_wrapper import os
 
@@ -99,10 +98,6 @@ class Model(AbstactModel):
         Do one forward pass and gradient descent
         for the given batch
         """
-
-        skip_w = self.CTX["SKIP_CONNECTION"]
-
-
         with tf.GradientTape(watch_accessed_variables=True) as tape:
 
             y_ = self.model(x)
@@ -153,7 +148,7 @@ class TakeOffModule(tf.Module):
         self.CTX = CTX
         self.layers = self.CTX["LAYERS"]
         self.dropout = self.CTX["DROPOUT"]
-        self.outs = self.CTX["FEATURES_OUT"]
+        self.outs = self.CTX["LABELS_OUT"]
 
 
         convNN = []
@@ -183,7 +178,7 @@ class MapModule(tf.Module):
         self.CTX = CTX
         self.layers = 1
         self.dropout = self.CTX["DROPOUT"]
-        self.outs = self.CTX["FEATURES_OUT"]
+        self.outs = self.CTX["LABELS_OUT"]
 
 
         convNN = []
@@ -219,7 +214,7 @@ class AirportModule(tf.Module):
         self.CTX = CTX
         self.layers = self.CTX["LAYERS"]
         self.dropout = self.CTX["DROPOUT"]
-        self.outs = self.CTX["FEATURES_OUT"]
+        self.outs = self.CTX["LABELS_OUT"]
 
         denseNN = []
         for _ in range(self.layers):
@@ -238,7 +233,7 @@ class ADS_B_Module(tf.Module):
         self.CTX = CTX
         self.layers = self.CTX["LAYERS"]
         self.dropout = self.CTX["DROPOUT"]
-        self.outs = self.CTX["FEATURES_OUT"]
+        self.outs = self.CTX["LABELS_OUT"]
 
         preNN = []
         for _ in range(self.layers):

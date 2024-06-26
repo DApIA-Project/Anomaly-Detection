@@ -42,7 +42,7 @@ class Model(AbstactModel):
         # load context
         self.CTX = CTX
         self.dropout = CTX["DROPOUT"]
-        self.outs = CTX["FEATURES_OUT"]
+        self.outs = CTX["LABELS_OUT"]
 
         # save the number of training steps
         self.nb_train = 0
@@ -60,7 +60,7 @@ class Model(AbstactModel):
         for dim in range(CTX["LAYERS"]):
             z = Dense(self.CTX["FF_DIM"], activation="relu")(z)
             z = Dropout(self.CTX["DROPOUT"])(z)
-        y = Dense(self.CTX["FEATURES_OUT"], activation="softmax")(z)
+        y = Dense(self.CTX["LABELS_OUT"], activation="softmax")(z)
         self.model =  tf.keras.Model(inputs=[x], outputs=[y])
 
 

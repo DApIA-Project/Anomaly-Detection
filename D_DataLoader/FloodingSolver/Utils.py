@@ -113,6 +113,7 @@ def alloc_sample(CTX:dict)\
 def alloc_batch(CTX:dict, size:int) -> """tuple[
         np.float64_3d[ax.sample, ax.time, ax.feature],
         np.float64_2d[ax.sample, ax.feature]]""":
+    
 
     x_batch = np.zeros((size, CTX["INPUT_LEN"],CTX["FEATURES_IN"]), dtype=np.float64)
     y_batch = np.zeros((size, CTX["FEATURES_OUT"]), dtype=np.float64)

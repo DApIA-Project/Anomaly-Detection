@@ -14,8 +14,8 @@ np.set_printoptions(linewidth=200)
 # python main.py <model>         #
 # python main.py <algo> <model>  #
 ##################################
-# algo = "AircraftClassification"
-# model = "CNN2"
+algo = "AircraftClassification"
+model = "AE"
 
 # algo = "FloodingSolver"
 # model = "LSTM"
@@ -23,8 +23,8 @@ np.set_printoptions(linewidth=200)
 # algo = "ReplaySolver"
 # model = "HASH"
 
-algo = "TrajectorySeparator"
-model = "GEO"
+# algo = "TrajectorySeparator"
+# model = "GEO"
 ###################################
 argv = sys.argv
 if ("-ui" in argv):
@@ -63,6 +63,10 @@ if (algo == "AircraftClassification"):
     elif model == "Reservoir":
         import G_Main.AircraftClassification.exp_Reservoir as Reservoir
         Reservoir.__main__()
+
+    elif model == "AE":
+        import G_Main.AircraftClassification.exp_AE as AE
+        AE.__main__()
 
 
 

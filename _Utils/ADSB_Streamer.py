@@ -71,14 +71,16 @@ class Streamer:
 
         x = [cast_msg(col, x.get(col, np.nan)) for col in __FEATURES__]
 
-        last_timestamp = self.trajectories[tag].array[-1][__FEATURE_MAP__['timestamp']]
+        last_timestamp = 0
+        if (len(self.trajectories[tag]) > 0):
+            last_timestamp = self.trajectories[tag][-1, __FEATURE_MAP__['timestamp']]
         timestamp = x[__FEATURE_MAP__['timestamp']]
         MAX_GAP = 30 * 60
         if (last_timestamp > 0 and timestamp - last_timestamp > MAX_GAP):
-            prntC(C.WARNING, f"Gap of {timestamp - last_timestamp} seconds for {tag} at timestamp {x[__FEATURE_MAP__['timestamp']]}.")
+            prntC(C.WARNING, f"Gap of {timestamp - last_timestamp} seconds for {tag} at timestamp {timestamp}",
+                  f"(last : {last_timestamp}).")
             self.trajectories[tag].clear()
             self.__cache__[tag] = {}
-
         if(not(self.trajectories[tag].set(x))):
             prntC(C.WARNING, f"Duplicate message for {tag} at timestamp {x[__FEATURE_MAP__['timestamp']]}")
 

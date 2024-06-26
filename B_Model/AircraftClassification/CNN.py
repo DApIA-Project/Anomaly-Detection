@@ -179,7 +179,7 @@ class TakeOffModule(tf.Module):
         self.CTX = CTX
         self.layers = self.CTX["LAYERS"]
         self.dropout = self.CTX["DROPOUT"]
-        self.outs = self.CTX["FEATURES_OUT"]
+        self.outs = self.CTX["LABELS_OUT"]
 
 
         convNN = []
@@ -208,7 +208,7 @@ class MapModule(tf.Module):
         self.CTX = CTX
         self.layers = 1
         self.dropout = self.CTX["DROPOUT"]
-        self.outs = self.CTX["FEATURES_OUT"]
+        self.outs = self.CTX["LABELS_OUT"]
 
 
         convNN = []
@@ -240,7 +240,7 @@ class ADS_B_Module(tf.Module):
         self.CTX = CTX
         self.layers = self.CTX["LAYERS"]
         self.dropout = self.CTX["DROPOUT"]
-        self.outs = self.CTX["FEATURES_OUT"]
+        self.outs = self.CTX["LABELS_OUT"]
 
         preNN = []
         for _ in range(self.layers):

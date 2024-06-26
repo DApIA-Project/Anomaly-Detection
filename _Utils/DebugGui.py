@@ -53,7 +53,6 @@ def import_all():
                 try:
                     name = window.get_full_property(self.display.get_atom('_NET_WM_NAME'), 0)
                 except:
-                    print("window in invalid state")
                     continue
                 name = name.value
                 windows[id] = name
@@ -210,7 +209,6 @@ def import_all():
 
 
         def __show_debug__(self) -> None:
-            print("show debug")
             self.visualize("__DEBUG__/MainWindow", DebugGui.COLAPSIING_HEADER)
 
 
@@ -286,7 +284,6 @@ def import_all():
     # |--------------------------------------------------------------------------------------------------------------------
 
         def __create_collapsing_header__(self, parent_node:Node, child_name:str, opened:bool=False):
-            # print("Create collapsing header", c hild_name, "under", parent_node)
             child = parent_node.add_child(child_name, DebugGui.COLAPSIING_HEADER)
             indent = child.path.count("/")-1
             # indent = "\t"*indent
@@ -297,52 +294,42 @@ def import_all():
 
         def __create_table__(self, parent_node:Node, child_name:str, columns:int):
             child = parent_node.add_child(child_name, DebugGui.TABLE, {"rows":0, "columns":columns})
-            print("Create table", child_name, "under", parent_node, "tag:", child.path)
             dpg.add_table(header_row=False, tag=child.path, parent=parent_node.path)
 
             for c in range(columns):
-                print("Create column", child.path+f"/{c}", "under", child.path)
                 dpg.add_table_column(tag=child.path+f"/{c}", parent=child.path)
 
             self.__update_debug__(child)
 
 
         def __create_table_column__(self, parent_node:Node, child_name:str):
-            # print("Create table_column", child_name, "under", parent_node)
             child = parent_node.add_child(child_name, DebugGui.__TABLE_COLUMN__)
 
             actual_columns = parent_node.data["columns"]
             parent_node.data["columns"] = max(parent_node.data["columns"], int(child_name)+1)
 
-            print("Actual columns", actual_columns, "new columns", parent_node.data["columns"])
 
             for c in range(actual_columns, parent_node.data["columns"]):
-                print("Create column", parent_node.path+f"/{c}", "under", parent_node.path)
                 dpg.add_table_column(tag=parent_node.path+f"/{c}", parent=parent_node.path)
 
                 for r in range(parent_node.data["rows"]):
-                    print("Create cell", parent_node.parent.path+f"/{c}/{r}")
                     dpg.add_table_cell(tag=parent_node.path+f"/{c}/{r}", parent=parent_node.path+f"/#/{r}")
 
             self.__update_debug__(child)
 
 
         def __create_table_row__(self, parent_node:Node, child_name:str):
-            # print("Create table_row", child_name, "under", parent_node)
             child = parent_node.add_child(child_name, DebugGui.__TABLE_ROW__)
             # dpg.add_table_row(label=child_name, tag=child.path, parent=parent_node.parent.path)
 
             actual_rows = parent_node.parent.data["rows"]
             parent_node.parent.data["rows"] = max(parent_node.parent.data["rows"], int(child_name)+1)
 
-            print("Actual rows", actual_rows, "new rows", parent_node.parent.data["rows"])
 
             for r in range(actual_rows, parent_node.parent.data["rows"]):
-                print("Create row", parent_node.parent.path+f"/#/{r}", "under", parent_node.parent.path)
                 dpg.add_table_row(tag=parent_node.parent.path+f"/#/{r}", parent=parent_node.parent.path)
 
                 for c in range(parent_node.parent.data["columns"]):
-                    print("Create cell", parent_node.parent.path+f"/{c}/{r}", "under", parent_node.parent.path+f"/#/{r}")
                     dpg.add_table_cell(tag=parent_node.parent.path+f"/{c}/{r}", parent=parent_node.parent.path+f"/#/{r}")
 
             self.__update_debug__(child)
@@ -359,7 +346,6 @@ def import_all():
 
 
         def __create_image__(self, parent_node:Node, child_name:str, path:str):
-            print("Create image", child_name, "under", parent_node)
             child = parent_node.add_child(child_name, DebugGui.IMAGE, path)
 
             width, height, channels, data = dpg.load_image(path)
@@ -376,7 +362,6 @@ def import_all():
             self.__update_debug__(child)
 
         def __create_text__(self, parent_node:Node, child_name:str, text:str):
-            print("Create text", child_name, "under", parent_node)
             child = parent_node.add_child(child_name, DebugGui.TEXT, text)
             dpg.add_text(text, tag=child.path, parent=parent_node.path)
 

@@ -25,7 +25,7 @@ class Model(AbstactModel):
         # load context
         self.CTX = CTX
         self.dropout = CTX["DROPOUT"]
-        self.outs = CTX["FEATURES_OUT"]
+        self.outs = CTX["LABELS_OUT"]
 
         # save the number of training steps
         self.nb_train = 0

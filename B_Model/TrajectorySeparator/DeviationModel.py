@@ -38,8 +38,8 @@ FORECAST_LEN = 20
 WEIGHT = np.linspace(0.1, 1, FORECAST_LEN)
 def forecast(history:np.float64_2d[ax.time, ax.feature], t:int) -> "tuple[float, float]":
 
-    # if (len(history) <= 2):
-    return dumb_forecast(history, t)
+    if (len(history) <= 2):
+        return dumb_forecast(history, t)
 
     history = history[-FORECAST_LEN:]
     lat, lon, timestamp = FG.lat(history), FG.lon(history), FG.timestamp(history)
@@ -62,8 +62,7 @@ def forecast(history:np.float64_2d[ax.time, ax.feature], t:int) -> "tuple[float,
     loc = np.where(distance > 10)[0]
     lat, lon, timestamp = lat[loc], lon[loc], timestamp[loc]
     weights_locs = np.array(timestamp + FORECAST_LEN, dtype=int)
-    if (weights_locs[0] == -21):
-        print(timestamp, weights_locs)
+
     weights = WEIGHT[weights_locs]
 
     if (len(timestamp) <= 10):

@@ -56,7 +56,8 @@ class Trainer:
         except Exception as e:
 
             prntC(C.WARNING, "Visualization of the model failed")
-            prntC(e)
+            prntC(C.RED, e)
+            prntC()
 
     ###################################################
     # Traier main loop

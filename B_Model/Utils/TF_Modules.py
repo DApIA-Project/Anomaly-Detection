@@ -22,7 +22,7 @@ class Conv1DModule(tf.Module):
             x = self.bn(x)
         x = self.act(x)
         return x
-    
+
 class Conv2DModule(tf.Module):
 
     def __init__(self, units, kernel_size = 3, strides=(1, 1), padding="same", batch_norm=True, name="Conv1DModule"):
@@ -40,26 +40,26 @@ class Conv2DModule(tf.Module):
             x = self.bn(x)
         x = self.act(x)
         return x
-    
+
 
 class DenseModule(tf.Module):
-    
+
         def __init__(self, units, dropout=0.0, name="DenseModule"):
             super(DenseModule, self).__init__(name=name)
-    
+
             self.dense = Dense(units)
             self.dropout = None
             if (dropout > 0):
                 self.dropout = Dropout(dropout)
             self.act = ACTIVATION()
-    
+
         def __call__(self, x):
             x = self.dense(x)
             if (self.dropout is not None):
                 x = self.dropout(x)
             x = self.act(x)
             return x
-        
+
 
 class resLSTM(tf.Module):
 
@@ -95,7 +95,7 @@ nb_attention = 0
 class Attention(tf.keras.layers.Layer):
 
     # take input as (BATCH_SIZE, TIME_STEPS, INPUT_DIM)
-    # multiply each input with a weight along the time axis 
+    # multiply each input with a weight along the time axis
     # to measure the importance of each time step
 
     # W must be between 0 and 1
@@ -109,16 +109,16 @@ class Attention(tf.keras.layers.Layer):
         super(Attention, self).__init__(name=name+"_"+str(nb_attention))
         self.heads = heads
 
-        
+
     def build(self, input_shape):
         # MinMaxNorm
-        self.w = self.add_weight(name="W_linear", 
-                shape=(input_shape[1], 3), 
+        self.w = self.add_weight(name="W_linear",
+                shape=(input_shape[1], 3),
                 trainable=True,
                 initializer=tf.keras.initializers.RandomUniform(minval=0, maxval=1),
                 constraint=tf.keras.constraints.NonNeg(),
                 dtype=tf.float64)
-    
+
 
     def call(self, x):
         y = []
@@ -126,7 +126,7 @@ class Attention(tf.keras.layers.Layer):
             y.append(x * self.w[:,i:i+1])
         y = tf.concat(y, axis=-1)
         return y
-    
+
 
 
 class Inception1D_A(tf.Module):
@@ -197,7 +197,7 @@ class Inception1D_B(tf.Module):
         if (self.use_batch_norm):
             self.batch_norm = BatchNormalization()
 
-            
+
         self.skip_w = Conv1D(filters, 1, padding="same", activation="linear")
         self.add = Add()
 
@@ -223,12 +223,12 @@ class Inception1D_B(tf.Module):
 
         x = self.activation(x)
         return x
-    
+
 class Inception1D_C(tf.Module):
-    
+
         def __init__(self, filters, batch_norm = True, activation="relu", name="inception_C"):
             super(Inception1D_C, self).__init__(name=name)
-    
+
             self.convA1 = Conv1D(filters, 1, padding="same", activation=None)
 
             self.convB1 = Conv1D(filters, 1, padding="same", activation=None)
@@ -237,17 +237,17 @@ class Inception1D_C(tf.Module):
 
             self.concat = Concatenate()
             self.merge_conv = Conv1D(filters, 1, padding="same", activation="linear")
-    
+
             self.use_batch_norm = batch_norm
             if (self.use_batch_norm):
                 self.batch_norm = BatchNormalization()
-    
+
             self.skip_w = Conv1D(filters, 1, padding="same", activation="linear")
             self.add = Add()
 
-    
+
             self.activation = Activation(activation)
-    
+
         def __call__(self, x):
             l = x
             xA = self.convA1(x)
@@ -268,14 +268,14 @@ class Inception1D_C(tf.Module):
 
             x = self.activation(x)
             return x
-        
+
 class Inception1D_RA(tf.Module):
-    
+
         def __init__(self, filters, batch_norm = True, activation="relu", name="inception_RA"):
             super(Inception1D_RA, self).__init__(name=name)
-    
+
             self.poolA1 = MaxPooling1D(3, strides=2, padding="valid")
-            
+
             self.convB1 = Conv1D(int(filters * 1.5), 3, strides=2, padding="valid", activation=None)
 
             self.convC1 = Conv1D(filters, 1, padding="same", activation=None)
@@ -294,9 +294,9 @@ class Inception1D_RA(tf.Module):
 
         def __call__(self, x):
             xA = self.poolA1(x)
-            
+
             xB = self.convB1(x)
-            
+
             xC = self.convC1(x)
             xC = self.convC2(xC)
             xC = self.convC3(xC)
@@ -309,14 +309,14 @@ class Inception1D_RA(tf.Module):
 
             x = self.activation(x)
             return x
-  
+
 class Inception1D_RB(tf.Module):
-    
+
         def __init__(self, filters, batch_norm = False, activation="relu", name="inception_RA"):
             super(Inception1D_RB, self).__init__(name=name)
-    
+
             self.poolA1 = MaxPooling1D(3, strides=2, padding="valid")
-            
+
 
             self.convB1 = Conv1D(filters, 1, padding="same", activation=None)
             self.convB2 = Conv1D(int(filters * 1.5), 3, strides=2, padding="valid", activation=None)
@@ -339,7 +339,7 @@ class Inception1D_RB(tf.Module):
 
         def __call__(self, x):
             xA = self.poolA1(x)
-            
+
             xB = self.convB1(x)
             xB = self.convB2(xB)
 
@@ -358,4 +358,3 @@ class Inception1D_RB(tf.Module):
 
             x = self.activation(x)
             return x
-        

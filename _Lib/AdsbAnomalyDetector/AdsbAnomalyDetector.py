@@ -183,6 +183,7 @@ def get_pred_aircraft_type(proba: "np.ndarray") -> "list[int]":
     return [0 if confidence[i] <= 0.5 else CTX_AC["USED_LABELS"][argmax[i]] for i in range(len(argmax))]
 
 def is_spoofing(messages: "list[dict[str, str]]", predictions: "np.ndarray") -> "list[bool]":
+    if (len(messages) == 0): return []
     true_labels = get_true_aircraft_type(messages)
     pred_labels = get_pred_aircraft_type(predictions)
 

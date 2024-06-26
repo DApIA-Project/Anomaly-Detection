@@ -262,17 +262,17 @@ class StreamerInterface:
 
         tag = x.get("tag", x["icao24"])
         raw_df = STREAMER.add(x, tag=tag)
-        cache = STREAMER.cache("FloodingSolver", tag)
+        last_df = STREAMER.cache("FloodingSolver", tag)
 
         array = U.df_to_feature_array(self.CTX, raw_df[-2:], check_length=False)
         array = fill_nan_2d(array, self.dl.PAD)
 
-        if (cache is not None):
-            cache = np.concatenate([cache, array[1:]], axis=0)
-            cache = cache[-MAX_LENGTH_NEEDED:]
+        if (last_df is not None):
+            df = np.concatenate([last_df, array[1:]], axis=0)
+            df = df[-MAX_LENGTH_NEEDED:]
         else:
-            cache = array
-        STREAMER.cache("FloodingSolver", tag, cache)
+            df = array
+        STREAMER.cache("FloodingSolver", tag, df)
 
         # |--------------------------
         # | Generate a sample
@@ -280,9 +280,9 @@ class StreamerInterface:
 
         # set valid to None, mean that we don't know yet
         valid = None
-        if (len(cache) < MIN_LENGTH_NEEDED): valid = False
+        if (len(df) < MIN_LENGTH_NEEDED): valid = False
         x_batch[0], y, valid, origin = SU.gen_sample(
-            self.CTX, [cache], self.dl.PAD, 0, len(cache)-1-self.CTX["HORIZON"], valid, training=False)
+            self.CTX, [df], self.dl.PAD, 0, len(df)-1-self.CTX["HORIZON"], valid, training=False)
         y_batch[0] = FG.lat_lon(y)
 
 

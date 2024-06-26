@@ -69,7 +69,7 @@ class MinMaxScaler3D:
 
 
     def get_variables(self) -> "tuple[np.float64_1d[ax.feature], np.float64_1d[ax.feature], float, float]":
-        return np.array([self.mins, self.maxs, self.min, self.max])
+        return [self.mins, self.maxs, self.min, self.max]
 
     def set_variables(self, variables:"tuple[np.float64_1d[ax.feature], np.float64_1d[ax.feature], float, float]")\
             -> "Self":

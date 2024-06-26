@@ -9,6 +9,8 @@ from _Utils.numpy import np, ax
 
 from _Utils.os_wrapper import os
 
+import _Utils.Color as C
+from   _Utils.Color import prntC
 
 class Model(AbstactModel):
 
@@ -100,8 +102,8 @@ class Model(AbstactModel):
         params = 0
         for i in range(len(self.model.trainable_variables)):
             params += np.prod(self.model.trainable_variables[i].shape)
-        print("number of trainable variables: ", params)
 
+        prntC("Model :", C.CYAN, self.name, C.RESET, " has ", C.YELLOW, params, C.RESET, " trainable variables")
 
         filename = os.path.join(save_path, self.name+".png")
         tf.keras.utils.plot_model(self.model, to_file=filename, show_shapes=True)

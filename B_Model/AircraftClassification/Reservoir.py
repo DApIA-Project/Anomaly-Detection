@@ -50,7 +50,7 @@ class Model(AbstactModel):
         """
         Make prediction for x
         """
-        fake_y = np.zeros((x.shape[0], self.CTX["FEATURES_OUT"]))
+        fake_y = np.zeros((x.shape[0], self.CTX["LABELS_OUT"]))
 
         return self.compute_loss(x, fake_y)[1]
 

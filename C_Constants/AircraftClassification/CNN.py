@@ -1,6 +1,6 @@
 
 LEARNING_RATE = 0.00015
-EPOCHS = 0
+EPOCHS = 80
 BATCH_SIZE = 64
 NB_BATCH = 32
 
@@ -12,7 +12,6 @@ INPUT_LEN = HISTORY // DILATION_RATE
 RELATIVE_POSITION = True
 RELATIVE_TRACK = False
 RANDOM_TRACK = False
-# TRAINING_NOISE = 0.1
 
 # "valid" do not pad convolutions
 # "same" pad convolutions
@@ -55,13 +54,11 @@ MERGE_LABELS = { # no merge by default
 
     0: [8, 11] # not classified
 }
-FEATURES_OUT = len(MERGE_LABELS)-1
+LABELS_OUT = len(MERGE_LABELS)-1
 USED_LABELS = [k for k in MERGE_LABELS.keys() if k != 0]
 
 ACTIVATION = "softmax"
 
 
 IMG_SIZE = 128
-
-NB_TRAIN_SAMPLES = 2
 
