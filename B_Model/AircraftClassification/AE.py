@@ -7,6 +7,8 @@ from _Utils.numpy import np, ax
 
 from B_Model.AbstractModel import Model as AbstactModel
 
+import matplotlib.pyplot as plt
+
 
 class Model(AbstactModel):
     name = "AE"
@@ -126,20 +128,15 @@ class AE:
 
         #Encoder
         z = x
-        for i in range(2):
-            z = layers.Conv1D(filters=16*(2**i), kernel_size=3, activation='relu', padding='same')(z)
-            z = layers.MaxPooling1D(pool_size=2, padding='same')(z)
 
-        # bottleneck
+        z = layers.Conv1D(filters=32, kernel_size=3, activation='relu', padding='same')(z)
+        z = layers.MaxPooling1D(pool_size=2, padding='same')(z)
         z = layers.Conv1D(filters=16, kernel_size=3, activation='relu', padding='same')(z)
-        z = layers.Flatten()(z)
-        z = layers.Dense(16, activation='relu')(z)
-        z = layers.Reshape((16, 1))(z)
+        z = layers.MaxPooling1D(pool_size=2, padding='same')(z)
 
         #Decoder
-        for i in range(2):
-            z = layers.Conv1D(filters=16*(2**i), kernel_size=3, activation='relu', padding='same')(z)
-            z = layers.UpSampling1D(size=2)(z)
+        z = layers.Conv1DTranspose(filters=16, kernel_size=3, strides=2, activation='relu', padding='same')(z)
+        z = layers.Conv1DTranspose(filters=32, kernel_size=3, strides=2, activation='relu', padding='same')(z)
 
         z = layers.Conv1D(filters=self.CTX["FEATURES_OUT"], kernel_size=3, activation='sigmoid', padding='same')(z)
 
@@ -170,6 +167,14 @@ class AE:
         Do one forward pass and gradient descent
         for the given batch
         """
+
+        fig, ax = plt.subplot(1, 2, figsize=(10, 5))
+
+        lat = x[self.CTX["FEATURE_MAP"]["latitude"]]
+        lon = x[self.CTX["FEATURE_MAP"]["longitude"]]
+        
+
+
         with tf.GradientTape(watch_accessed_variables=True) as tape:
 
             y_ = self.model(x)

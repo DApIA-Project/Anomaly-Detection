@@ -60,16 +60,14 @@ def get(lst, bool_arr) -> list:
 
 def hash_message(message: "dict[str, str]") -> "int":
     # message["icao24"] -> hex to int
-    return int(
-                int(message["icao24"], 16) + \
-                int(message["timestamp"]) +  \
-                float(message["latitude"]) * 1000 + \
-                float(message["longitude"]) * 1000 + \
-                float(message["altitude"]) * 1000
-            ) % 2147483647
+    return hash(message["icao24"] \
+                + message["timestamp"] \
+                + message["latitude"] \
+                + message["longitude"] \
+                + message["altitude"])
 
 
-hash_table:"dict[str, list]" = {}
+hash_table:"dict[int, list]" = {}
 def get_message_predictions(message: "dict[str, str]") -> "dict[str, str]":
     h = hash_message(message)
     data = hash_table.get(h, None)
@@ -99,6 +97,7 @@ def message_subset(messages: "list[dict[str, str]]", indices: "list[bool]") -> "
 def predict(messages: "list[dict[str, str]]") -> "list[dict[str, str]]":
     clean_hash_table()
 
+    # load messages predictions if they has already been computed
     message_filter = np.ones(len(messages), dtype=bool)
     hashes = np.zeros(len(messages), dtype=np.int32)
     for i in range(len(messages)):
@@ -117,6 +116,7 @@ def predict(messages: "list[dict[str, str]]") -> "list[dict[str, str]]":
     for i in range(len(messages)):
         if (message_filter[i]):
             messages[i]["icao24"] = sub_icaos[sub_i]
+
             sub_i += 1
 
     FG.init(CTX_RS)
@@ -125,37 +125,56 @@ def predict(messages: "list[dict[str, str]]") -> "list[dict[str, str]]":
     for i in range(len(messages)):
         if (message_filter[i]):
             messages[i]["replay"] = (matches[sub_i] != "none" and matches[sub_i] != "unknown")
+
+            sub_i += 1
+
             message_filter[i] = not(messages[i]["replay"])
+
         else:
             messages[i]["replay"] = False
 
     FG.init(CTX_FS)
     sub_msg = message_subset(messages, message_filter)
-    y_, y = floodingSolver.predict(sub_msg)
+    y_, loss = floodingSolver.predict(sub_msg)
     sub_i = 0
     for i in range(len(messages)):
         if (message_filter[i]):
-            d = geo.distance(y_[sub_i][0], y_[sub_i][1], y[sub_i][0], y[sub_i][1])
-            messages[i]["flooding"] = (d > CTX_FS["THRESHOLD"])
+            messages[i]["flooding"] = (loss[sub_i] > CTX_FS["THRESHOLD"])
+            messages[i]["flooding_lat"] = y_[sub_i][0]
+            messages[i]["flooding_lon"] = y_[sub_i][1]
+
+            sub_i += 1
+
             message_filter[i] = not(messages[i]["flooding"])
+
         else:
             messages[i]["flooding"] = False
-
+            messages[i]["flooding_lat"] = np.nan
+            messages[i]["flooding_lon"] = np.nan
 
     FG.init(CTX_AC)
+    # filter messages having unknown icao24
+    true_labels = get_true_aircraft_type(messages)
+    for i in range(len(messages)):
+        if (true_labels[i] == 0):
+            message_filter[i] = False
+            messages[i]["spoofing"] = False
+
     sub_msg = message_subset(messages, message_filter)
     _, label_proba = aircraftClassification.predict(sub_msg)
-    spoofing = is_spoofing(sub_msg, label_proba)
+    spoofing = is_spoofing(true_labels[message_filter], label_proba)
     sub_i = 0
     for i in range(len(messages)):
         if (message_filter[i]):
             messages[i]["spoofing"] = spoofing[sub_i]
+
             sub_i += 1
+
         else:
             messages[i]["spoofing"] = False
 
 
-
+    # save messages predictions in case of a future request
     for i in range(len(messages)):
         add_message_predictions(hashes[i], messages[i])
 
@@ -172,9 +191,9 @@ def get_base_icaos(messages: "list[dict[str, str]]") -> "list[str]":
     icaos = [messages[i]["icao24"] for i in range(len(messages))]
     return [icaos[i].split("_")[0] if ("_" in icaos[i]) else icaos[i] for i in range(len(icaos))]
 
-def get_true_aircraft_type(messages: "list[dict[str, str]]") -> "list[int]":
+def get_true_aircraft_type(messages: "list[dict[str, str]]") -> np.int32_1d[ax.sample]:
     icaos = get_base_icaos(messages)
-    return [getLabel(CTX_AC, icaos[i]) for i in range(len(icaos))]
+    return np.array([getLabel(CTX_AC, icaos[i]) for i in range(len(icaos))], dtype=np.int32)
 
 
 def get_pred_aircraft_type(proba: "np.ndarray") -> "list[int]":
@@ -182,11 +201,9 @@ def get_pred_aircraft_type(proba: "np.ndarray") -> "list[int]":
     confidence = np.nan_to_num([proba[i][argmax[i]] for i in range(len(argmax))])
     return [0 if confidence[i] <= 0.5 else CTX_AC["USED_LABELS"][argmax[i]] for i in range(len(argmax))]
 
-def is_spoofing(messages: "list[dict[str, str]]", predictions: "np.ndarray") -> "list[bool]":
-    if (len(messages) == 0): return []
-    true_labels = get_true_aircraft_type(messages)
+def is_spoofing(true_labels: "np.int32_1d[ax.sample]", predictions: np.float64_2d[ax.feature, ax.label])\
+        -> "list[bool]":
+    if (len(true_labels) == 0): return []
     pred_labels = get_pred_aircraft_type(predictions)
-
-    return [pred_labels[i] != 0
-        and pred_labels[i] != true_labels[i]
+    return [pred_labels[i] != 0 and true_labels[i] != 0 and pred_labels[i] != true_labels[i]
         for i in range(len(true_labels))]

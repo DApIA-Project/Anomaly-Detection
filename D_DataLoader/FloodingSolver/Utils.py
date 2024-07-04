@@ -42,7 +42,7 @@ def check_sample(CTX:"dict[str, object]", x:"np.ndarray", i:int, t:int) -> bool:
     if (np.max(dist_values) > 400 or np.min(dist_values) < 1.0):
         return False
 
-    if (np.max(np.diff(dist_values)) > 45):
+    if (np.max(np.abs(np.diff(dist_values))) > 35):
         return False
 
     return True
@@ -113,7 +113,7 @@ def alloc_sample(CTX:dict)\
 def alloc_batch(CTX:dict, size:int) -> """tuple[
         np.float64_3d[ax.sample, ax.time, ax.feature],
         np.float64_2d[ax.sample, ax.feature]]""":
-    
+
 
     x_batch = np.zeros((size, CTX["INPUT_LEN"],CTX["FEATURES_IN"]), dtype=np.float64)
     y_batch = np.zeros((size, CTX["FEATURES_OUT"]), dtype=np.float64)

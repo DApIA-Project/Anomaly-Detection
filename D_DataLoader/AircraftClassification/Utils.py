@@ -45,7 +45,7 @@ def getLabel(CTX, icao):
     if (icao in __icao_db__):
         return __icao_db__[icao]
 
-    prntC(C.WARNING, icao, "not found in labels.csv")
+    # prntC(C.WARNING, icao, "not found in labels.csv")
 
     return 0
 

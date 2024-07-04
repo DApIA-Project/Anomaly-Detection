@@ -6,6 +6,9 @@ import numpy as np
 flight_1 = pd.read_csv("./2022-01-12_13-19-13_SAMU31_39ac45.csv", dtype=str)
 flight_2 = pd.read_csv("./2022-04-04_16-37-21_FJDGY_3a2cbc.csv", dtype=str)
 
+flight_2["icao24"] = "39ac45"
+
+
 # enregistrement des prédictions dans un dictionnaire qui associe
 # l'icao à la liste des prédictions de l'avion
 predictions = {}

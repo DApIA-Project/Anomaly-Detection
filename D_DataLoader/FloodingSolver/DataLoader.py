@@ -68,7 +68,7 @@ class DataLoader(AbstractDataLoader):
 
     def __load_dataset__(self, CTX:dict, path:str) -> "list[np.float64_2d[ax.time, ax.feature]]":
 
-        filenames = U.list_flights(path, limit=100) #Limit.INT_MAX
+        filenames = U.list_flights(path, limit=Limits.INT_MAX)
         BAR.reset(max=len(filenames))
 
         x = []
@@ -295,3 +295,16 @@ class StreamerInterface:
         STREAMER.clear()
 
 
+    def add_to_mean_loss(self, x:"dict[str, object]", loss:float) -> None:
+        tag = x.get("tag", x["icao24"])
+        losses = STREAMER.cache("FloodingSolverLosses", tag)
+
+        if (losses is None):
+            losses = np.zeros((self.CTX["HISTORY"]//2,))
+            losses[-1] = loss
+            STREAMER.cache("FloodingSolverLosses", tag, losses)
+        else:
+            losses[:-1] = losses[1:]
+            losses[-1] = loss
+            STREAMER.cache("FloodingSolverLosses", tag, losses)
+        return np.mean(losses)

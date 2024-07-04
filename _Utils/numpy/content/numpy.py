@@ -18,6 +18,7 @@ from numpy import *
 
 max = amax
 min = amin
+abs = absolute
 
 
 

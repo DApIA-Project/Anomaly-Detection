@@ -103,8 +103,6 @@ class Model(AbstactModel):
         for i in range(len(self.model.trainable_variables)):
             params += np.prod(self.model.trainable_variables[i].shape)
 
-        prntC("Model :", C.CYAN, self.name, C.RESET, " has ", C.YELLOW, params, C.RESET, " trainable variables")
-
         filename = os.path.join(save_path, self.name+".png")
         tf.keras.utils.plot_model(self.model, to_file=filename, show_shapes=True)
 

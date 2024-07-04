@@ -285,7 +285,7 @@ class Trainer(AbstractTrainer):
 
     def predict(self, x:"list[dict[str,object]]") -> """tuple[
             np.float64_2d[ax.sample, ax.feature],
-            np.float64_2d[ax.sample, ax.feature]]""":
+            np.float64_1d[ax.sample]]""":
         if (len(x) == 0): return np.zeros((0, self.CTX["FEATURES_OUT"])), np.zeros((0, self.CTX["FEATURES_OUT"]))
 
         # allocate memory
@@ -335,7 +335,17 @@ class Trainer(AbstractTrainer):
         # DEBUG (comment this line to remove debug plot)
         # self.__debug_plot_predictions__(x_batch, y_batch, y_batch_, y_, y, is_interesting, origin)
 
-        return y_, y
+
+        # compute loss
+        loss = np.full(len(x), np.nan, dtype=np.float64)
+        for i in range(len(x)):
+            if (is_interesting[i]):
+                distance =  GEO.distance(y_[i][0], y_[i][1], y[i][0], y[i][1])
+                loss[i] = self.dl.streamer.add_to_mean_loss(x[i], distance)
+            else:
+                self.dl.streamer.add_to_mean_loss(x[i], 0)
+
+        return y_, loss
 
 
 
@@ -427,17 +437,20 @@ class Trainer(AbstractTrainer):
         for folder in self.__eval_files__:
 
             self.dl.streamer.clear()
+            dfs, max_len, y, y_, loss = self.__gen_eval_batch__(folder)
+
             BAR.reset(max=max_len)
             prntC(C.INFO, "Evaluating model on : ", C.BLUE, folder[0].split("/")[-2])
 
-            dfs, max_len, y, y_, loss = self.__gen_eval_batch__(folder)
 
             for t in range(max_len):
                 x, files = self.__next_msgs__(dfs, t)
-                yt_, yt = self.predict(x)
+                yt_, _ = self.predict(x)
+
                 for i in range(len(files)):
                     y_[files[i]][t] = yt_[i]
-                    y [files[i]][t] = yt [i]
+                    y [files[i]][t] = [x[i]["latitude"], x[i]["longitude"]]
+
                     loss[files[i]][t] = GEO.distance(x[i]["latitude"], x[i]["longitude"], yt_[i][0], yt_[i][1])
                 BAR.update()
 
