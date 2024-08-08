@@ -1,7 +1,7 @@
 
 
 # Convert CTX to dict for logging hyperparameters
-from _Utils.module import module_to_dict 
+from _Utils.module import buildCTX
 from _Utils.numpy import np, ax
 
 # For auto-completion, we use Abstract class as virtual type
@@ -20,10 +20,10 @@ def multiFit(Model:"type[_Model_]", Trainer:"type[_Trainer_]", CTX, default_CTX=
         Model used for training
 
     trainer: type[Trainer]
-        Trainer class, managing the training loop, testing and evaluation, for a specific task 
+        Trainer class, managing the training loop, testing and evaluation, for a specific task
         (eg. spoofing detection)
 
-    CTX: Module 
+    CTX: Module
         Python module containing the set of hyperparameters
 
     repeats: int
@@ -31,12 +31,8 @@ def multiFit(Model:"type[_Model_]", Trainer:"type[_Trainer_]", CTX, default_CTX=
     """
 
     # Convert CTX to dict and merge it with default_CTX
-    CTX = module_to_dict(CTX)
-    if (default_CTX != None):
-        default_CTX = module_to_dict(default_CTX)
-        for param in default_CTX:
-            if (param not in CTX):
-                CTX[param] = default_CTX[param]
+    CTX = buildCTX(CTX, default_CTX)
+
 
     metrics_stats:dict[str,list] = {}
     for i in range(repeats):

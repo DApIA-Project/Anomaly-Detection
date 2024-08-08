@@ -142,8 +142,6 @@ class Model(AbstactModel):
 
 class TakeOffModule(tf.Module):
 
-    CTX_SIZE = 128
-
     def __init__(self, CTX):
         self.CTX = CTX
         self.layers = self.CTX["LAYERS"]

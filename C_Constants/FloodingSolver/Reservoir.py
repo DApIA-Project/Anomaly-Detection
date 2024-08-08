@@ -1,10 +1,7 @@
-
-LEARNING_RATE = 0.0003
-EPOCHS = 80
+LEARNING_RATE = 0.0001
+EPOCHS = 0
 BATCH_SIZE = 64
 NB_BATCH = 32
-
-# LOAD_EP = 80
 
 
 HISTORY = 32
@@ -19,9 +16,7 @@ HORIZON = 3
 
 THRESHOLD = 14.8
 
-LAYERS = 3
 DROPOUT = 0.3
-
 
 USED_FEATURES = [
     "latitude", "longitude",
@@ -39,8 +34,6 @@ PRED_FEATURES = [
 ]
 FEATURES_OUT = len(PRED_FEATURES)
 PRED_FEATURE_MAP = dict([[PRED_FEATURES[i], i] for i in range(FEATURES_OUT)])
-
-RESUDUAL = 0.5
 
 # possibilities "valid", "last", "nan"
 INPUT_PADDING = "nan"

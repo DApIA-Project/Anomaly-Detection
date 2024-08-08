@@ -17,11 +17,11 @@ np.set_printoptions(linewidth=200)
 # algo = "AircraftClassification"
 # model = "CNN2"
 
-# algo = "FloodingSolver"
-# model = "LSTM"
+algo = "FloodingSolver"
+model = "LSTM"
 
-algo = "ReplaySolver"
-model = "HASH"
+# algo = "ReplaySolver"
+# model = "HASH"
 
 # algo = "TrajectorySeparator"
 # model = "GEO"
@@ -79,6 +79,17 @@ elif (algo == "FloodingSolver"):
         import G_Main.FloodingSolver.exp_LSTM as LSTM
         LSTM.__main__()
 
+    elif (model == "Transformer"):
+        import G_Main.FloodingSolver.exp_Transformer as Transformer
+        Transformer.__main__()
+
+    elif (model == "CatBoost"):
+        import G_Main.FloodingSolver.exp_CatBoost as CatBoost
+        CatBoost.__main__()
+
+    elif (model == "Reservoir"):
+        import G_Main.FloodingSolver.exp_Reservoir as Reservoir
+        Reservoir.__main__()
 
 elif (algo == "ReplaySolver"):
     if (model == "HASH"):

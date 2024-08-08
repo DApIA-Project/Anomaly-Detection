@@ -4,35 +4,46 @@ EPOCHS = 80
 BATCH_SIZE = 64
 NB_BATCH = 32
 
-# LOAD_EP = 80
-
 
 HISTORY = 32
 DILATION_RATE = 1
 INPUT_LEN = HISTORY // DILATION_RATE
 
-RELATIVE_POSITION = True
-RELATIVE_TRACK = True
-RANDOM_TRACK = False
+DEC_LEN = 1
+
+D_MODEL = 64
+N_HEADS = 8
+E_LAYERS = 2
+D_LAYERS = 2
+D_FF = 512
+ACTIVATION = "gelu"
+
+EMBED = "timeF" # "fixed", "learned"
+EMBED_IN = 1
+FACTOR = 1
+
+
+# LAYERS = 3
+DROPOUT = 0.3
 
 HORIZON = 3
-
-THRESHOLD = 14.8
-
-LAYERS = 3
-DROPOUT = 0.3
 
 
 USED_FEATURES = [
     "latitude", "longitude",
     "groundspeed", "track",
-    "vertical_rate",
+    "vertical_rate", "onground",
     # "alert", "spi", "squawk",
     "altitude", "geoaltitude",
-    "timestamp"
+    "timestamp","pad"
 ]
 FEATURES_IN = len(USED_FEATURES)
 FEATURE_MAP = dict([[USED_FEATURES[i], i] for i in range(FEATURES_IN)])
+
+ENBED_FEATURES = [
+    "timestamp"
+]
+
 
 PRED_FEATURES = [
     "latitude", "longitude"
@@ -40,7 +51,15 @@ PRED_FEATURES = [
 FEATURES_OUT = len(PRED_FEATURES)
 PRED_FEATURE_MAP = dict([[PRED_FEATURES[i], i] for i in range(FEATURES_OUT)])
 
-RESUDUAL = 0.5
 
-# possibilities "valid", "last", "nan"
+RELATIVE_POSITION = True
+RELATIVE_TRACK = True
+RANDOM_TRACK = False
+
+# "valid", "last", "nan"
 INPUT_PADDING = "nan"
+
+
+
+THRESHOLD = 14.8
+

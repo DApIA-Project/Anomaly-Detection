@@ -43,3 +43,13 @@ def module_to_dict(Module):
         res["DILATION_RATE"] = 1
 
     return res
+
+
+def buildCTX(CTX, default_CTX=None):
+    CTX = module_to_dict(CTX)
+    if (default_CTX != None):
+        default_CTX = module_to_dict(default_CTX)
+        for param in default_CTX:
+            if (param not in CTX):
+                CTX[param] = default_CTX[param]
+    return CTX

@@ -1,7 +1,7 @@
 
 from _Utils.os_wrapper import os
 
-import _Utils.FeatureGetter as FG
+from _Utils.FeatureGetter import FG_spoofing as FG
 import _Utils.Color as C
 from   _Utils.Color import prntC
 from   _Utils.Scaler3D import StandardScaler3D, MinMaxScaler3D, MinMaxScaler2D, fill_nan_3d, fill_nan_2d
@@ -52,9 +52,6 @@ class DataLoader(AbstractDataLoader):
         if (training):
             x, y, self.filenames = self.__get_dataset__(path)
             self.x_train, self.y_train, self.x_test, self.y_test = self.__split__(x, y)
-        else:
-            prntC(C.INFO, "Training, deactivated, only evaluation will be launched.")
-            prntC(C.WARNING, "Make sure everything is loaded from the disk, especially the PAD values.")
 
 
 

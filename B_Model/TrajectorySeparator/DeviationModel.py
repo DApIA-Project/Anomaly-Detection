@@ -1,7 +1,7 @@
 
 from B_Model.AbstractModel import Model as AbstactModel
 
-import _Utils.FeatureGetter as FG
+from _Utils.FeatureGetter import FG_separator as FG
 import _Utils.geographic_maths as GEO
 import _Utils.Limits as Limits
 import D_DataLoader.Utils as U
@@ -155,7 +155,8 @@ class Model(AbstactModel):
         # load context
         self.CTX = CTX
 
-    def predict(self, x:np.ndarray, t:np.ndarray) -> np.ndarray:
+    def predict(self, x:"list[np.float64_2d[ax.time, ax.feature]]", t:"list[int]") \
+            -> np.float64_2d[ax.sample, ax.feature]:
 
         preds = np.zeros((len(x), 2))
         for i in range(len(x)):
@@ -163,29 +164,13 @@ class Model(AbstactModel):
         return preds
 
 
-    def compute_loss(self, x:np.float64_2d[ax.time, ax.feature],
-                           y:np.float64_2d[ax.time, ax.feature]) -> """tuple[
-
-            np.float64_1d[ax.time],
-            np.float64_2d[ax.time, ax.feature]]""":
-
-        """
-        Make a prediction and compute the related loss
-        """
-        preds = self.predict(x)
-        loss = np.zeros(len(x))
-        for i in range(len(x)):
-            loss[i] = GEO.distance(preds[i][0], preds[i][1], y[i][0], y[i][1])
-
-        return loss, preds
+    def compute_loss(self) -> None:
+        return None
 
 
 
 
-    def training_step(self, x, y):
-        """
-        Fit the model, add new data !
-        """
+    def training_step(self) -> None:
         return None
 
 

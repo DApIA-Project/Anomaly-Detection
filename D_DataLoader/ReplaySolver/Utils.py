@@ -1,8 +1,8 @@
 import D_DataLoader.Utils as U
 
 
-from   _Utils.numpy import np, ax
-import _Utils.FeatureGetter    as FG
+from _Utils.numpy import np, ax
+from _Utils.FeatureGetter import FG_replay as FG
 
 
 # |====================================================================================================================

@@ -19,76 +19,76 @@ from   _Utils.Color import prntC
 PBM_NAME = os.path.dirname(os.path.abspath(__file__)).split("/")[-1]
 BAR = ProgressBar()
 
-class FileHashTable:
+# class FileHashTable:
 
-    FILE_COUNT = 2**16
-    PATH = "./_Artifacts/HASH/hashtable/"
-    MAX_HASH = 2**self.CTX["HISTORY"]
+#     FILE_COUNT = 2**16
+#     PATH = "./_Artifacts/HASH/hashtable/"
+#     MAX_HASH = 2**self.CTX["HISTORY"]
 
-    def __init__(self, CTX:dict) -> None:
-        self.CTX = CTX
+#     def __init__(self, CTX:dict) -> None:
+#         self.CTX = CTX
 
-    def set_path(self, path:str) -> None:
-        self.PATH = path
+#     def set_path(self, path:str) -> None:
+#         self.PATH = path
 
-    def __read_assoc_file__(self, l) -> "dict[int, list[str]]":
-        path = f"{self.PATH}assoc.txt"
-        # assoc file is build as follow:
-        # nth line = filename (max 128 char)
-        self.assoc_file = open(path, "r")
-        self.assoc_file.seek(l * 128)
-        filename = self.assoc_file.read(128).strip()
-        self.assoc_file.close()
+#     def __read_assoc_file__(self, l) -> "dict[int, list[str]]":
+#         path = f"{self.PATH}assoc.txt"
+#         # assoc file is build as follow:
+#         # nth line = filename (max 128 char)
+#         self.assoc_file = open(path, "r")
+#         self.assoc_file.seek(l * 128)
+#         filename = self.assoc_file.read(128).strip()
+#         self.assoc_file.close()
 
-    def __write_assoc_file__(self, filename:str) -> None:
-        filename = filename.ljust(128, " ")
-        self.assoc_file = open(f"{self.PATH}assoc.txt", "a")
-        self.assoc_file.write(filename)
-        self.assoc_file.close()
-
-
+#     def __write_assoc_file__(self, filename:str) -> None:
+#         filename = filename.ljust(128, " ")
+#         self.assoc_file = open(f"{self.PATH}assoc.txt", "a")
+#         self.assoc_file.write(filename)
+#         self.assoc_file.close()
 
 
-    def get(self, key:int) -> "list[str]":
-        if (key >= self.MAX_HASH or key < 0):
-            prntC(C.WARNING, f"Invalid key {key} !")
-            return []
-
-        # file_id | line_id
-        # 16 bits  | 16 bits
-        file_id = key // self.FILE_COUNT
-        bit_id = key % self.FILE_COUNT
-
-        if (not os.path.exists(f"{self.PATH}{file_id}.txt")):
-            return []
-
-        file = open(f"{self.PATH}{file_id}.txt", "rb")
-        # move cursor
-        file.seek(bit_id * 4)
-        line = int.from_bytes(file.read(4), "big")
-        file.close()
-        return self.__read_assoc_file__(line)
 
 
-    def set(self, key:int, value:"list[str]") -> None:
-        if (key >= self.MAX_HASH or key < 0):
-            prntC(C.WARNING, f"Invalid key {key} !")
-            return
+#     def get(self, key:int) -> "list[str]":
+#         if (key >= self.MAX_HASH or key < 0):
+#             prntC(C.WARNING, f"Invalid key {key} !")
+#             return []
 
-        # file_id | line_id
-        # 16 bits  | 16 bits
-        file_id = key // self.FILE_COUNT
-        bit_id = key % self.FILE_COUNT
+#         # file_id | line_id
+#         # 16 bits  | 16 bits
+#         file_id = key // self.FILE_COUNT
+#         bit_id = key % self.FILE_COUNT
 
-        if (not os.path.exists(f"{self.PATH}{file_id}.txt")):
-            pass
+#         if (not os.path.exists(f"{self.PATH}{file_id}.txt")):
+#             return []
 
-        file = open(f"{self.PATH}{file_id}.txt", "rb+")
-        # move cursor
-        file.seek(bit_id * 4)
-        line = int.from_bytes(file.read(4), "big")
-        file.close()
-        return self.__write_assoc_file__(line)
+#         file = open(f"{self.PATH}{file_id}.txt", "rb")
+#         # move cursor
+#         file.seek(bit_id * 4)
+#         line = int.from_bytes(file.read(4), "big")
+#         file.close()
+#         return self.__read_assoc_file__(line)
+
+
+#     def set(self, key:int, value:"list[str]") -> None:
+#         if (key >= self.MAX_HASH or key < 0):
+#             prntC(C.WARNING, f"Invalid key {key} !")
+#             return
+
+#         # file_id | line_id
+#         # 16 bits  | 16 bits
+#         file_id = key // self.FILE_COUNT
+#         bit_id = key % self.FILE_COUNT
+
+#         if (not os.path.exists(f"{self.PATH}{file_id}.txt")):
+#             pass
+
+#         file = open(f"{self.PATH}{file_id}.txt", "rb+")
+#         # move cursor
+#         file.seek(bit_id * 4)
+#         line = int.from_bytes(file.read(4), "big")
+#         file.close()
+#         return self.__write_assoc_file__(line)
 
 
 

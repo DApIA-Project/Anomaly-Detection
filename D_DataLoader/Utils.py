@@ -5,7 +5,8 @@ from typing import overload
 import _Utils.Color as C
 from   _Utils.Color import prntC
 from   _Utils.DataFrame import DataFrame
-import _Utils.FeatureGetter as FG
+# import _Utils.FeatureGetter as FG
+
 import _Utils.Limits as Limits
 from   _Utils.numpy import np, ax
 import _Utils.geographic_maths as GEO
@@ -46,7 +47,6 @@ def cartesian_to_spherical(x:np.float64_1d, y:np.float64_1d, z:np.float64_1d)\
 # |====================================================================================================================
 # | UTILS
 # |====================================================================================================================
-
 
 def mini(*args):
     m = min(args[0])
@@ -166,7 +166,7 @@ def get_aircraft_last_message(CTX:dict, flight:np.float64_2d[ax.time, ax.feature
 def get_aircraft_position(CTX:dict, flight:np.float64_2d[ax.time, ax.feature]) -> "tuple[float, float]":
     # get the aircraft last non zero latitudes and longitudes
     pos = get_aircraft_last_message(CTX, flight)
-    return FG.lat(pos), FG.lon(pos)
+    return CTX["FG"].lat(pos), CTX["FG"].lon(pos)
 
 
 # |--------------------------------------------------------------------------------------------------------------------
@@ -455,6 +455,8 @@ def batch_preprocess(CTX:dict, flight:"np.float64_2d[ax.time, ax.feature]",
     x = flight
     if (post_flight is not None):
         x = np.concatenate([flight, post_flight], axis=0)
+
+    FG = CTX["FG"]
 
     nan_value = np.logical_and(FG.lat(x) == FG.lat(PAD), FG.lon(x) == FG.lon(PAD))
     lat, lon, track = normalize_trajectory(CTX,

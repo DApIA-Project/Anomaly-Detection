@@ -5,7 +5,7 @@ from _Utils.os_wrapper import os
 from PIL import Image
 
 import _Utils.Color         as C
-import _Utils.FeatureGetter as FG
+from   _Utils.FeatureGetter import FG_spoofing as FG
 from   _Utils.Color import prntC
 from _Utils.numpy import np, ax
 

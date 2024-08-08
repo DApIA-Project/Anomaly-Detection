@@ -1,9 +1,8 @@
 
 from _Utils.DebugGui import launch_gui
-import _Utils.FeatureGetter as FG
 
 # Convert CTX to dict for logging hyperparameters
-from _Utils.module import module_to_dict
+from _Utils.module import buildCTX
 from _Utils.numpy import np, ax
 
 # For auto-completion, we use Abstract class as virtual type
@@ -29,14 +28,7 @@ def fitOnce(Model:"type[_Model_]", Trainer:"type[_Trainer_]", CTX, default_CTX=N
     """
 
     # Convert CTX to dict and merge it with default_CTX
-    CTX = module_to_dict(CTX)
-    if (default_CTX != None):
-        default_CTX = module_to_dict(default_CTX)
-        for param in default_CTX:
-            if (param not in CTX):
-                CTX[param] = default_CTX[param]
-
-    FG.init(CTX)
+    CTX = buildCTX(CTX, default_CTX)
 
     # Create a new training environment and run it
     launch_gui(CTX)

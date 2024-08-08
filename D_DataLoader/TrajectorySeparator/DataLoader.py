@@ -1,16 +1,16 @@
 import pandas as pd
-from _Utils.numpy import np, ax
 
+from   _Utils.numpy import np, ax
 import _Utils.Color as C
-from _Utils.Color import prntC
-import _Utils.FeatureGetter as FG
+from   _Utils.Color import prntC
+from   _Utils.FeatureGetter import FG_separator as FG
 import _Utils.Limits as Limits
-from _Utils.ADSB_Streamer import Streamer
-from _Utils.ProgressBar import ProgressBar
+from   _Utils.ADSB_Streamer import Streamer
+from   _Utils.ProgressBar import ProgressBar
 
 import D_DataLoader.Utils as U
 import D_DataLoader.TrajectorySeparator.Utils as SU
-from D_DataLoader.AbstractDataLoader import DataLoader as AbstractDataLoader
+from   D_DataLoader.AbstractDataLoader import DataLoader as AbstractDataLoader
 
 
 # |====================================================================================================================

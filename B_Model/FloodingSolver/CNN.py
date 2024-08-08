@@ -5,7 +5,6 @@ from keras.layers import *
 from B_Model.AbstractModel import Model as AbstactModel
 from B_Model.Utils.TF_Modules import *
 
-from _Utils.numpy import np, ax
 
 from _Utils.os_wrapper import os
 
@@ -15,12 +14,6 @@ class Model(AbstactModel):
     name = "CNN"
 
     def __init__(self, CTX:dict):
-        """
-        Generate model architecture
-        Define loss function
-        Define optimizer
-        """
-
 
         # load context
         self.CTX = CTX
@@ -32,47 +25,35 @@ class Model(AbstactModel):
 
         x_input_shape = (self.CTX["INPUT_LEN"], self.CTX["FEATURES_IN"])
         x = tf.keras.Input(shape=x_input_shape, name='input')
-        # inputs = [x]
 
         z = x
-
-
         n = self.CTX["LAYERS"]
         for i in range(n):
-            # dilatation = int(self.CTX["DILATION_RATE"] ** i)
             z = Conv1D(128, 3, padding="same")(z)
             z = BatchNormalization()(z)
             z = LeakyReLU()(z)
 
         z = Flatten()(z)
-        # z = DenseModule(256, dropout=self.dropout)(z)
         z = Dense(self.outs, activation="sigmoid")(z)
         y = z
 
 
         self.model = tf.keras.Model(x, y)
-
-
-        # define loss function
         self.loss = tf.keras.losses.MeanSquaredError()
-
-        # define optimizer
         self.opt = tf.keras.optimizers.Adam(learning_rate=CTX["LEARNING_RATE"])
 
 
+
     def predict(self, x):
-        """
-        Make prediction for x
-        """
         return self.model(x)
+    
+
 
     def compute_loss(self, x, y):
-        """
-        Make a prediction and compute the loss
-        that will be used for training
-        """
         y_ = self.model(x)
         return self.loss(y_, y), y_
+    
+    
 
     def training_step(self, x, y):
         """

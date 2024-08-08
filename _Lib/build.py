@@ -2,6 +2,16 @@ import os
 import subprocess
 
 
+
+class MODELS:
+    spoofing = "CNN2"
+    separator = "DEV"
+    replay = "HASH"
+    flooding = "LSTM"
+
+VERSION = "0.5.4"
+
+
 ALL_PY = []
 for root, dirs, files in os.walk(f"../"):
     for file in files:
@@ -156,19 +166,15 @@ for file in to_reomve:
 
 
 
+
 # list required imports
 files = [
-    "../G_Main/AircraftClassification/exp_CNN2.py",
-    "../G_Main/TrajectorySeparator/exp_GEO.py",
-    "../G_Main/ReplaySolver/exp_HASH.py",
-    "../G_Main/FloodingSolver/exp_LSTM.py"
+    f"../G_Main/AircraftClassification/exp_{MODELS.spoofing}.py",
+    f"../G_Main/TrajectorySeparator/exp_{MODELS.separator}.py",
+    f"../G_Main/ReplaySolver/exp_{MODELS.replay}.py",
+    f"../G_Main/FloodingSolver/exp_{MODELS.flooding}.py",
 ]
-MODELS = [
-    "CNN2",
-    "ALG",
-    "HASH",
-    "LSTM"
-]
+
 
 imports = set()
 for path in files:
@@ -217,17 +223,45 @@ for import_ in imports:
 
     add_file_to_lib(f)
 
+# |====================================================================================================================
+# | FILE FINDING TOOL
+# |====================================================================================================================
+
+files = os.listdir("./AdsbAnomalyDetector")
+
+def find_files(name):
+    res = []
+    for file in files:
+        if file.startswith(name):
+            res.append(file)
+    return res
+
+def filter_files(files, name):
+    i = 0
+    while i < len(files):
+        if files[i].startswith(name):
+            files.pop(i)
+        else:
+            i += 1
+
+def find_files_and_filter(name, filter=[]):
+    files = find_files(name)
+    for f in filter:
+        filter_files(files, f)
+    return files
+
+
 
 # |====================================================================================================================
 # | AIRCRAFT CLASSIFICATION
 # |====================================================================================================================
 # # copy weights
 os.system(f"mkdir ./AdsbAnomalyDetector/AircraftClassification")
-os.system(f"cp ../_Artifacts/AircraftClassification/{MODELS[0]}/w ./AdsbAnomalyDetector/AircraftClassification/w")
-os.system(f"cp ../_Artifacts/AircraftClassification/{MODELS[0]}/xs ./AdsbAnomalyDetector/AircraftClassification/xs")
-os.system(f"cp ../_Artifacts/AircraftClassification/{MODELS[0]}/xts ./AdsbAnomalyDetector/AircraftClassification/xts")
-os.system(f"cp ../_Artifacts/AircraftClassification/{MODELS[0]}/xas ./AdsbAnomalyDetector/AircraftClassification/xas")
-os.system(f"cp ../_Artifacts/AircraftClassification/{MODELS[0]}/pad ./AdsbAnomalyDetector/AircraftClassification/pad")
+os.system(f"cp ../_Artifacts/AircraftClassification/{MODELS.spoofing}/w ./AdsbAnomalyDetector/AircraftClassification/w")
+os.system(f"cp ../_Artifacts/AircraftClassification/{MODELS.spoofing}/xs ./AdsbAnomalyDetector/AircraftClassification/xs")
+os.system(f"cp ../_Artifacts/AircraftClassification/{MODELS.spoofing}/xts ./AdsbAnomalyDetector/AircraftClassification/xts")
+os.system(f"cp ../_Artifacts/AircraftClassification/{MODELS.spoofing}/xas ./AdsbAnomalyDetector/AircraftClassification/xas")
+os.system(f"cp ../_Artifacts/AircraftClassification/{MODELS.spoofing}/pad ./AdsbAnomalyDetector/AircraftClassification/pad")
 # # copy geo map
 os.system("cp ../A_Dataset/AircraftClassification/map.png ./AdsbAnomalyDetector/map.png")
 os.system("cp ../A_Dataset/AircraftClassification/labels.csv ./AdsbAnomalyDetector/labels.csv")
@@ -251,6 +285,19 @@ file_content_remplace("./AdsbAnomalyDetector/E_Trainer_TrajectorySeparator_Train
                       "DEBUG = True",
                       "DEBUG = False")
 
+# rename model and constant file to be generic
+model = find_files_and_filter("B_Model_AircraftClassification_")
+if len(model) > 1:
+    raise RuntimeError("Multiple B_Model_AircraftClassification files found")
+constants = find_files_and_filter("C_Constants_AircraftClassification_", [
+    "C_Constants_AircraftClassification_DefaultCTX.py"
+])
+if len(constants) > 1:
+    raise RuntimeError("Multiple C_Constants_AircraftClassification files found")
+
+os.system(f"mv ./AdsbAnomalyDetector/{model[0]} ./AdsbAnomalyDetector/B_Model_AircraftClassification.py")
+os.system(f"mv ./AdsbAnomalyDetector/{constants[0]} ./AdsbAnomalyDetector/C_Constants_AircraftClassification.py")
+
 
 # |====================================================================================================================
 # | FLODDING SOLVER
@@ -258,10 +305,23 @@ file_content_remplace("./AdsbAnomalyDetector/E_Trainer_TrajectorySeparator_Train
 # FloodingSolver
 # # copy weights
 os.system(f"mkdir ./AdsbAnomalyDetector/FloodingSolver")
-os.system(f"cp ../_Artifacts/FloodingSolver/{MODELS[3]}/w ./AdsbAnomalyDetector/FloodingSolver/w")
-os.system(f"cp ../_Artifacts/FloodingSolver/{MODELS[3]}/xs ./AdsbAnomalyDetector/FloodingSolver/xs")
-os.system(f"cp ../_Artifacts/FloodingSolver/{MODELS[3]}/ys ./AdsbAnomalyDetector/FloodingSolver/ys")
-os.system(f"cp ../_Artifacts/FloodingSolver/{MODELS[3]}/pad ./AdsbAnomalyDetector/FloodingSolver/pad")
+os.system(f"cp ../_Artifacts/FloodingSolver/{MODELS.flooding}/w ./AdsbAnomalyDetector/FloodingSolver/w")
+os.system(f"cp ../_Artifacts/FloodingSolver/{MODELS.flooding}/xs ./AdsbAnomalyDetector/FloodingSolver/xs")
+os.system(f"cp ../_Artifacts/FloodingSolver/{MODELS.flooding}/ys ./AdsbAnomalyDetector/FloodingSolver/ys")
+os.system(f"cp ../_Artifacts/FloodingSolver/{MODELS.flooding}/pad ./AdsbAnomalyDetector/FloodingSolver/pad")
+
+# rename model and constant file to be generic
+model = find_files_and_filter("B_Model_FloodingSolver_")
+if len(model) > 1:
+    raise RuntimeError("Multiple B_Model_FloodingSolver files found")
+constants = find_files_and_filter("C_Constants_FloodingSolver_", [
+    "C_Constants_FloodingSolver_DefaultCTX.py"
+])
+if len(constants) > 1:
+    raise RuntimeError("Multiple C_Constants_FloodingSolver files found")
+
+os.system(f"mv ./AdsbAnomalyDetector/{model[0]} ./AdsbAnomalyDetector/B_Model_FloodingSolver.py")
+os.system(f"mv ./AdsbAnomalyDetector/{constants[0]} ./AdsbAnomalyDetector/C_Constants_FloodingSolver.py")
 
 # |====================================================================================================================
 # | REPLAY SOLVER
@@ -270,8 +330,44 @@ os.system(f"cp ../_Artifacts/FloodingSolver/{MODELS[3]}/pad ./AdsbAnomalyDetecto
 # ReplaySolver
 # # copy weights
 os.system(f"mkdir ./AdsbAnomalyDetector/ReplaySolver")
-os.system(f"cp ../_Artifacts/ReplaySolver/{MODELS[2]}/w ./AdsbAnomalyDetector/ReplaySolver/w")
+os.system(f"cp ../_Artifacts/ReplaySolver/{MODELS.replay}/w ./AdsbAnomalyDetector/ReplaySolver/w")
 
+# rename model and constant file to be generic
+model = find_files_and_filter("B_Model_ReplaySolver_", [
+    "B_Model_ReplaySolver_Utils_hashing.py"
+])
+if len(model) > 1:
+    raise RuntimeError("Multiple B_Model_ReplaySolver files found")
+constants = find_files_and_filter("C_Constants_ReplaySolver_", [
+    "C_Constants_ReplaySolver_DefaultCTX.py"
+])
+if len(constants) > 1:
+    raise RuntimeError("Multiple C_Constants_ReplaySolver files found")
+
+os.system(f"mv ./AdsbAnomalyDetector/{model[0]} ./AdsbAnomalyDetector/B_Model_ReplaySolver.py")
+os.system(f"mv ./AdsbAnomalyDetector/{constants[0]} ./AdsbAnomalyDetector/C_Constants_ReplaySolver.py")
+
+
+# |====================================================================================================================
+# | TRAJECTORY SEPARATOR
+# |====================================================================================================================
+
+# rename model and constant file to be generic
+model = find_files_and_filter("B_Model_TrajectorySeparator_")
+if len(model) > 1:
+    raise RuntimeError("Multiple B_Model_TrajectorySeparator files found")
+constants = find_files_and_filter("C_Constants_TrajectorySeparator_", [
+    "C_Constants_TrajectorySeparator_DefaultCTX.py"
+])
+if len(constants) > 1:
+    raise RuntimeError("Multiple C_Constants_TrajectorySeparator files found")
+
+os.system(f"mv ./AdsbAnomalyDetector/{model[0]} ./AdsbAnomalyDetector/B_Model_TrajectorySeparator.py")
+os.system(f"mv ./AdsbAnomalyDetector/{constants[0]} ./AdsbAnomalyDetector/C_Constants_TrajectorySeparator.py")
+
+# |====================================================================================================================
+# | DISABLE TRAINING FOR ALL MODELS
+# |====================================================================================================================
 
 # list every files starting with C_Constants
 # find lines starting with EPOCHS
@@ -296,4 +392,4 @@ if (os.path.exists("./dist")):
 
 
 # run setup.py
-os.system("python ./setup.py sdist")
+os.system(f"echo {VERSION} | python ./setup.py sdist")

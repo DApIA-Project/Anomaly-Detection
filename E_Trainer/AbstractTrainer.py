@@ -9,7 +9,6 @@ from B_Model.AbstractModel import Model
 
 import _Utils.Color as C
 from _Utils.Color import prntC
-import _Utils.FeatureGetter as FG
 
 
 
@@ -77,7 +76,6 @@ class Trainer:
         if (self.CTX["EPOCHS"] > 0):
             self.train()
         else:
-            prntC(C.WARNING, "Training is deactivated, loading model and evaluating")
             self.load()
 
         return self.eval()

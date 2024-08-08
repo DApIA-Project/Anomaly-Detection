@@ -1,5 +1,5 @@
 
-import _Utils.FeatureGetter    as FG
+from _Utils.FeatureGetter import FG_flooding as FG
 import _Utils.geographic_maths as GEO
 import _Utils.plotADSB         as PLT
 from _Utils.numpy import np, ax

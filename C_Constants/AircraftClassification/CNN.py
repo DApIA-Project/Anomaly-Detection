@@ -1,7 +1,7 @@
 
 LEARNING_RATE = 0.00015
-EPOCHS = 80
-BATCH_SIZE = 64
+EPOCHS = 150
+BATCH_SIZE = 128
 NB_BATCH = 32
 
 
@@ -15,7 +15,7 @@ RANDOM_TRACK = False
 
 # "valid" do not pad convolutions
 # "same" pad convolutions
-MODEL_PADDING = "same"
+MODEL_PADDING = "valid"
 
 # "valid" do not pad convolutions
 # "last" duplicate the last row
@@ -23,13 +23,17 @@ MODEL_PADDING = "same"
 INPUT_PADDING = "nan"
 
 
-LAYERS = 1
-DROPOUT = 0.1
-SKIP_CONNECTION = 0.1
+LAYERS = 2
+DROPOUT = 0.3
+
+ACTIVATION = "sigmoid"
+
+
 
 
 ADD_TAKE_OFF_CONTEXT = True
 ADD_MAP_CONTEXT = True
+IMG_SIZE = 128
 ADD_AIRPORT_CONTEXT = True
 
 USED_FEATURES = [
@@ -39,7 +43,7 @@ USED_FEATURES = [
     # "alert", "spi", "squawk",
     "altitude", "geoaltitude",
     "relative_track",
-    # "timestamp",
+    "timestamp",
     # "toulouse"
 ]
 
@@ -57,8 +61,4 @@ MERGE_LABELS = { # no merge by default
 LABELS_OUT = len(MERGE_LABELS)-1
 USED_LABELS = [k for k in MERGE_LABELS.keys() if k != 0]
 
-ACTIVATION = "softmax"
-
-
-IMG_SIZE = 128
 

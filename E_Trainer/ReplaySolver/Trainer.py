@@ -14,6 +14,7 @@ from   _Utils.Color import prntC
 from   _Utils.numpy import np, ax
 from   _Utils.save import write, load
 from   _Utils.ProgressBar import ProgressBar
+from   _Utils.FeatureGetter import FG_replay as FG
 
 # |====================================================================================================================
 # | CONSTANTS
@@ -44,6 +45,7 @@ class Trainer(AbstractTrainer):
     def __init__(self, CTX:dict, Model:"type[_Model_]") -> None:
         # Public attributes
         self.CTX = CTX
+        FG.init(CTX)
         self.model:_Model_ = Model(CTX)
         self.__makes_artifacts__()
         self.__init_GUI__()

@@ -5,8 +5,7 @@
 # | IMPORTS
 # |====================================================================================================================
 
-from _Utils.os_wrapper import os
-import time
+from   _Utils.os_wrapper import os
 import pandas as pd
 import matplotlib.pyplot as plt
 from   matplotlib.backends.backend_pdf import PdfPages
@@ -17,15 +16,17 @@ import D_DataLoader.Utils as U
 import D_DataLoader.AircraftClassification.Utils as SU
 from   E_Trainer.AbstractTrainer import Trainer as AbstractTrainer
 
-import _Utils.Metrics as Metrics
-from   _Utils.save import write, load
+
+from   _Utils.numpy import np, ax
 import _Utils.Color as C
 from   _Utils.Color import prntC
-from   _Utils.ProgressBar import ProgressBar
-from   _Utils.Chrono import Chrono
+from   _Utils.FeatureGetter import FG_spoofing as FG
 from   _Utils.DebugGui import GUI
-from _Utils.plotADSB import PLT
-from _Utils.numpy import np, ax
+from   _Utils.plotADSB import PLT
+from   _Utils.Chrono import Chrono
+import _Utils.Metrics as Metrics
+from   _Utils.save import write, load
+from   _Utils.ProgressBar import ProgressBar
 
 
 # |====================================================================================================================
@@ -80,6 +81,8 @@ class Trainer(AbstractTrainer):
 
         # Public attributes
         self.CTX = CTX
+        FG.init(CTX)
+
         self.model:_Model_ = Model(CTX)
         self.__makes_artifacts__()
         self.__init_GUI__()

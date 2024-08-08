@@ -16,11 +16,12 @@ import E_Trainer.TrajectorySeparator.Utils as TU
 import _Utils.Color as C
 from   _Utils.Color import prntC
 from   _Utils.DebugGui import GUI
-import _Utils.FeatureGetter as FG
+from   _Utils.FeatureGetter import FG_separator as FG
 import _Utils.Limits as Limits
 from   _Utils.numpy import np, ax
 from   _Utils.plotADSB import PLT
 from   _Utils.ProgressBar import ProgressBar
+from   _Utils.OrderedDict import OrderedDictInt
 
 
 
@@ -85,6 +86,7 @@ class Trainer(AbstractTrainer):
     def __init__(self, CTX:dict, Model:"type[_Model_]") -> None:
         # Public attributes
         self.CTX = CTX
+        FG.init(CTX)
         self.model:_Model_ = Model(CTX)
         self.__makes_artifacts__()
         self.__init_GUI__()
@@ -420,29 +422,39 @@ class Trainer(AbstractTrainer):
     def predict(self, x:"list[dict[str,object]]", __EVAL__:bool=False) -> "list[str]":
         if (len(x) == 0): return []
 
-        per_icao:dict[str, list[dict[str, object]]] = {}
-
+        per_timestamp:OrderedDictInt[dict[str, list[dict[str, object]]] ] = OrderedDictInt()
         for i in range(len(x)):
+            timestamp = x[i]["timestamp"]
+
+            if (timestamp not in per_timestamp):
+                per_timestamp[timestamp] = {}
+
+            per_icao = per_timestamp[timestamp]
             icao = x[i]["icao24"]
             if (icao not in per_icao):
                 per_icao[icao] = []
             per_icao[icao].append(x[i])
 
-        for icao in per_icao.keys():
-            msgs = per_icao[icao]
-            TS = msgs[0]["timestamp"]
-            sample, tags = self.dl.streamer.get_flights_with_icao(icao, TS)
-            timestamps = [TS for _ in range(len(sample))]
+        for timestamp in per_timestamp.keys():
+            per_icao = per_timestamp[timestamp]
 
-            y_ = self.model.predict(sample, timestamps)
+            for icao in per_icao.keys():
+                msgs = per_icao[icao]
+                TS = msgs[0]["timestamp"]
+                sample, tags = self.dl.streamer.get_flights_with_icao(icao, TS)
+                timestamps = [TS for _ in range(len(sample))]
 
-            if (__EVAL__ and DEBUG):
-                self.__plot__(sample, msgs, y_)
+                y_ = self.model.predict(sample, timestamps)
 
-            msg_tags = self.__associate__(msgs, y_, tags, sample)
-            for i in range(len(msgs)):
-                msgs[i]["tag"] = msg_tags[i]
-                self.dl.streamer.stream(msgs[i])
+                if (__EVAL__ and DEBUG):
+                    self.__plot__(sample, msgs, y_)
+
+
+                msg_tags = self.__associate__(msgs, y_, tags, sample)
+
+                for i in range(len(msgs)):
+                    msgs[i]["tag"] = msg_tags[i]
+                    self.dl.streamer.stream(msgs[i])
 
         tags = [x[i]["tag"] for i in range(len(x))]
         return tags

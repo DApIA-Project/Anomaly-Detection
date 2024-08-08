@@ -5,7 +5,7 @@ import D_DataLoader.Utils as U
 import D_DataLoader.FloodingSolver.Utils as SU
 from   D_DataLoader.AbstractDataLoader import DataLoader as AbstractDataLoader
 
-import _Utils.FeatureGetter as FG
+from  _Utils.FeatureGetter import FG_flooding as FG
 import _Utils.Color as C
 from   _Utils.Color import prntC
 import _Utils.Limits as Limits
@@ -60,9 +60,6 @@ class DataLoader(AbstractDataLoader):
         if (training):
             x = self.__get_dataset__(path)
             self.x_train,self.x_test = self.__split__(x)
-        else:
-            prntC(C.INFO, "Training, deactivated, only evaluation will be launched.")
-            prntC(C.WARNING, "Make sure everything is loaded from the disk, especially the PAD values.")
 
 
 

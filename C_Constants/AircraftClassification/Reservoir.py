@@ -1,59 +1,65 @@
-
-EPOCHS = 1 # reservoir fit instantly
-BATCH_SIZE = 32 * 128
-NB_BATCH = 1 # reservoir fit instantly
+LEARNING_RATE = 0.00015
+EPOCHS = 0
+BATCH_SIZE = 128
+NB_BATCH = 32
 
 
 HISTORY = 64
 DILATION_RATE = 2
 INPUT_LEN = HISTORY // DILATION_RATE
 
+RELATIVE_POSITION = True
+RELATIVE_TRACK = False
+RANDOM_TRACK = False
+
+# "valid" do not pad convolutions
+# "same" pad convolutions
+MODEL_PADDING = "valid"
+
+# "valid" do not pad convolutions
+# "last" duplicate the last row
+# "nan" fill with nan (as the model "know" what is a nan value)
+INPUT_PADDING = "nan"
+
+
+LAYERS = 2
+DROPOUT = 0.3
+RESERVOIR_UNITS = 1000
+
+
+ACTIVATION = "sigmoid"
+
+
+
+
+ADD_TAKE_OFF_CONTEXT = True
+ADD_MAP_CONTEXT = True
+IMG_SIZE = 128
+ADD_AIRPORT_CONTEXT = True
 
 USED_FEATURES = [
     "latitude", "longitude",
     "groundspeed", "track",
     "vertical_rate", "onground",
-    "alert", "spi", "squawk",
+    # "alert", "spi", "squawk",
     "altitude", "geoaltitude",
-    
+    "relative_track",
+    "timestamp",
+    # "toulouse"
 ]
+
 FEATURES_IN = len(USED_FEATURES)
 FEATURE_MAP = dict([[USED_FEATURES[i], i] for i in range(FEATURES_IN)])
 
 
+MERGE_LABELS = { # no merge by default
+    2: [1, 2, 3, 4, 5], # PLANE
+    6: [6, 7, 10], # SMALL
+    9: [9, 12], # HELICOPTER
 
-# Reservoir hyperparameters
+    0: [8, 11] # not classified
+}
+LABELS_OUT = len(MERGE_LABELS)-1
+USED_LABELS = [k for k in MERGE_LABELS.keys() if k != 0]
 
-n_internal_units = 450        # size of the reservoir
-spectral_radius = 0.59        # largest eigenvalue of the reservoir
-leak = 0.6                    # amount of leakage in the reservoir state update (None or 1.0 --> no leakage)
-connectivity = 0.25           # percentage of nonzero connections in the reservoir
-input_scaling = 0.1           # scaling of the input weights
-noise_level = 0.01            # noise in the reservoir state update
-n_drop = 5                    # transient states to be dropped
-bidir = True                  # if True, use bidirectional reservoir
-circ = False                  # use reservoir with circle topology
 
-# Dimensionality reduction hyperparameters
-dimred_method ='tenpca'       # options: {None (no dimensionality reduction), 'pca', 'tenpca'}
-n_dim = 75                    # number of resulting dimensions after the dimensionality reduction procedure
-
-# Type of MTS representation
-mts_rep = 'reservoir'         # MTS representation:  {'last', 'mean', 'output', 'reservoir'}
-w_ridge_embedding = 10.0      # regularization parameter of the ridge regression
-
-# Type of readout
-readout_type = 'mlp'          # readout used for classification: {'lin', 'mlp', 'svm'}
-
-# Linear readout hyperparameters
-w_ridge = 5.0                 # regularization of the ridge regression readout
-
-# SVM readout hyperparameters
-svm_gamma = 0.005             # bandwith of the RBF kernel
-svm_C = 5.0                   # regularization for SVM hyperplane
-
-# MLP readout hyperparameters
-mlp_layout = (3,3)          # neurons in each MLP layer
-num_epochs = 2000             # number of epochs 
-w_l2 = 0.001                  # weight of the L2 regularization
-nonlinearity = 'relu'         # type of activation function {'relu', 'tanh', 'logistic', 'identity'}

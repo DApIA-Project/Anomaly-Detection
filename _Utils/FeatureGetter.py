@@ -2,228 +2,235 @@ from _Utils.numpy import np, ax
 import pandas as pd
 from typing import overload, TypeVar
 
-__FEATURE_MAP__ = None
-__LAT__ = None
-__LON__ = None
-__TRACK__ = None
-__TIMESTAMP__ = None
-__ICAO__ = None
-__CALLSIGN__ = None
-__BARO_ALT__ = None
-__GEO_ALT__ = None
-__VELOCITY__ = None
+class FeatureGetter:
 
-def init(CTX:dict)->None:
-    """Init the feature getter with the context"""
-    global __FEATURE_MAP__,\
-           __LAT__, __LON__, __TRACK__,\
-           __TIMESTAMP__, __ICAO__, __CALLSIGN__,\
-           __BARO_ALT__, __GEO_ALT__, __VELOCITY__
-    __FEATURE_MAP__ = CTX["FEATURE_MAP"]
-    __LAT__       = __FEATURE_MAP__.get("latitude", None)
-    __LON__       = __FEATURE_MAP__.get("longitude", None)
-    __TRACK__     = __FEATURE_MAP__.get("track", None)
-    __TIMESTAMP__ = __FEATURE_MAP__.get("timestamp", None)
-    __ICAO__      = __FEATURE_MAP__.get("icao24", None)
-    __CALLSIGN__  = __FEATURE_MAP__.get("callsign", None)
-    __BARO_ALT__  = __FEATURE_MAP__.get("altitude", None)
-    __GEO_ALT__   = __FEATURE_MAP__.get("geoaltitude", None)
-    __VELOCITY__  = __FEATURE_MAP__.get("groundspeed", None)
+    FEATURE_MAP = None
+    LAT = None
+    LON = None
+    TRACK = None
+    TIMESTAMP = None
+    ICAO = None
+    CALLSIGN = None
+    BARO_ALT = None
+    GEO_ALT = None
+    VELOCITY = None
 
-T  = TypeVar('T')
-T1 = TypeVar('T1')
-T2 = TypeVar('T2')
-T3 = TypeVar('T3')
-T4 = TypeVar('T4')
+    def init(self, CTX:dict)->None:
+        """Init the feature getter with the context"""
+        self.FEATURE_MAP = CTX["FEATURE_MAP"]
+        self.LAT       = self.FEATURE_MAP.get("latitude", None)
+        self.LON       = self.FEATURE_MAP.get("longitude", None)
+        self.TRACK     = self.FEATURE_MAP.get("track", None)
+        self.TIMESTAMP = self.FEATURE_MAP.get("timestamp", None)
+        self.ICAO      = self.FEATURE_MAP.get("icao24", None)
+        self.CALLSIGN  = self.FEATURE_MAP.get("callsign", None)
+        self.BARO_ALT  = self.FEATURE_MAP.get("altitude", None)
+        self.GEO_ALT   = self.FEATURE_MAP.get("geoaltitude", None)
+        self.VELOCITY  = self.FEATURE_MAP.get("groundspeed", None)
+        CTX["FG"] = self
 
-# |====================================================================================================================
-# | LAT GETTER
-# |====================================================================================================================
-@overload
-def lat(slf:np.array_1d[T, T1], axis:int=-1) -> T: ...
-@overload
-def lat(slf:np.array_2d[T, T1, T2], axis:int=-1) -> np.array_1d[T, T1]: ...
-@overload
-def lat(slf:np.array_3d[T, T1, T2, T3], axis:int=-1) -> np.array_2d[T, T1, T2]: ...
-@overload
-def lat(slf:np.array_4d[T, T1, T2, T3, T4], axis:int=-1) -> np.array_3d[T, T1, T2, T3]: ...
-@overload
-def lat() -> int: ...
+    T  = TypeVar('T')
+    T1 = TypeVar('T1')
+    T2 = TypeVar('T2')
+    T3 = TypeVar('T3')
+    T4 = TypeVar('T4')
 
-def lat(slf:np.ndarray = None, axis:int=-1) -> np.ndarray:
-    if not(isinstance(slf, np.ndarray)): return __LAT__
-    return slf.take(__LAT__, axis)
+    # |====================================================================================================================
+    # | LAT GETTER
+    # |====================================================================================================================
+    @overload
+    def lat(self, slf:np.array_1d[T, T1], axis:int=-1) -> T: ...
+    @overload
+    def lat(self, slf:np.array_2d[T, T1, T2], axis:int=-1) -> np.array_1d[T, T1]: ...
+    @overload
+    def lat(self, slf:np.array_3d[T, T1, T2, T3], axis:int=-1) -> np.array_2d[T, T1, T2]: ...
+    @overload
+    def lat(self, slf:np.array_4d[T, T1, T2, T3, T4], axis:int=-1) -> np.array_3d[T, T1, T2, T3]: ...
+    @overload
+    def lat(self) -> int: ...
 
-
-# |====================================================================================================================
-# | LON GETTER
-# |====================================================================================================================
-@overload
-def lon(slf:np.array_1d[T, T1], axis:int=-1) -> T: ...
-@overload
-def lon(slf:np.array_2d[T, T1, T2], axis:int=-1) -> np.array_1d[T, T1]: ...
-@overload
-def lon(slf:np.array_3d[T, T1, T2, T3], axis:int=-1) -> np.array_2d[T, T1, T2]: ...
-@overload
-def lon(slf:np.array_4d[T, T1, T2, T3, T4], axis:int=-1) -> np.array_3d[T, T1, T2, T3]: ...
-@overload
-def lon() -> int: ...
+    def lat(self, slf:np.ndarray = None, axis:int=-1) -> np.ndarray:
+        if not(isinstance(slf, np.ndarray)): return self.LAT
+        return slf.take(self.LAT, axis)
 
 
-def lon(slf:np.ndarray = None, axis:int=-1) -> np.ndarray:
-    if not(isinstance(slf, np.ndarray)): return __LON__
-    return slf.take(__LON__, axis)
+    # |====================================================================================================================
+    # | LON GETTER
+    # |====================================================================================================================
+    @overload
+    def lon(self, slf:np.array_1d[T, T1], axis:int=-1) -> T: ...
+    @overload
+    def lon(self, slf:np.array_2d[T, T1, T2], axis:int=-1) -> np.array_1d[T, T1]: ...
+    @overload
+    def lon(self, slf:np.array_3d[T, T1, T2, T3], axis:int=-1) -> np.array_2d[T, T1, T2]: ...
+    @overload
+    def lon(self, slf:np.array_4d[T, T1, T2, T3, T4], axis:int=-1) -> np.array_3d[T, T1, T2, T3]: ...
+    @overload
+    def lon(self) -> int: ...
 
 
-# |====================================================================================================================
-# | LAT_LON GETTER
-# |====================================================================================================================
-@overload
-def lat_lon(slf:T, axis:int=-1) -> T: ...
-@overload
-def lat_lon() -> "tuple[int, int]": ...
+    def lon(self, slf:np.ndarray = None, axis:int=-1) -> np.ndarray:
+        if not(isinstance(slf, np.ndarray)): return self.LON
+        return slf.take(self.LON, axis)
 
 
-def lat_lon(slf:np.ndarray = None, axis:int=-1) -> np.ndarray:
-    if not(isinstance(slf, np.ndarray)): return (__LAT__, __LON__)
-    return slf.take([__LAT__, __LON__], axis)
+    # |====================================================================================================================
+    # | LAT_LON GETTER
+    # |====================================================================================================================
+    @overload
+    def lat_lon(self, slf:T, axis:int=-1) -> T: ...
+    @overload
+    def lat_lon(self) -> "tuple[int, int]": ...
 
 
-# |====================================================================================================================
-# | TRACK GETTER
-# |====================================================================================================================
-@overload
-def track(slf:np.array_1d[T, T1], axis:int=-1) -> T: ...
-@overload
-def track(slf:np.array_2d[T, T1, T2], axis:int=-1) -> np.array_1d[T, T1]: ...
-@overload
-def track(slf:np.array_3d[T, T1, T2, T3], axis:int=-1) -> np.array_2d[T, T1, T2]: ...
-@overload
-def track(slf:np.array_4d[T, T1, T2, T3, T4], axis:int=-1) -> np.array_3d[T, T1, T2, T3]: ...
-@overload
-def track() -> int: ...
+    def lat_lon(self, slf:np.ndarray = None, axis:int=-1) -> np.ndarray:
+        if not(isinstance(slf, np.ndarray)): return (self.LAT, self.LON)
+        return slf.take([self.LAT, self.LON], axis)
 
 
-def track(slf:np.ndarray = None, axis:int=-1) -> np.ndarray:
-    if not(isinstance(slf, np.ndarray)): return __TRACK__
-    return slf.take(__TRACK__, axis)
-
-# |====================================================================================================================
-# | TIMESTAMP GETTER
-# |====================================================================================================================
-@overload
-def timestamp(slf:np.array_1d[T, T1], axis:int=-1) -> T: ...
-@overload
-def timestamp(slf:np.array_2d[T, T1, T2], axis:int=-1) -> np.array_1d[T, T1]: ...
-@overload
-def timestamp(slf:np.array_3d[T, T1, T2, T3], axis:int=-1) -> np.array_2d[T, T1, T2]: ...
-@overload
-def timestamp(slf:np.array_4d[T, T1, T2, T3, T4], axis:int=-1) -> np.array_3d[T, T1, T2, T3]: ...
-@overload
-def timestamp() -> int: ...
-
-def timestamp(slf:np.ndarray = None, axis:int=-1) -> np.ndarray:
-    if not(isinstance(slf, np.ndarray)): return __TIMESTAMP__
-    return slf.take(__TIMESTAMP__, axis)
-
-# |====================================================================================================================
-# | BARMOETRIC ALTITUDE GETTER
-# |====================================================================================================================
-@overload
-def baroAlt(slf:np.array_1d[T, T1], axis:int=-1) -> T: ...
-@overload
-def baroAlt(slf:np.array_2d[T, T1, T2], axis:int=-1) -> np.array_1d[T, T1]: ...
-@overload
-def baroAlt(slf:np.array_3d[T, T1, T2, T3], axis:int=-1) -> np.array_2d[T, T1, T2]: ...
-@overload
-def baroAlt(slf:np.array_4d[T, T1, T2, T3, T4], axis:int=-1) -> np.array_3d[T, T1, T2, T3]: ...
-@overload
-def baroAlt() -> int: ...
+    # |====================================================================================================================
+    # | TRACK GETTER
+    # |====================================================================================================================
+    @overload
+    def track(self, slf:np.array_1d[T, T1], axis:int=-1) -> T: ...
+    @overload
+    def track(self, slf:np.array_2d[T, T1, T2], axis:int=-1) -> np.array_1d[T, T1]: ...
+    @overload
+    def track(self, slf:np.array_3d[T, T1, T2, T3], axis:int=-1) -> np.array_2d[T, T1, T2]: ...
+    @overload
+    def track(self, slf:np.array_4d[T, T1, T2, T3, T4], axis:int=-1) -> np.array_3d[T, T1, T2, T3]: ...
+    @overload
+    def track(self) -> int: ...
 
 
-def baroAlt(slf:np.ndarray = None, axis:int=-1) -> np.ndarray:
-    if not(isinstance(slf, np.ndarray)): return __BARO_ALT__
-    return slf.take(__BARO_ALT__, axis)
+    def track(self, slf:np.ndarray = None, axis:int=-1) -> np.ndarray:
+        if not(isinstance(slf, np.ndarray)): return self.TRACK
+        return slf.take(self.TRACK, axis)
 
-# |====================================================================================================================
-# | GPS ALTITUDE GETTER
-# |====================================================================================================================
-@overload
-def geoAlt(slf:np.array_1d[T, T1], axis:int=-1) -> T: ...
-@overload
-def geoAlt(slf:np.array_2d[T, T1, T2], axis:int=-1) -> np.array_1d[T, T1]: ...
-@overload
-def geoAlt(slf:np.array_3d[T, T1, T2, T3], axis:int=-1) -> np.array_2d[T, T1, T2]: ...
-@overload
-def geoAlt(slf:np.array_4d[T, T1, T2, T3, T4], axis:int=-1) -> np.array_3d[T, T1, T2, T3]: ...
-@overload
-def geoAlt() -> int: ...
+    # |====================================================================================================================
+    # | TIMESTAMP GETTER
+    # |====================================================================================================================
+    @overload
+    def timestamp(self, slf:np.array_1d[T, T1], axis:int=-1) -> T: ...
+    @overload
+    def timestamp(self, slf:np.array_2d[T, T1, T2], axis:int=-1) -> np.array_1d[T, T1]: ...
+    @overload
+    def timestamp(self, slf:np.array_3d[T, T1, T2, T3], axis:int=-1) -> np.array_2d[T, T1, T2]: ...
+    @overload
+    def timestamp(self, slf:np.array_4d[T, T1, T2, T3, T4], axis:int=-1) -> np.array_3d[T, T1, T2, T3]: ...
+    @overload
+    def timestamp(self) -> int: ...
 
+    def timestamp(self, slf:np.ndarray = None, axis:int=-1) -> np.ndarray:
+        if not(isinstance(slf, np.ndarray)): return self.TIMESTAMP
+        return slf.take(self.TIMESTAMP, axis)
 
-def geoAlt(slf:np.ndarray = None, axis:int=-1) -> np.ndarray:
-    if not(isinstance(slf, np.ndarray)): return __GEO_ALT__
-    return slf.take(__GEO_ALT__, axis)
-
-# |====================================================================================================================
-# | VELOCITY GETTER
-# |====================================================================================================================
-@overload
-def velocity(slf:np.array_1d[T, T1], axis:int=-1) -> T: ...
-@overload
-def velocity(slf:np.array_2d[T, T1, T2], axis:int=-1) -> np.array_1d[T, T1]: ...
-@overload
-def velocity(slf:np.array_3d[T, T1, T2, T3], axis:int=-1) -> np.array_2d[T, T1, T2]: ...
-@overload
-def velocity(slf:np.array_4d[T, T1, T2, T3, T4], axis:int=-1) -> np.array_3d[T, T1, T2, T3]: ...
-@overload
-def velocity() -> int: ...
-
-def velocity(slf:np.ndarray = None, axis:int=-1) -> np.ndarray:
-    if not(isinstance(slf, np.ndarray)): return __VELOCITY__
-    return slf.take(__VELOCITY__, axis)
-
-# |====================================================================================================================
-# | GENERIC GETTER
-# |====================================================================================================================
-
-@overload
-def get(slf:np.array_1d[T, T1], feature:str, axis:int=-1) -> T: ...
-@overload
-def get(slf:np.array_2d[T, T1, T2], feature:str, axis:int=-1) -> np.array_1d[T, T1]: ...
-@overload
-def get(slf:np.array_3d[T, T1, T2, T3], feature:str, axis:int=-1) -> np.array_2d[T, T1, T2]: ...
-@overload
-def get(slf:np.array_4d[T, T1, T2, T3, T4], feature:str, axis:int=-1) -> np.array_3d[T, T1, T2, T3]: ...
-@overload
-def get(feature:str) -> int: ...
+    # |====================================================================================================================
+    # | BARMOETRIC ALTITUDE GETTER
+    # |====================================================================================================================
+    @overload
+    def baroAlt(self, slf:np.array_1d[T, T1], axis:int=-1) -> T: ...
+    @overload
+    def baroAlt(self, slf:np.array_2d[T, T1, T2], axis:int=-1) -> np.array_1d[T, T1]: ...
+    @overload
+    def baroAlt(self, slf:np.array_3d[T, T1, T2, T3], axis:int=-1) -> np.array_2d[T, T1, T2]: ...
+    @overload
+    def baroAlt(self, slf:np.array_4d[T, T1, T2, T3, T4], axis:int=-1) -> np.array_3d[T, T1, T2, T3]: ...
+    @overload
+    def baroAlt(self) -> int: ...
 
 
-def __get__(slf:np.ndarray, feature:str, axis:int=-1) -> np.ndarray:
-    return slf.take(__FEATURE_MAP__[feature], axis)
+    def baroAlt(self, slf:np.ndarray = None, axis:int=-1) -> np.ndarray:
+        if not(isinstance(slf, np.ndarray)): return self.BARO_ALT
+        return slf.take(self.BARO_ALT, axis)
 
-def get(*args) -> np.ndarray:
-    if (isinstance(args, str)): return __FEATURE_MAP__[args]
-    return __get__(*args)
-
-# |====================================================================================================================
-# | GENERIC SETTER
-# |====================================================================================================================
-
-def __axis_i__(arr:np.ndarray, ind:slice, axis:int) -> "tuple[slice]":
-    # return (:, :, ..., axis, :, :,)
-    if (axis == -1): return tuple([slice(None) for _ in range(arr.ndim-1)] + [ind])
-    if (axis < 0): axis = arr.ndim + axis
-    return tuple([slice(None) if i != axis else ind for i in range(arr.ndim)])
-
-def set(slf:np.ndarray, feature:str, value:"float|np.ndarray", axis:int=-1) -> np.ndarray:
-    slf[__axis_i__(slf, __FEATURE_MAP__[feature], axis)] = value
-    return slf
-
-# |====================================================================================================================
-# | check if a feature exists
-# |====================================================================================================================
-
-def has(feature:str) -> bool:
-    return feature in __FEATURE_MAP__
+    # |====================================================================================================================
+    # | GPS ALTITUDE GETTER
+    # |====================================================================================================================
+    @overload
+    def geoAlt(self, slf:np.array_1d[T, T1], axis:int=-1) -> T: ...
+    @overload
+    def geoAlt(self, slf:np.array_2d[T, T1, T2], axis:int=-1) -> np.array_1d[T, T1]: ...
+    @overload
+    def geoAlt(self, slf:np.array_3d[T, T1, T2, T3], axis:int=-1) -> np.array_2d[T, T1, T2]: ...
+    @overload
+    def geoAlt(self, slf:np.array_4d[T, T1, T2, T3, T4], axis:int=-1) -> np.array_3d[T, T1, T2, T3]: ...
+    @overload
+    def geoAlt(self) -> int: ...
 
 
+    def geoAlt(self, slf:np.ndarray = None, axis:int=-1) -> np.ndarray:
+        if not(isinstance(slf, np.ndarray)): return self.GEO_ALT
+        return slf.take(self.GEO_ALT, axis)
+
+    # |====================================================================================================================
+    # | VELOCITY GETTER
+    # |====================================================================================================================
+    @overload
+    def velocity(self, slf:np.array_1d[T, T1], axis:int=-1) -> T: ...
+    @overload
+    def velocity(self, slf:np.array_2d[T, T1, T2], axis:int=-1) -> np.array_1d[T, T1]: ...
+    @overload
+    def velocity(self, slf:np.array_3d[T, T1, T2, T3], axis:int=-1) -> np.array_2d[T, T1, T2]: ...
+    @overload
+    def velocity(self, slf:np.array_4d[T, T1, T2, T3, T4], axis:int=-1) -> np.array_3d[T, T1, T2, T3]: ...
+    @overload
+    def velocity(self) -> int: ...
+
+    def velocity(self, slf:np.ndarray = None, axis:int=-1) -> np.ndarray:
+        if not(isinstance(slf, np.ndarray)): return self.VELOCITY
+        return slf.take(self.VELOCITY, axis)
+
+    # |====================================================================================================================
+    # | GENERIC GETTER
+    # |====================================================================================================================
+
+    @overload
+    def get(self, slf:np.array_1d[T, T1], feature:str, axis:int=-1) -> T: ...
+    @overload
+    def get(self, slf:np.array_2d[T, T1, T2], feature:str, axis:int=-1) -> np.array_1d[T, T1]: ...
+    @overload
+    def get(self, slf:np.array_3d[T, T1, T2, T3], feature:str, axis:int=-1) -> np.array_2d[T, T1, T2]: ...
+    @overload
+    def get(self, slf:np.array_4d[T, T1, T2, T3, T4], feature:str, axis:int=-1) -> np.array_3d[T, T1, T2, T3]: ...
+    @overload
+    def get(self, feature:str) -> int: ...
+
+
+    def __get__(self, slf:np.ndarray, feature:str, axis:int=-1) -> np.ndarray:
+        return slf.take(self.FEATURE_MAP[feature], axis)
+
+    def get(self, *args) -> np.ndarray:
+        if (isinstance(args, str)): return self.FEATURE_MAP[args]
+        return self.__get__(*args)
+
+
+    def get_not(self, slf:np.ndarray, feature:str, axis:int=-1) -> np.ndarray:
+        return slf.take([i for i in range(slf.shape[axis]) if i != self.FEATURE_MAP[feature]], axis)
+
+    # |====================================================================================================================
+    # | GENERIC SETTER
+    # |====================================================================================================================
+
+    def __axis_i__(self, arr:np.ndarray, ind:slice, axis:int) -> "tuple[slice]":
+        # return (:, :, ..., axis, :, :,)
+        if (axis == -1): return tuple([slice(None) for _ in range(arr.ndim-1)] + [ind])
+        if (axis < 0): axis = arr.ndim + axis
+        return tuple([slice(None) if i != axis else ind for i in range(arr.ndim)])
+
+    def set(self, slf:np.ndarray, feature:str, value:"float|np.ndarray", axis:int=-1) -> np.ndarray:
+        slf[self.__axis_i__(slf, self.FEATURE_MAP[feature], axis)] = value
+        return slf
+
+    # |====================================================================================================================
+    # | check if a feature exists
+    # |====================================================================================================================
+
+    def has(self, feature:str) -> bool:
+        return feature in self.FEATURE_MAP
+
+
+FG_spoofing = FeatureGetter()
+FG_flooding = FeatureGetter()
+FG_replay = FeatureGetter()
+FG_separator = FeatureGetter()

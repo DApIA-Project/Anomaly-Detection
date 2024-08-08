@@ -8,12 +8,14 @@ from   D_DataLoader.FloodingSolver.DataLoader import DataLoader
 import D_DataLoader.Utils as U
 from   E_Trainer.AbstractTrainer import Trainer as AbstractTrainer
 
-from   _Utils.Chrono import Chrono
+
+from   _Utils.numpy import np, ax
 import _Utils.Color as C
 from   _Utils.Color import prntC
+from   _Utils.FeatureGetter import FG_flooding as FG
+from   _Utils.Chrono import Chrono
 from   _Utils.DebugGui import GUI
 import _Utils.geographic_maths as GEO
-from   _Utils.numpy import np, ax
 import _Utils.Metrics as Metrics
 from   _Utils.plotADSB import PLT
 from   _Utils.ProgressBar import ProgressBar
@@ -69,6 +71,7 @@ class Trainer(AbstractTrainer):
 
         # Public attributes
         self.CTX = CTX
+        FG.init(CTX)
         self.model:_Model_ = Model(CTX)
         self.__makes_artifacts__()
         self.__init_GUI__()
@@ -118,7 +121,10 @@ class Trainer(AbstractTrainer):
         if (path is None):
             path = self.ARTIFACTS
 
-        self.model.set_variables(load(path+"/w"))
+        if ("LOAD_EP" in self.CTX and self.CTX["LOAD_EP"] != -1):
+            self.model.set_variables(load(path+"/weights/"+str(self.CTX["LOAD_EP"])+".w"))
+        else:
+            self.model.set_variables(load(path+"/w"))
         self.dl.xScaler.set_variables(load(path+"/xs"))
         self.dl.yScaler.set_variables(load(path+"/ys"))
         self.dl.PAD = load(path+"/pad")
@@ -312,7 +318,7 @@ class Trainer(AbstractTrainer):
         y_preds_ = np.zeros((len(x_preds), self.CTX["FEATURES_OUT"]), dtype=np.float64)
         for i in range(0, len(x_preds), self.CTX["MAX_BATCH_SIZE"]):
             s = slice(i, i+self.CTX["MAX_BATCH_SIZE"])
-            y_preds_[s] = self.model.predict(x_preds[s]).numpy()
+            y_preds_[s] = self.model.predict(x_preds[s])
         y_batch_[is_interesting] = y_preds_
 
 
@@ -434,6 +440,7 @@ class Trainer(AbstractTrainer):
         for f in to_remove:
             os.remove(self.ARTIFACTS+"/"+f)
 
+        mean_acc = np.zeros(3, dtype=np.float64)
         for folder in self.__eval_files__:
 
             self.dl.streamer.clear()
@@ -455,9 +462,19 @@ class Trainer(AbstractTrainer):
                 BAR.update()
 
             name = folder[0].split("/")[-2]
-            self.__eval_stats__(loss, y_, y, dfs, max_len, name=name)
+            best, acc = self.__eval_stats__(loss, y_, y, dfs, max_len, name=name)
+            mean_acc += acc
+            prntC(C.INFO, "Accuracy for ", C.BLUE, name, C.RESET, " : ", C.BLUE, round(best*100, 2), "% (", acc,")" )
 
-        return {}
+        mean_acc /= len(self.__eval_files__)
+
+        prntC(C.INFO, "accuracy by mean loss : ", C.BLUE, round(mean_acc[0]*100, 2), "%")
+        prntC(C.INFO, "accuracy by loss at attack : ", C.BLUE, round(mean_acc[1]*100, 2), "%")
+        prntC(C.INFO, "accuracy by loss around attack : ", C.BLUE, round(mean_acc[2]*100, 2), "%")
+
+        prntC(C.INFO, "best accuracy : ", C.BLUE, round(mean_acc.max()*100, 2), "%")
+
+        return {"mean_acc": mean_acc}
 
 
 
@@ -471,7 +488,7 @@ class Trainer(AbstractTrainer):
                        y_:"list[np.float64_2d[ax.time, ax.feature]]",
                        y:"list[np.float64_2d[ax.time, ax.feature]]",
                        dfs:"list[pd.DataFrame]",
-                       max_len:int, name:str) -> None:
+                       max_len:int, name:str) -> float:
 
         # plot mean loss (along flights), per timestamp
         mean_loss = np.zeros(max_len, dtype=np.float64)
@@ -481,18 +498,18 @@ class Trainer(AbstractTrainer):
 
 
 
-        self.__plot_eval__(dfs, y_, y, loss, mean_loss, max_len, name)
+        return self.__plot_eval__(dfs, y_, y, loss, mean_loss, max_len, name)
 
 
 
     def __plot_eval__(self, dfs:"list[pd.DataFrame]",
                       y_:"list[np.float64_2d[ax.time, ax.feature]]", y:"list[np.float64_2d[ax.time, ax.feature]]",
-                      loss:"list[np.float64_1d]", mean_loss:np.float64_1d, max_len:int, name:str):
+                      loss:"list[np.float64_1d]", mean_loss:np.float64_1d, max_len:int, name:str) -> float:
 
         self.__plot_loss_curves__(loss, mean_loss, max_len, name)
         self.__plot_predictions_on_saturation__(dfs, y_, y, loss, max_len, name)
         # self.__plot_prediction_on_error_spikes__(dfs, y_, y, mean_loss, loss, max_len, name)
-        self.__plot_safe_icao24__(dfs, loss, name)
+        return self.__plot_safe_icao24__(dfs, loss, name)
 
 
 # |====================================================================================================================
@@ -651,7 +668,7 @@ class Trainer(AbstractTrainer):
         pdf.close()
 
 
-    def __plot_safe_icao24__(self, dfs:"list[pd.DataFrame]", loss:"list[np.float64_1d]", name:str) -> None:
+    def __plot_safe_icao24__(self, dfs:"list[pd.DataFrame]", loss:"list[np.float64_1d]", name:str) -> float:
 
         icaos24 = [df["icao24"].iloc[0] for df in dfs]
 
@@ -673,13 +690,20 @@ class Trainer(AbstractTrainer):
         fig, ax = plt.subplots(1, len(LABELS), figsize=(15 * len(dfs) / 10.0, 5))
 
         colors = ["tab:blue", "tab:green", "tab:purple", "tab:red", "tab:orange", "tab:brown", "tab:pink", "tab:gray", "tab:olive", "tab:cyan"]
-
+        best_acc = 0
+        acc = [0, 0, 0]
         for i, loss in enumerate([mean_loss_per_flights, mean_loss_at_attack, mean_loss_around_attack]):
 
             order = np.argsort(loss)
 
             sorted_icaos24 = [icaos24[i] for i in order]
             sorted_loss = [loss[i] for i in order]
+
+            # true icao i is the index of the longuest icaco24
+            true_icao_i = np.argmax([len(sorted_icaos24[i]) for i in range(len(sorted_icaos24))])
+            acc[i] = 1-true_icao_i/(len(sorted_icaos24)-1)
+            if (acc[i] > best_acc):
+                best_acc = acc[i]
 
             for j in range(len(sorted_loss)):
                 col = colors[order[j] % len(colors)]
@@ -691,5 +715,7 @@ class Trainer(AbstractTrainer):
             ax[i].grid()
         fig.tight_layout()
         plt.savefig(self.ARTIFACTS+f"/safe_icao24_{name}.png")
+
+        return best_acc, acc
 
 

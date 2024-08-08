@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 from _Utils.os_wrapper import os
 import math
 
-import _Utils.FeatureGetter as FG
+from _Utils.FeatureGetter import FG_replay as FG
 import _Utils.Color as C
 from   _Utils.Color import prntC
 import _Utils.Limits as Limits
@@ -64,10 +64,6 @@ class DataLoader(AbstractDataLoader):
                                           "test :", C.BLUE, len(self.x_test))
 
             self.__last_training_flight__ = 0
-        else:
-            prntC(C.INFO, "Training, deactivated, only evaluation will be launched.")
-            prntC(C.WARNING, "Make sure everything is loaded from the disk, especially the PAD values.")
-            prntC(C.WARNING, "i'm not sure everything will work as expected : TODO CHECK !")
 
 
 

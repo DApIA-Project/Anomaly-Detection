@@ -2,6 +2,9 @@
 pip install tensorflow==2.8.0
 pip install keras
 
+pip install reformer-pytorch==1.4.4
+pip install torch==1.10
+
 # Data processing
 pip install pandas
 pip install scikit-learn
@@ -13,7 +16,9 @@ pip install matplotlib
 pip install cartopy # needs sudo apt -y install libgeos-dev
 
 
-# cartopy 
+# cartopy
 sudo apt -y install libgeos-dev
 pip uninstall shapely
 pip install --no-binary :all: shapely
+
+
