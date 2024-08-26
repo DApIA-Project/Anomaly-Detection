@@ -340,9 +340,10 @@ class Trainer(AbstractTrainer):
         y_[i_loc] = self.model.predict(x_batch)
         y_agg = np.zeros((len(y_), self.CTX["LABELS_OUT"]), dtype=np.float64)
         for i in range(len(y_)):
-            all_y_ = self.dl.streamer.predicted(x[i], y_[i])
-            # use mean method for now
-            y_agg[i] = np.nanmean(all_y_, axis=0)
+            if not(np.isnan(y_[i]).all()):
+                all_y_ = self.dl.streamer.predicted(x[i], y_[i])
+                # use mean method for now
+                y_agg[i] = np.nanmean(all_y_, axis=0)
 
         return y_, y_agg
 

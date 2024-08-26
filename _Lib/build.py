@@ -153,9 +153,14 @@ def file_content_remplace(_file, find, remplace):
 # clean lib before build
 to_reomve = []
 for root, dirs, files in os.walk(f"./AdsbAnomalyDetector/"):
+    print(root)
+    if (root == "./AdsbAnomalyDetector/ReplaySolver/hashtable"):
+        continue
+
     for file in files:
         if file != "AdsbAnomalyDetector.py" and file != "__init__.py":
             to_reomve.append(os.path.join(root, file))
+
     for dir in dirs:
         if dir != "__pycache__":
             to_reomve.append(os.path.join(root, dir))
@@ -210,7 +215,7 @@ imports.append("_Utils.module")
 
 
 
-
+print(imports)
 # copy all imports
 for import_ in imports:
     f =  f"../{import_.replace('.', '/')}.py"
@@ -330,7 +335,7 @@ os.system(f"mv ./AdsbAnomalyDetector/{constants[0]} ./AdsbAnomalyDetector/C_Cons
 # ReplaySolver
 # # copy weights
 os.system(f"mkdir ./AdsbAnomalyDetector/ReplaySolver")
-os.system(f"cp ../_Artifacts/ReplaySolver/{MODELS.replay}/w ./AdsbAnomalyDetector/ReplaySolver/w")
+os.system(f"cp -r ../_Artifacts/ReplaySolver/hashtable ./AdsbAnomalyDetector/ReplaySolver/hashtable")
 
 # rename model and constant file to be generic
 model = find_files_and_filter("B_Model_ReplaySolver_", [
@@ -375,6 +380,7 @@ os.system(f"mv ./AdsbAnomalyDetector/{constants[0]} ./AdsbAnomalyDetector/C_Cons
 
 files = os.listdir("./AdsbAnomalyDetector")
 files = [f for f in files if f.startswith("C_Constants")]
+print(files)
 for file in files:
     lines = read_lines(f"./AdsbAnomalyDetector/{file}")
     for i in range(len(lines)):

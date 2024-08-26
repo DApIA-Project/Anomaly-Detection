@@ -47,11 +47,11 @@ def __hash_one__(fp:np.int8_1d) -> int:
 
 
 
-def hash(fp:np.int8_2d[ax.sample, ax.time]) -> np.int64_1d:
+def hash(fp:np.int8_2d[ax.sample, ax.time]) -> np.int32_1d:
     """
     Compute the hash of a fingerprint
     """
-    hashes = np.zeros(fp.shape[0], dtype=np.int64)
+    hashes = np.zeros(fp.shape[0], dtype=np.int32)
     for s in range(len(fp)):
         hashes[s] = __hash_one__(fp[s])
     return hashes
@@ -64,8 +64,8 @@ def match(hashes:np.int64_1d, hashtable:"dict[int, list[str]]") -> "list[str]":
     """
     res = []
     for i in range(len(hashes)):
-        if (hashes[i] in hashtable):
-            res.extend(hashtable[hashes[i]])
+        matches = hashtable.get(hashes[i], [])
+        res.extend(matches)
 
     return res
 

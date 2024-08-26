@@ -75,14 +75,14 @@ class Trainer(AbstractTrainer):
 
 
     def save(self) -> None:
-        write(self.ARTIFACTS+"/w", self.model.get_variables())
+        pass
 
     def load(self, path=None) -> None:
 
         if (path is None):
             path = self.ARTIFACTS
 
-        self.model.set_variables(load(path+"/w"))
+        self.model.set_variables(path)
 
 # |====================================================================================================================
 # |     TRAINING

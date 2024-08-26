@@ -302,10 +302,14 @@ def __sigmoid__(x:float) -> float:
     return 1.0 / (1.0 + math.exp(float(-x)))
 
 def __sigmoid_inverse__(x:float) -> float:
+    if (np.isnan(x)):
+        return x
+
     if (x <= 0):
-        return 10
+        return -10e9
     elif (x >= 1):
-        return -10
+        return 10e9
+
     return math.log(x / (1.0 - x))
 
 np_sig_vec = np.vectorize(__sigmoid__)

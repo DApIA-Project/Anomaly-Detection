@@ -10,10 +10,6 @@ from ._Utils_Color import prntC
 from ._Utils_module import buildCTX
 
 
-
-
-
-
 # |====================================================================================================================
 # | SPOOFING DETECTION
 # |====================================================================================================================
@@ -80,7 +76,7 @@ from . import C_Constants_ReplaySolver_DefaultCTX as DefaultCTX_REPLAY
 
 CTX_RS = buildCTX(CTX_REPLAY, DefaultCTX_REPLAY)
 replaySolver = ReplaySolver(CTX_RS, MODEL_REPLAY)
-# replaySolver.load(HERE+"/ReplaySolver")
+replaySolver.load(HERE+"/ReplaySolver/hashtable")
 
 prntC("\r",C.INFO, "LOADING REPLAY MODEL", C.CYAN, " [DONE]")
 
@@ -109,7 +105,7 @@ def add_message_predictions(hash:int, message: "dict[str, str]") -> None:
     global hash_table
     if (hash == 0):
         return
-    expiration = time.time() + 30 * 60
+    expiration = time.time() + 30 * 60 # 30 minutes
     hash_table[hash] = [message, expiration]
 
 
@@ -127,7 +123,7 @@ def message_subset(messages: "list[dict[str, str]]", indices: "list[bool]") -> "
     return [messages[i] for i in range(len(messages)) if indices[i]]
 
 def predict(messages: "list[dict[str, str]]", compress=True) -> "list[dict[str, str]]":
-    # clean_hash_table()
+    clean_hash_table()
 
     # load messages predictions if they has already been computed
     message_filter = np.ones(len(messages), dtype=bool)
@@ -187,8 +183,6 @@ def predict(messages: "list[dict[str, str]]", compress=True) -> "list[dict[str, 
 
             message_filter[i] = not(response[i]["replay"])
             sub_i += 1
-
-
 
 
     # check for flooding anomalies

@@ -72,7 +72,7 @@ class DataLoader(AbstractDataLoader):
         # path can be a folder or a file
         is_folder = os.path.isdir(path)
         if (is_folder):
-            filenames = U.list_flights(path, limit=1000)#Limits.INT_MAX)
+            filenames = U.list_flights(path, limit=Limits.INT_MAX)
             prntC(C.INFO, "Dataset loading")
         else:
             path = path.split("/")
