@@ -21,7 +21,7 @@ import _Utils.Limits as Limits
 from   _Utils.numpy import np, ax
 from   _Utils.plotADSB import PLT
 from   _Utils.ProgressBar import ProgressBar
-from   _Utils.OrderedDict import OrderedDictInt
+from   _Utils.OrderedDict import OrderedDict
 
 
 
@@ -422,7 +422,7 @@ class Trainer(AbstractTrainer):
     def predict(self, x:"list[dict[str,object]]", __EVAL__:bool=False) -> "list[str]":
         if (len(x) == 0): return []
 
-        per_timestamp:OrderedDictInt[dict[str, list[dict[str, object]]] ] = OrderedDictInt()
+        per_timestamp:OrderedDict[dict[str, list[dict[str, object]]] ] = OrderedDict()
         for i in range(len(x)):
             timestamp = x[i]["timestamp"]
 
@@ -440,9 +440,8 @@ class Trainer(AbstractTrainer):
 
             for icao in per_icao.keys():
                 msgs = per_icao[icao]
-                TS = msgs[0]["timestamp"]
-                sample, tags = self.dl.streamer.get_flights_with_icao(icao, TS)
-                timestamps = [TS for _ in range(len(sample))]
+                sample, tags = self.dl.streamer.get_flights_with_icao(icao, timestamp)
+                timestamps = [timestamp for _ in range(len(sample))]
 
                 y_ = self.model.predict(sample, timestamps)
 
