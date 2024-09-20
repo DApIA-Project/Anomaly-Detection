@@ -153,7 +153,7 @@ class Trainer(AbstractTrainer):
             y_[is_interesting[i]] = y_is_interesting[i]
 
         for i in range(len(x)):
-            tag = x[i].get("tag", x[i]["icao24"])
+            tag = x[i]["icao24"] + "_" + x[i].get("tag", "0")
 
             predictions = self.dl.streamer.get_cache(f"y_{tag}")
             if (predictions is None):

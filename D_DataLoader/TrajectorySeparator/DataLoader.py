@@ -86,8 +86,8 @@ class StreamerInterface:
         # with the same icao24
         # tag is icao if the message hasn't been associated to any aircraft yet
 
-        tag = x.get("tag", x['icao24'])
-        icao = x.get("icao24", tag)
+        icao = x["icao24"]
+        tag = x["icao24"]+"_"+ x.get("tag", "0")
 
         if (tag != icao):
             STREAMER.add(x, tag=tag)

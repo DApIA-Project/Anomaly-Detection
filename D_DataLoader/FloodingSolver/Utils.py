@@ -11,7 +11,7 @@ import D_DataLoader.Utils      as U
 # | CHECKING CLEANESS FOR TRAINING DATA
 # |====================================================================================================================
 
-def check_sample(CTX:"dict[str, object]", x:"np.ndarray", i:int, t:int) -> bool:
+def check_sample(CTX:"dict[str, object]", x:"np.ndarray", i:int, t:int, training=True) -> bool:
     lats = FG.lat(x[i])
     lons = FG.lon(x[i])
     HORIZON = CTX["HORIZON"]
@@ -23,6 +23,9 @@ def check_sample(CTX:"dict[str, object]", x:"np.ndarray", i:int, t:int) -> bool:
         return False
     if (lats[t+HORIZON] == 0 and lons[t+HORIZON] == 0):
         return False
+
+    if (not(training)):
+        return True
 
     # Check there is no missing timestamp between last timestamp t and prediction timestamp t+HORIZON
     ts_actu = FG.timestamp(x[i][t])
@@ -137,7 +140,7 @@ def gen_sample(CTX:dict,
                     np.float64_1d[ax.feature],
                     bool, tuple[float, float, float]]""":
 
-    if (valid is None): valid = check_sample(CTX, x, i, t)
+    if (valid is None): check_sample(CTX, x, i, t)
     x_sample = alloc_sample(CTX)
     if (not(valid)): return x_sample, None, valid, (0, 0, 0)
 

@@ -215,12 +215,12 @@ class Trainer(AbstractTrainer):
                     if not(TU.have_n_inf_to(pred_mat[:, y_i], area) or TU.have_n_inf_to(true_mat[yi, :], area)):
                         assoc_inv[y_i] = yi
                         assoc[yi] = y_i
-                        mat[yi, :] = Limits.INT_MAX
+                        mat[yi, :] = Limits.INT_MAX 
                         mat[:, y_i] = Limits.INT_MAX
-                        pred_mat[yi, :] = Limits.INT_MAX
+                        pred_mat[y_i, :] = Limits.INT_MAX
                         pred_mat[:, y_i] = Limits.INT_MAX
                         true_mat[yi, :] = Limits.INT_MAX
-                        true_mat[:, y_i] = Limits.INT_MAX
+                        true_mat[:, yi] = Limits.INT_MAX
                         run = True
 
 
@@ -235,13 +235,13 @@ class Trainer(AbstractTrainer):
             -> "tuple[np.int64_1d[ax.sample], np.int64_1d[ax.sample]]":
 
         assoc = np.full((mat.shape[0],), -1, dtype=int)
-        assoc[:mat.shape[1]] = np.arange(mat.shape[1])
 
-        all_perms = itertools.permutations(assoc)
+        all_perms = itertools.permutations(range(mat.shape[1]), mat.shape[0])
         best_loss = Limits.INT_MAX
         for perm in all_perms:
             perm = np.array(perm)
             loss = TU.eval_association(mat, perm)
+
             if (loss < best_loss):
                 best_loss = loss
                 assoc = perm
@@ -364,9 +364,6 @@ class Trainer(AbstractTrainer):
                 step = STEP.FINISHED
             elif (step == STEP.NEAREST):
                 step = STEP.FINISHED
-
-
-
 
 
         return self.__give_icao__(assoc, msgs, tags)

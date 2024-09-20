@@ -67,7 +67,7 @@ df = pd.read_csv('./2022-01-11_19-43-26_SAMU31_39ac45.csv',  dtype={"icao24":str
 
 FLOOD_AFTER = 60
 # "rdm" | "geo" | "sphe"
-MODE = "rdm"
+MODE = "geo"
 OUT = "./Eval/exp"
 
 if not(os.path.exists(f'{OUT}_{MODE}')):
@@ -84,6 +84,8 @@ while df["timestamp"].values[i] - df["timestamp"].values[0] <= FLOOD_AFTER:
 
 O_lat = df['latitude'].values[i]
 O_long = df['longitude'].values[i]
+
+concat = pd.DataFrame()
 
 if (MODE == "rdm"):
 
@@ -102,7 +104,8 @@ if (MODE == "rdm"):
         sub_df.to_csv(f'{OUT}_{MODE}/rdm{random}.csv', index=False)
 else:
 
-    for deriv in [-90, -65, -45, -30, -15, -10, -7, -5, -3, -2, -1, 0, 1, 2, 3, 5, 7, 10, 15, 30, 45, 65, 90]:
+    # for deriv in [-90, -65, -45, -30, -15, -10, -7, -5, -3, -2, -1, 0, 1, 2, 3, 5, 7, 10, 15, 30, 45, 65, 90]:
+    for deriv in [-90, -65, -45, -30, -15, -10, -6, -3, 0, 3, 6, 10, 15, 30, 45, 65, 90]:
 
         if (MODE == "geo"):
             lats, lons = rotate_geo (df['latitude'].values[i:].copy(), df['longitude'].values[i:].copy(), O_lat, O_long, deriv)
@@ -123,3 +126,9 @@ else:
 
         sub_df.to_csv(f'{OUT}_{MODE}/rot{deriv}.csv', index=False)
 
+        sub_df['icao24'] = df["icao24"]
+        concat = pd.concat([concat, sub_df])
+
+# order by timestamp
+concat = concat.sort_values(by='timestamp')
+concat.to_csv(f'./{OUT}_{MODE}/concat.csv', index=False)

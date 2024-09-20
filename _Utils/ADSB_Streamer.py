@@ -31,7 +31,7 @@ def cast_msg(col:str, msg:object) -> float:
 
     if (msg is np.nan or msg == None or msg == ""):
         return np.nan
-    elif (col == "icao24" or col == "callsign"):
+    elif (col == "icao24" or col == "callsign" or col == "tag"):
         return msg
     elif (col == "onground" or col == "alert" or col == "spi"):
         return float(msg == "True")
@@ -62,12 +62,24 @@ class Streamer:
 
         if (x['icao24'] not in self.__icao_to_tag__):
             self.__icao_to_tag__[x['icao24']] = set()
+
+
+
+
         self.__icao_to_tag__[x['icao24']].add(tag)
         self.__tag_to_icao__[tag] = x["icao24"]
 
         if tag not in self.trajectories:
             self.trajectories[tag] = DataFrame(len(__FEATURES__))
             self.trajectories[tag].setColums(__FEATURES__)
+
+            # parent managment on split
+            if (tag.startswith(x['icao24']+"_")):
+                tag_id = tag.split("_")[1]
+                parent_trajectory = self.trajectories.get(x['icao24']+"_0", None)
+                if (tag_id != "0" and parent_trajectory != None):
+                    print(f"Split trajectory {tag} from {x['icao24']}_0")
+                    self.trajectories[tag] = parent_trajectory.copy()
 
         x = [cast_msg(col, x.get(col, np.nan)) for col in __FEATURES__]
 
@@ -85,6 +97,9 @@ class Streamer:
             prntC(C.WARNING, f"Duplicate message for {tag} at timestamp {x[__FEATURE_MAP__['timestamp']]}")
 
         return self.trajectories[tag]
+
+    def get(self, tag:str) -> DataFrame:
+        return self.trajectories.get(tag, None)
 
     def set(self, x:"dict[str, object]", tag:str) -> DataFrame:
         if (tag not in self.trajectories):

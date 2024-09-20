@@ -123,13 +123,14 @@ def message_subset(messages: "list[dict[str, str]]", indices: "list[bool]") -> "
     return [messages[i] for i in range(len(messages)) if indices[i]]
 
 def predict(messages: "list[dict[str, str]]", compress=True) -> "list[dict[str, str]]":
+    # print("i")
     clean_hash_table()
 
     # load messages predictions if they has already been computed
     message_filter = np.ones(len(messages), dtype=bool)
 
     response = [{
-        "tag": messages[i]["icao24"],
+        "tag": messages[i].get("tag", messages[i]["icao24"]),
         "spoofing": False,
         "replay": False,
         "flooding": False
@@ -163,27 +164,32 @@ def predict(messages: "list[dict[str, str]]", compress=True) -> "list[dict[str, 
             messages[i] = {col:cast_msg(col,  messages[i].get(col, np.nan)) for col in messages[i]}
 
 
+
     # separate trajectories with duplicated icao24
     sub_msg = message_subset(messages, message_filter)
-    sub_icaos = trajectorySeparator.predict(sub_msg)
-    sub_i = 0
-    for i in range(len(messages)):
-        if (message_filter[i]):
-            response[i]["tag"] = sub_icaos[sub_i]
+    # sub_icaos = trajectorySeparator.predict(sub_msg)
+    # sub_i = 0
+    # for i in range(len(messages)):
+    #     if (message_filter[i]):
+    #         response[i]["tag"] = sub_icaos[sub_i]
 
-            sub_i += 1
+    #         sub_i += 1
+
+
+    # print("a")
 
 
     # check for replay anomalies
-    matches = replaySolver.predict(sub_msg)
-    sub_i = 0
-    for i in range(len(messages)):
-        if (message_filter[i]):
-            response[i]["replay"] = (matches[sub_i] != "none" and matches[sub_i] != "unknown")
+    # matches = replaySolver.predict(sub_msg)
+    # sub_i = 0
+    # for i in range(len(messages)):
+    #     if (message_filter[i]):
+    #         response[i]["replay"] = (matches[sub_i] != "none" and matches[sub_i] != "unknown")
 
-            message_filter[i] = not(response[i]["replay"])
-            sub_i += 1
+    #         message_filter[i] = not(response[i]["replay"])
+    #         sub_i += 1
 
+    # print("b")
 
     # check for flooding anomalies
     sub_msg = message_subset(messages, message_filter)
@@ -191,6 +197,7 @@ def predict(messages: "list[dict[str, str]]", compress=True) -> "list[dict[str, 
     sub_i = 0
     for i in range(len(messages)):
         if (message_filter[i]):
+            print(loss[sub_i])
             response[i]["flooding"] = (loss[sub_i] > CTX_FS["THRESHOLD"])
             response[i]["flooding_lat"] = y_[sub_i][0]
             response[i]["flooding_lon"] = y_[sub_i][1]
@@ -198,28 +205,32 @@ def predict(messages: "list[dict[str, str]]", compress=True) -> "list[dict[str, 
             message_filter[i] = not(response[i]["flooding"])
             sub_i += 1
 
-
+    # print("c")
 
     # check for spoofing
     # filter messages having unknown icao24
-    true_labels = get_true_aircraft_type(messages)
-    for i in range(len(messages)):
-        if (true_labels[i] == 0):
-            message_filter[i] = False
+    # true_labels = get_true_aircraft_type(messages)
+    # for i in range(len(messages)):
+    #     if (true_labels[i] == 0):
+    #         message_filter[i] = False
 
-    sub_msg = message_subset(messages, message_filter)
-    _, label_proba = aircraftClassification.predict(sub_msg)
-    spoofing = is_spoofing(true_labels[message_filter], label_proba)
-    sub_i = 0
-    for i in range(len(messages)):
-        if (message_filter[i]):
-            response[i]["spoofing"] = spoofing[sub_i]
-            sub_i += 1
+    # sub_msg = message_subset(messages, message_filter)
+    # _, label_proba = aircraftClassification.predict(sub_msg)
+    # spoofing = is_spoofing(true_labels[message_filter], label_proba)
+    # sub_i = 0
+    # for i in range(len(messages)):
+    #     if (message_filter[i]):
+    #         response[i]["spoofing"] = spoofing[sub_i]
+    #         sub_i += 1
+
+    # print("d")
 
 
     # save messages predictions in case of a future request
     for i in range(len(messages)):
         add_message_predictions(hashes[i], response[i])
+
+    # print("e")
 
     return response
 

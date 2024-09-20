@@ -217,7 +217,7 @@ class StreamerInterface:
 
         MAX_LENGTH_NEEDED = self.CTX["HISTORY"]
 
-        tag = x.get("tag", x["icao24"])
+        tag = x['icao24'] + "_" + x.get("tag", "0")
         raw_df = STREAMER.add(x, tag=tag)
         last_df = STREAMER.cache("ReplaySolver", tag)
 

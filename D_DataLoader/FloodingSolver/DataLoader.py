@@ -256,8 +256,8 @@ class StreamerInterface:
 
         MAX_LENGTH_NEEDED = self.CTX["HISTORY"] + self.CTX["HORIZON"]
         MIN_LENGTH_NEEDED = self.CTX["DILATION_RATE"] + 1 + self.CTX["HORIZON"]
-
-        tag = x.get("tag", x["icao24"])
+        # print(x["icao24"], x.get("tag", "no tag"))
+        tag = x["icao24"]+"_"+x.get("tag", "0")
         raw_df = STREAMER.add(x, tag=tag)
         last_df = STREAMER.cache("FloodingSolver", tag)
 
@@ -293,7 +293,7 @@ class StreamerInterface:
 
 
     def add_to_mean_loss(self, x:"dict[str, object]", loss:float) -> None:
-        tag = x.get("tag", x["icao24"])
+        tag = x["icao24"]+"_"+x.get("tag", "0")
         losses = STREAMER.cache("FloodingSolverLosses", tag)
 
         if (losses is None):

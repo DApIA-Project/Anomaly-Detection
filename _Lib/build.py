@@ -5,11 +5,11 @@ import subprocess
 
 class MODELS:
     spoofing = "CNN2"
-    separator = "DEV"
+    separator = "GEO"
     replay = "HASH"
     flooding = "LSTM"
 
-VERSION = "0.5.4"
+VERSION = "0.5.5"
 
 
 ALL_PY = []
@@ -154,7 +154,7 @@ def file_content_remplace(_file, find, remplace):
 to_reomve = []
 for root, dirs, files in os.walk(f"./AdsbAnomalyDetector/"):
     print(root)
-    if (root == "./AdsbAnomalyDetector/ReplaySolver/hashtable"):
+    if (root.startswith("./AdsbAnomalyDetector/ReplaySolver")):
         continue
 
     for file in files:
@@ -162,7 +162,7 @@ for root, dirs, files in os.walk(f"./AdsbAnomalyDetector/"):
             to_reomve.append(os.path.join(root, file))
 
     for dir in dirs:
-        if dir != "__pycache__":
+        if dir != "__pycache__" and dir != "ReplaySolver":
             to_reomve.append(os.path.join(root, dir))
 
 for file in to_reomve:
@@ -335,7 +335,8 @@ os.system(f"mv ./AdsbAnomalyDetector/{constants[0]} ./AdsbAnomalyDetector/C_Cons
 # ReplaySolver
 # # copy weights
 os.system(f"mkdir ./AdsbAnomalyDetector/ReplaySolver")
-os.system(f"cp -r ../_Artifacts/ReplaySolver/hashtable ./AdsbAnomalyDetector/ReplaySolver/hashtable")
+if (not os.path.exists("./AdsbAnomalyDetector/ReplaySolver/hashtable")):
+    os.system(f"cp -r ../_Artifacts/ReplaySolver/hashtable ./AdsbAnomalyDetector/ReplaySolver/hashtable")
 
 # rename model and constant file to be generic
 model = find_files_and_filter("B_Model_ReplaySolver_", [

@@ -311,7 +311,7 @@ class StreamerInterface:
             ],
             list[bool]]""":
 
-        tag = x.get("tag", x['icao24'])
+        tag = x['icao24']+"_"+x.get("tag", "0")
         raw_df = STREAMER.add(x, tag=tag)
         last_df = STREAMER.cache("AircraftClassification", tag)
 
@@ -348,7 +348,7 @@ class StreamerInterface:
     Attach the prediction to the cache
     """
     def predicted(self, x:"dict[str, object]", y_:np.ndarray) -> np.ndarray:
-        tag = x.get("tag", x['icao24'])
+        tag = x['icao24']+"_"+x.get("tag", "0")
         preds = STREAMER.cache("AircraftClassification_Pred", tag)
 
         if (preds is None):

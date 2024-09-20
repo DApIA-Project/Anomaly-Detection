@@ -305,6 +305,7 @@ class Trainer(AbstractTrainer):
 
         # stream message and build input batch
         for i in range(len(x)):
+            
             sample, y_sample, valid, o = self.dl.streamer.stream(x[i])
             x_batch[i] = sample[0]
             if (valid): y_batch[i] = y_sample[0]
