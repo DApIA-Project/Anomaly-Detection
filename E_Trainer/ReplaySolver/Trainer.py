@@ -11,7 +11,7 @@ from   _Utils.Chrono import Chrono
 from   _Utils.DebugGui import GUI
 import _Utils.Color as C
 from   _Utils.Color import prntC
-from   _Utils.numpy import np, ax
+from numpy_typing import np, ax
 from   _Utils.save import write, load
 from   _Utils.ProgressBar import ProgressBar
 from   _Utils.FeatureGetter import FG_replay as FG

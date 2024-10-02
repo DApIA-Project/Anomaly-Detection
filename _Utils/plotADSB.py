@@ -14,16 +14,23 @@ plot_in_progress = {}
 
 class Plotter:
 
-    def __init__(self, fig:plt.Figure, ax:plt.Axes) -> None:
+    def __init__(self, fig:plt.Figure, ax:plt.Axes, display_map:bool) -> None:
         self.fig = fig
         self.ax = ax
+        self.display_map = display_map
 
 
     def plot(self, *args, **kwargs) -> None:
-        self.ax.plot(*args, **kwargs, transform=ccrs.PlateCarree())
+        if (self.display_map):
+            self.ax.plot(*args, **kwargs, transform=ccrs.PlateCarree())
+        else:
+            self.ax.plot(*args, **kwargs)
 
     def scatter(self,*args, **kwargs) -> None:
-        self.ax.scatter(*args, **kwargs, transform=ccrs.PlateCarree())
+        if (self.display_map):
+            self.ax.scatter(*args, **kwargs, transform=ccrs.PlateCarree())
+        else:
+            self.ax.scatter(*args, **kwargs)
 
     def title(self,title:str) -> None:
         self.ax.set_title(title)
@@ -44,21 +51,38 @@ class PLT:
 
         circumference = 40075017
 
-        fig, ax = plt.subplots(sub_plots[0], sub_plots[1], figsize=figsize,
-                        subplot_kw=dict(projection=request_OSM.crs))
-
-        if (sub_plots[0] == 1 and sub_plots[1] == 1):
-            ax = [[ax]]
-        elif (sub_plots[0] == 1):
-            ax = [ax]
-        elif (sub_plots[1] == 1):
-            ax = [[ax[i]] for i in range(sub_plots[0])]
-
+        # fig, ax = plt.subplots(sub_plots[0], sub_plots[1], figsize=figsize,
+        #                 subplot_kw=dict(projection=request_OSM.crs))
 
         if (display_map is None):
             display_map = [ [True] * sub_plots[1]] * sub_plots[0]
+
         if (ratios is None):
             ratios = [[1] * sub_plots[1]] * sub_plots[0]
+
+
+        fig = plt.figure(figsize=figsize)
+        gs = fig.add_gridspec(sub_plots[0], sub_plots[1])
+
+        ax = []
+        for i in range(sub_plots[0]):
+            ax.append([])
+            for j in range(sub_plots[1]):
+                if (display_map[i][j]):
+                    _ax_ = fig.add_subplot(gs[i, j], projection=request_OSM.crs)
+                else:
+                    _ax_ = fig.add_subplot(gs[i, j])
+                ax[i].append(_ax_)
+
+
+        # if (sub_plots[0] == 1 and sub_plots[1] == 1):
+        #     ax = [[ax]]
+        # elif (sub_plots[0] == 1):
+        #     ax = [ax]
+        # elif (sub_plots[1] == 1):
+        #     ax = [[ax[i]] for i in range(sub_plots[0])]
+
+
         if (not(isinstance(min_lat, list))):
             min_lat = [[min_lat] * sub_plots[1]] * sub_plots[0]
             min_lon = [[min_lon] * sub_plots[1]] * sub_plots[0]
@@ -71,10 +95,12 @@ class PLT:
                 if (display_map[i][j]):
                     box_size = GEO.distance(min_lat[i][j], min_lon[i][j], max_lat[i][j], min_lon[i][j])
 
-                    zoom = math.ceil(math.log2(circumference / box_size))
+                    zoom = 14#math.ceil(math.log2(circumference / box_size))
 
-                    ax[i][j].set_extent([min_lon[i][j], max_lon[i][j], min_lat[i][j], max_lat[i][j]])
+                    ax[i][j].set_extent([min_lon[i][j], max_lon[i][j], min_lat[i][j], max_lat[i][j]],
+                                        crs=ccrs.PlateCarree())
                     ax[i][j].add_image(request_OSM, zoom)
+                    ax[i][j].gridlines(color='black', linestyle='-', draw_labels=True)
                     ax[i][j].set_aspect('equal')
                 else:
 
@@ -85,7 +111,7 @@ class PLT:
         for i in range(sub_plots[0]):
             plotters.append([])
             for j in range(sub_plots[1]):
-                plotters[i].append(Plotter(fig, ax[i][j]))
+                plotters[i].append(Plotter(fig, ax[i][j], display_map[i][j]))
 
         PLT.__save__(tag, plotters)
 
@@ -132,8 +158,10 @@ class PLT:
 
     @staticmethod
     def legend(tag:str) -> None:
-        plotter = PLT.__load__(tag)[0][0]
-        plotter.legend()
+        plotter = PLT.__load__(tag)
+        for i in range(len(plotter)):
+            for j in range(len(plotter[i])):
+                plotter[i][j].legend()
 
 
 
@@ -177,6 +205,6 @@ class PLT:
 class Color:
     TRAJECTORY = "tab:blue"
     PREDICTION = "tab:purple"
-    
+
     TRAIN = "tab:blue"
     TEST = "tab:orange"

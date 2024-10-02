@@ -4,7 +4,7 @@ import torch.nn.functional as F
 from _Utils.former_layers.Transformer_EncDec import Decoder, DecoderLayer, Encoder, EncoderLayer, ConvLayer
 from _Utils.former_layers.SelfAttention_Family import FullAttention, AttentionLayer
 from _Utils.former_layers.Embed import DataEmbedding
-from   _Utils.numpy import np, ax
+from numpy_typing import np, ax
 from _Utils.FeatureGetter import FG_flooding as FG
 
 

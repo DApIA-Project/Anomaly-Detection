@@ -3,7 +3,7 @@ from _Utils.os_wrapper import os
 import tensorflow as tf
 import keras.layers  as layers
 
-from _Utils.numpy import np, ax
+from numpy_typing import np, ax, ax
 
 from B_Model.AbstractModel import Model as AbstactModel
 

@@ -1,6 +1,6 @@
 
 
-from _Utils.numpy import np, ax
+from numpy_typing import np, ax, ax
 import matplotlib.pyplot as plt
 from _Utils.os_wrapper import os
 import math

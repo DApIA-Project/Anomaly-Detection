@@ -2,16 +2,25 @@
 from _Utils.FeatureGetter import FG_flooding as FG
 import _Utils.geographic_maths as GEO
 import _Utils.plotADSB         as PLT
-from _Utils.numpy import np, ax
+from numpy_typing import np, ax, ax
 
 import D_DataLoader.Utils      as U
+
+
+# |====================================================================================================================
+# | CACHE
+# |====================================================================================================================
+
+
+
 
 
 # |====================================================================================================================
 # | CHECKING CLEANESS FOR TRAINING DATA
 # |====================================================================================================================
 
-def check_sample(CTX:"dict[str, object]", x:"np.ndarray", i:int, t:int, training=True) -> bool:
+def check_sample(CTX:"dict[str, object]", x:"np.ndarray", i:int, t:int, training:bool=True) -> bool:
+
     lats = FG.lat(x[i])
     lons = FG.lon(x[i])
     HORIZON = CTX["HORIZON"]
@@ -24,8 +33,10 @@ def check_sample(CTX:"dict[str, object]", x:"np.ndarray", i:int, t:int, training
     if (lats[t+HORIZON] == 0 and lons[t+HORIZON] == 0):
         return False
 
-    if (not(training)):
-        return True
+    # count nb lats = 0
+    nb = np.sum(lats == 0)
+    if (nb/float(len(lats))>0.333):
+        return False
 
     # Check there is no missing timestamp between last timestamp t and prediction timestamp t+HORIZON
     ts_actu = FG.timestamp(x[i][t])
@@ -42,11 +53,15 @@ def check_sample(CTX:"dict[str, object]", x:"np.ndarray", i:int, t:int, training
         dist_values[i] = d
         i += 1
 
-    if (np.max(dist_values) > 400 or np.min(dist_values) < 1.0):
+    if (np.min(dist_values) < 1.0):
         return False
 
-    if (np.max(np.abs(np.diff(dist_values))) > 35):
-        return False
+    if (training):
+        if (np.max(dist_values) > 400):
+            return False
+
+        if (np.max(np.abs(np.diff(dist_values))) > 35):
+            return False
 
     return True
 
@@ -140,7 +155,7 @@ def gen_sample(CTX:dict,
                     np.float64_1d[ax.feature],
                     bool, tuple[float, float, float]]""":
 
-    if (valid is None): check_sample(CTX, x, i, t)
+    if (valid is None): valid = check_sample(CTX, x, i, t, training)
     x_sample = alloc_sample(CTX)
     if (not(valid)): return x_sample, None, valid, (0, 0, 0)
 

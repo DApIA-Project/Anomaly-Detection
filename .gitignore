@@ -1,6 +1,7 @@
 .vscode/
 *.zip
 *.parquet
+*.prof
 
 # personal ssh script to train on remote machine
 scpScript.py
@@ -47,3 +48,8 @@ _AircraftClassificationDatasetGenerator/_Artifacts/*
 _AircraftClassificationDatasetGenerator/**/*.csv
 _AircraftClassificationDatasetGenerator/**/*.parquet
 _images/
+
+
+catboost_info/
+
+test/

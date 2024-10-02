@@ -1,7 +1,7 @@
 import D_DataLoader.Utils as U
 
 
-from _Utils.numpy import np, ax
+from numpy_typing import np, ax, ax
 from _Utils.FeatureGetter import FG_replay as FG
 
 

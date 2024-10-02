@@ -2,7 +2,7 @@
 
 # Convert CTX to dict for logging hyperparameters
 from _Utils.module import buildCTX
-from _Utils.numpy import np, ax
+from numpy_typing import np, ax, ax
 
 # For auto-completion, we use Abstract class as virtual type
 from B_Model.AbstractModel import Model as _Model_

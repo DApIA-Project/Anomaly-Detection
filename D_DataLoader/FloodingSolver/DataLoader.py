@@ -12,8 +12,10 @@ import _Utils.Limits as Limits
 from   _Utils.Scaler3D import  StandardScaler3D, SigmoidScaler2D, fill_nan_3d, fill_nan_2d
 from   _Utils.ProgressBar import ProgressBar
 from   _Utils.plotADSB import PLT
-from   _Utils.ADSB_Streamer import Streamer
-from   _Utils.numpy import np, ax
+from numpy_typing import np, ax
+from   _Utils.ADSB_Streamer import streamer
+from   _Utils.ADSB_Streamer import CacheArray2D
+
 
 
 
@@ -23,7 +25,6 @@ from   _Utils.numpy import np, ax
 
 
 BAR = ProgressBar()
-STREAMER = Streamer()
 
 
 # |====================================================================================================================
@@ -34,8 +35,6 @@ class DataLoader(AbstractDataLoader):
 
     CTX:dict
     PAD:np.float64_1d[ax.feature]
-
-    streamer:"StreamerInterface"
 
     xScaler:StandardScaler3D
     yScaler:SigmoidScaler2D
@@ -51,16 +50,21 @@ class DataLoader(AbstractDataLoader):
         self.CTX = CTX
         self.PAD = None
 
-        self.streamer = StreamerInterface(self)
-
         self.xScaler = StandardScaler3D()
         self.yScaler = SigmoidScaler2D()
+
 
         training = (CTX["EPOCHS"] and path != "")
         if (training):
             x = self.__get_dataset__(path)
             self.x_train,self.x_test = self.__split__(x)
 
+
+        # for streaming
+        self.win_cache = CacheArray2D()
+        self.loss_cache = CacheArray2D()
+        self.win_cache.set_feature_size(self.CTX["FEATURES_IN"])
+        self.loss_cache.set_feature_size(1)
 
 
     def __load_dataset__(self, CTX:dict, path:str) -> "list[np.float64_2d[ax.time, ax.feature]]":
@@ -238,70 +242,35 @@ class DataLoader(AbstractDataLoader):
         x_batches, y_batches = self.__reshape__(x_batch, y_batch, nb_batches, batch_size)
         return x_batches, y_batches
 
-
-
-# |====================================================================================================================
-# | STREAMING ADS-B MESSAGE TO EVALUATE THE MODEL UNDER REAL CONDITIONS
-# |====================================================================================================================
-
-class StreamerInterface:
-    def __init__(self, dl:DataLoader) -> None:
-        self.dl = dl
-        self.CTX = dl.CTX
-
-    def stream(self, x:"dict[str, object]") -> """tuple[
+    def process_stream_of(self, message:"dict[str, object]") -> """tuple[
             np.float64_3d[ax.sample, ax.time, ax.feature],
             np.float64_2d[ax.sample, ax.feature],
-            bool,tuple[float, float, float]]""":
+            bool,
+            tuple[float, float, float]]""":
+        icao24 = message["icao24"]
+        tag = message.get("tag", "0")
 
-        MAX_LENGTH_NEEDED = self.CTX["HISTORY"] + self.CTX["HORIZON"]
-        MIN_LENGTH_NEEDED = self.CTX["DILATION_RATE"] + 1 + self.CTX["HORIZON"]
-        # print(x["icao24"], x.get("tag", "no tag"))
-        tag = x["icao24"]+"_"+x.get("tag", "0")
-        raw_df = STREAMER.add(x, tag=tag)
-        last_df = STREAMER.cache("FloodingSolver", tag)
+        df = streamer.get(icao24, tag)
+        if (df is None):
+            prntC(C.ERROR, "Cannot get stream of unknown trajectory")
 
-        array = U.df_to_feature_array(self.CTX, raw_df[-2:], check_length=False)
-        array = fill_nan_2d(array, self.dl.PAD)
-
-        if (last_df is not None):
-            df = np.concatenate([last_df, array[1:]], axis=0)
-            df = df[-MAX_LENGTH_NEEDED:]
+        df = df.until(message["timestamp"] + 1)
+        if (len(df) <= 1):
+            new_msg = U.df_to_feature_array(self.CTX, df.copy(), check_length=False)
+            new_msg = fill_nan_2d(new_msg, self.PAD)
         else:
-            df = array
-        STREAMER.cache("FloodingSolver", tag, df)
+            new_msg = U.df_to_feature_array(self.CTX, df[-2:], check_length=False)
+            new_msg = fill_nan_2d(new_msg, self.PAD)[1:]
 
-        # |--------------------------
-        # | Generate a sample
+        win = self.win_cache.extend(icao24, tag, new_msg, [len(df)] * len(new_msg))
         x_batch, y_batch = SU.alloc_batch(self.CTX, 1)
 
         # set valid to None, mean that we don't know yet
-        valid = None
-        if (len(df) < MIN_LENGTH_NEEDED): valid = False
         x_batch[0], y, valid, origin = SU.gen_sample(
-            self.CTX, [df], self.dl.PAD, 0, len(df)-1-self.CTX["HORIZON"], valid, training=False)
+            self.CTX, [win], self.PAD, 0, len(win)-1-self.CTX["HORIZON"], training=False)
         y_batch[0] = FG.lat_lon(y)
 
 
-        x_batch, y_batch = self.dl.__scalers_transform__(x_batch, y_batch)
-        x_batches, y_batches = self.dl.__reshape__(x_batch, y_batch, 1, 1)
+        x_batch, y_batch = self.__scalers_transform__(x_batch, y_batch)
+        x_batches, y_batches = self.__reshape__(x_batch, y_batch, 1, 1)
         return x_batches[0], y_batches[0], valid, origin
-
-
-    def clear(self)-> None:
-        STREAMER.clear()
-
-
-    def add_to_mean_loss(self, x:"dict[str, object]", loss:float) -> None:
-        tag = x["icao24"]+"_"+x.get("tag", "0")
-        losses = STREAMER.cache("FloodingSolverLosses", tag)
-
-        if (losses is None):
-            losses = np.zeros((self.CTX["HISTORY"]//2,))
-            losses[-1] = loss
-            STREAMER.cache("FloodingSolverLosses", tag, losses)
-        else:
-            losses[:-1] = losses[1:]
-            losses[-1] = loss
-            STREAMER.cache("FloodingSolverLosses", tag, losses)
-        return np.mean(losses)

@@ -5,10 +5,8 @@ from typing import overload
 import _Utils.Color as C
 from   _Utils.Color import prntC
 from   _Utils.DataFrame import DataFrame
-# import _Utils.FeatureGetter as FG
-
 import _Utils.Limits as Limits
-from   _Utils.numpy import np, ax
+from numpy_typing import np, ax
 import _Utils.geographic_maths as GEO
 
 from D_DataLoader.Airports import TOULOUSE
@@ -76,7 +74,10 @@ def read_trajectory(path:str, file:str=None) -> pd.DataFrame:
     """
     if (file != None):
         path = os.path.join(path, file)
-    return pd.read_csv(path, sep=",",dtype={"callsign":str, "icao24":str})
+    df = pd.read_csv(path, sep=",",dtype={"callsign":str, "icao24":str})
+    if not("tag" in df.columns):
+        df["tag"] = "0"
+    return df
 
 
 # |====================================================================================================================
@@ -199,9 +200,8 @@ def df_to_feature_array(CTX:dict, df:DataFrame, check_length:bool=True) -> np.fl
     df.add_column("sec", timestamp % 60)
 
 
-    # cap altitude to min = 0
-    df.setColumValue("altitude", slice(0, len(df)), np.clip(df["altitude"], 0, None))
-    df.setColumValue("geoaltitude", slice(0, len(df)), np.clip(df["geoaltitude"], 0, None))
+    df["altitude"] = np.clip(df["altitude"], 0, None)
+    df["geoaltitude"] = np.clip(df["geoaltitude"], 0, None)
 
     # SECONDARY FEATURES
     if ("relative_track" in CTX["FEATURE_MAP"]):
@@ -211,7 +211,9 @@ def df_to_feature_array(CTX:dict, df:DataFrame, check_length:bool=True) -> np.fl
             relative_track[i] = angle_diff(track[i-1], track[i])
         relative_track[0] = 0
         df.add_column("relative_track", relative_track)
-        df.setColumValue("timestamp", slice(0, len(df)), df["timestamp"]) # 01/01/2015
+        # TODO WTF is this line supposed to do?
+        # df.setColumValue("timestamp", slice(0, len(df)), df["timestamp"]) # 01/01/2015
+        # equivalent to df["timestamp", 0:len(df)] = df["timestamp"] wtf
 
 
     if ("toulouse_0" in CTX["FEATURE_MAP"]):
@@ -234,8 +236,7 @@ def df_to_feature_array(CTX:dict, df:DataFrame, check_length:bool=True) -> np.fl
         return []
 
     # filter selected features
-    array = df.getColumns(CTX["USED_FEATURES"])
-
+    array = df.get_columns(CTX["USED_FEATURES"])
 
 
     if (len(array) == 0): return None
@@ -536,6 +537,7 @@ def fingerprint(lat:np.float64_1d, lon:np.float64_1d) -> np.int8_1d:
     return fingerprint, rot_speed
 
 
+
 # def rotate_df(df:DataFrame) -> DataFrame:
 #     df = df.copy()
 #     angle = np.random.uniform(-np.pi, np.pi)
@@ -552,6 +554,7 @@ def fingerprint(lat:np.float64_1d, lon:np.float64_1d) -> np.int8_1d:
 #     lat = (df["latitude"] - clat) * slat + clat
 #     lon = (df["longitude"] - clon) * slon + clon
 #     df["latitude"] = lat
+
 #     df["longitude"] = lon
 #     return df
 

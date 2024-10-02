@@ -1,6 +1,6 @@
 
 
-from _Utils.numpy import np
+from numpy_typing import np, ax
 
 
 

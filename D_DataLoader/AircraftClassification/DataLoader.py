@@ -10,7 +10,7 @@ from   _Utils.ProgressBar import ProgressBar
 import _Utils.Limits as Limits
 from _Utils.plotADSB import PLT
 from   _Utils.ADSB_Streamer import Streamer
-from _Utils.numpy import np, ax
+from numpy_typing import np, ax, ax
 
 import D_DataLoader.Utils as U
 import D_DataLoader.AircraftClassification.Utils as SU

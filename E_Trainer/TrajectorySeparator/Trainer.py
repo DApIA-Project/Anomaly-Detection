@@ -18,7 +18,7 @@ from   _Utils.Color import prntC
 from   _Utils.DebugGui import GUI
 from   _Utils.FeatureGetter import FG_separator as FG
 import _Utils.Limits as Limits
-from   _Utils.numpy import np, ax
+from numpy_typing import np, ax
 from   _Utils.plotADSB import PLT
 from   _Utils.ProgressBar import ProgressBar
 from   _Utils.OrderedDict import OrderedDict

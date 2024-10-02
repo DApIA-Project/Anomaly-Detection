@@ -7,7 +7,7 @@ from B_Model.Utils.TF_Modules import *
 from reservoirpy.nodes import Reservoir
 
 
-from _Utils.numpy import np, ax
+from numpy_typing import np, ax, ax
 from _Utils.os_wrapper import os
 
 def __predict_reservoir__(CTX:dict, reservoir, x):

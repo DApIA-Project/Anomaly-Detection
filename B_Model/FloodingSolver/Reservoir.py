@@ -6,7 +6,7 @@ from keras.layers import *
 from reservoirpy.nodes import Reservoir
 
 
-from _Utils.numpy import np, ax
+from numpy_typing import np, ax, ax
 from _Utils.os_wrapper import os
 import _Utils.Color as C
 from   _Utils.Color import prntC

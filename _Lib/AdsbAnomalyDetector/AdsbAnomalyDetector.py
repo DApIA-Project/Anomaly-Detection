@@ -1,5 +1,5 @@
 from ._Utils_os_wrapper import os
-from ._Utils_numpy import np, ax
+from numpy_typing import np, ax
 HERE = os.path.abspath(os.path.dirname(__file__))
 from ._Utils_module import module_to_dict
 from ._Utils_ADSB_Streamer import cast_msg
@@ -8,43 +8,45 @@ import time
 from . import _Utils_Color as C
 from ._Utils_Color import prntC
 from ._Utils_module import buildCTX
+from ._Utils_ADSB_Streamer import streamer
+
 
 
 # |====================================================================================================================
 # | SPOOFING DETECTION
 # |====================================================================================================================
 
-prntC(C.INFO, "LOADING SPOOFING MODEL ", end="...", flush=True)
+# prntC(C.INFO, "LOADING SPOOFING MODEL ", end="...", flush=True)
 
-from .E_Trainer_AircraftClassification_Trainer import Trainer as AircraftClassification
-from .B_Model_AircraftClassification import Model as MODEL_SPOOFING
-from . import C_Constants_AircraftClassification as CTX_SPOOFING
-from . import C_Constants_AircraftClassification_DefaultCTX as DefaultCTX_SPOOFING
+# from .E_Trainer_AircraftClassification_Trainer import Trainer as AircraftClassification
+# from .B_Model_AircraftClassification import Model as MODEL_SPOOFING
+# from . import C_Constants_AircraftClassification as CTX_SPOOFING
+# from . import C_Constants_AircraftClassification_DefaultCTX as DefaultCTX_SPOOFING
 
-CTX_AC = buildCTX(CTX_SPOOFING, DefaultCTX_SPOOFING)
-aircraftClassification = AircraftClassification(CTX_AC, MODEL_SPOOFING)
-aircraftClassification.load(HERE+"/AircraftClassification")
+# CTX_AC = buildCTX(CTX_SPOOFING, DefaultCTX_SPOOFING)
+# aircraftClassification = AircraftClassification(CTX_AC, MODEL_SPOOFING)
+# aircraftClassification.load(HERE+"/AircraftClassification")
 
-prntC("\r",C.INFO, "LOADING SPOOFING MODEL", C.CYAN, " [DONE]")
+# prntC("\r",C.INFO, "LOADING SPOOFING MODEL", C.CYAN, " [DONE]")
 
 
 # |====================================================================================================================
 # | TRAJECTORY SEPARATOR
 # |====================================================================================================================
 
-prntC(C.INFO, "LOADING TRAJECTORY SEPARATOR MODEL ", end="...", flush=True)
+# prntC(C.INFO, "LOADING TRAJECTORY SEPARATOR MODEL ", end="...", flush=True)
 
-from .E_Trainer_TrajectorySeparator_Trainer import Trainer as TrajectorySeparator
-from .B_Model_TrajectorySeparator import Model as MODEL_SEPARETOR
-from . import C_Constants_TrajectorySeparator as CTX_SEPARETOR
-from . import C_Constants_TrajectorySeparator_DefaultCTX as DefaultCTX_SEPARETOR
-from .D_DataLoader_AircraftClassification_Utils import getLabel
+# from .E_Trainer_TrajectorySeparator_Trainer import Trainer as TrajectorySeparator
+# from .B_Model_TrajectorySeparator import Model as MODEL_SEPARETOR
+# from . import C_Constants_TrajectorySeparator as CTX_SEPARETOR
+# from . import C_Constants_TrajectorySeparator_DefaultCTX as DefaultCTX_SEPARETOR
+# from .D_DataLoader_AircraftClassification_Utils import getLabel
 
-CTX_TS = buildCTX(CTX_SEPARETOR, DefaultCTX_SEPARETOR)
-trajectorySeparator = TrajectorySeparator(CTX_TS, MODEL_SEPARETOR)
-trajectorySeparator.load(HERE+"/TrajectorySeparator")
+# CTX_TS = buildCTX(CTX_SEPARETOR, DefaultCTX_SEPARETOR)
+# trajectorySeparator = TrajectorySeparator(CTX_TS, MODEL_SEPARETOR)
+# trajectorySeparator.load(HERE+"/TrajectorySeparator")
 
-prntC("\r",C.INFO, "LOADING TRAJECTORY SEPARATOR MODEL", C.CYAN, " [DONE]")
+# prntC("\r",C.INFO, "LOADING TRAJECTORY SEPARATOR MODEL", C.CYAN, " [DONE]")
 
 # |====================================================================================================================
 # | FLOODING DETECTION
@@ -67,22 +69,19 @@ prntC("\r",C.INFO, "LOADING FLOODING MODEL", C.CYAN, " [DONE]")
 # | REPLAY DETECTION
 # |====================================================================================================================
 
-prntC(C.INFO, "LOADING REPLAY MODEL ", end="...", flush=True)
+# prntC(C.INFO, "LOADING REPLAY MODEL ", end="...", flush=True)
 
-from .E_Trainer_ReplaySolver_Trainer import Trainer as ReplaySolver
-from .B_Model_ReplaySolver import Model as MODEL_REPLAY
-from . import C_Constants_ReplaySolver as CTX_REPLAY
-from . import C_Constants_ReplaySolver_DefaultCTX as DefaultCTX_REPLAY
+# from .E_Trainer_ReplaySolver_Trainer import Trainer as ReplaySolver
+# from .B_Model_ReplaySolver import Model as MODEL_REPLAY
+# from . import C_Constants_ReplaySolver as CTX_REPLAY
+# from . import C_Constants_ReplaySolver_DefaultCTX as DefaultCTX_REPLAY
 
-CTX_RS = buildCTX(CTX_REPLAY, DefaultCTX_REPLAY)
-replaySolver = ReplaySolver(CTX_RS, MODEL_REPLAY)
-replaySolver.load(HERE+"/ReplaySolver/hashtable")
+# CTX_RS = buildCTX(CTX_REPLAY, DefaultCTX_REPLAY)
+# replaySolver = ReplaySolver(CTX_RS, MODEL_REPLAY)
+# replaySolver.load(HERE+"/ReplaySolver/hashtable")
 
-prntC("\r",C.INFO, "LOADING REPLAY MODEL", C.CYAN, " [DONE]")
+# prntC("\r",C.INFO, "LOADING REPLAY MODEL", C.CYAN, " [DONE]")
 
-
-# def get(lst, bool_arr) -> list:
-#     return [lst[i] for i in range(len(lst)) if bool_arr[i]]
 
 def hash_message(message: "dict[str, str]") -> "int":
     # message["icao24"] -> hex to int
@@ -123,18 +122,23 @@ def message_subset(messages: "list[dict[str, str]]", indices: "list[bool]") -> "
     return [messages[i] for i in range(len(messages)) if indices[i]]
 
 def predict(messages: "list[dict[str, str]]", compress=True) -> "list[dict[str, str]]":
+    # TODO remplacer response[i]["replay"] par juste un ID
+
     # print("i")
-    clean_hash_table()
+    # clean_hash_table()
 
     # load messages predictions if they has already been computed
     message_filter = np.ones(len(messages), dtype=bool)
 
     response = [{
-        "tag": messages[i].get("tag", messages[i]["icao24"]),
+        "tag": messages[i].get("tag", ""),
         "spoofing": False,
         "replay": False,
         "flooding": False
     } for i in range(len(messages))]
+
+    # stream messages
+    for i in range(len(messages)): streamer.add(messages[i])
 
     if not compress:
         for i in range(len(messages)):
@@ -151,22 +155,22 @@ def predict(messages: "list[dict[str, str]]", compress=True) -> "list[dict[str, 
 
     # check if the message has already been processed
     # + cast other messages to the right type
-    hashes = np.zeros(len(messages), dtype=np.uint32)
-    for i in range(len(messages)):
-        if (not message_filter[i]):
-            continue
+    # hashes = np.zeros(len(messages), dtype=np.uint32)
+    # for i in range(len(messages)):
+    #     if (not message_filter[i]):
+    #         continue
 
-        y_, hashes[i] = get_message_predictions(messages[i])
-        if (y_ != None):
-            message_filter[i] = False
-            response[i] = y_
-        else:
-            messages[i] = {col:cast_msg(col,  messages[i].get(col, np.nan)) for col in messages[i]}
+    #     y_, hashes[i] = get_message_predictions(messages[i])
+    #     if (y_ != None):
+    #         message_filter[i] = False
+    #         response[i] = y_
+    #     else:
+    #         messages[i] = {col:cast_msg(col,  messages[i].get(col, np.nan)) for col in messages[i]}
 
 
 
-    # separate trajectories with duplicated icao24
-    sub_msg = message_subset(messages, message_filter)
+    # # separate trajectories with duplicated icao24
+    # sub_msg = message_subset(messages, message_filter)
     # sub_icaos = trajectorySeparator.predict(sub_msg)
     # sub_i = 0
     # for i in range(len(messages)):
@@ -176,10 +180,7 @@ def predict(messages: "list[dict[str, str]]", compress=True) -> "list[dict[str, 
     #         sub_i += 1
 
 
-    # print("a")
-
-
-    # check for replay anomalies
+    # # check for replay anomalies
     # matches = replaySolver.predict(sub_msg)
     # sub_i = 0
     # for i in range(len(messages)):
@@ -189,7 +190,6 @@ def predict(messages: "list[dict[str, str]]", compress=True) -> "list[dict[str, 
     #         message_filter[i] = not(response[i]["replay"])
     #         sub_i += 1
 
-    # print("b")
 
     # check for flooding anomalies
     sub_msg = message_subset(messages, message_filter)
@@ -197,7 +197,6 @@ def predict(messages: "list[dict[str, str]]", compress=True) -> "list[dict[str, 
     sub_i = 0
     for i in range(len(messages)):
         if (message_filter[i]):
-            print(loss[sub_i])
             response[i]["flooding"] = (loss[sub_i] > CTX_FS["THRESHOLD"])
             response[i]["flooding_lat"] = y_[sub_i][0]
             response[i]["flooding_lon"] = y_[sub_i][1]
@@ -205,10 +204,8 @@ def predict(messages: "list[dict[str, str]]", compress=True) -> "list[dict[str, 
             message_filter[i] = not(response[i]["flooding"])
             sub_i += 1
 
-    # print("c")
-
-    # check for spoofing
-    # filter messages having unknown icao24
+    # # check for spoofing
+    # # filter messages having unknown icao24
     # true_labels = get_true_aircraft_type(messages)
     # for i in range(len(messages)):
     #     if (true_labels[i] == 0):
@@ -223,14 +220,10 @@ def predict(messages: "list[dict[str, str]]", compress=True) -> "list[dict[str, 
     #         response[i]["spoofing"] = spoofing[sub_i]
     #         sub_i += 1
 
-    # print("d")
-
 
     # save messages predictions in case of a future request
-    for i in range(len(messages)):
-        add_message_predictions(hashes[i], response[i])
-
-    # print("e")
+    # for i in range(len(messages)):
+    #     add_message_predictions(hashes[i], response[i])
 
     return response
 

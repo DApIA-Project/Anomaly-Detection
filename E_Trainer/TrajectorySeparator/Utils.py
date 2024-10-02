@@ -1,4 +1,4 @@
-from   _Utils.numpy import np, ax
+from numpy_typing import np, ax
 import _Utils.Limits as Limits
 import _Utils.geographic_maths as GEO
 

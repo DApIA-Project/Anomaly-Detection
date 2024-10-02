@@ -7,7 +7,7 @@ from PIL import Image
 import _Utils.Color         as C
 from   _Utils.FeatureGetter import FG_spoofing as FG
 from   _Utils.Color import prntC
-from _Utils.numpy import np, ax
+from numpy_typing import np, ax, ax
 
 import D_DataLoader.Utils   as U
 

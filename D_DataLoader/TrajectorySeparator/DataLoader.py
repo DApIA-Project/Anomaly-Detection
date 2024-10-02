@@ -1,6 +1,6 @@
 import pandas as pd
 
-from   _Utils.numpy import np, ax
+from numpy_typing import np, ax
 import _Utils.Color as C
 from   _Utils.Color import prntC
 from   _Utils.FeatureGetter import FG_separator as FG

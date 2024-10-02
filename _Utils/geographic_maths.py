@@ -1,7 +1,7 @@
 
 
 import math
-from _Utils.numpy import np as np_, ax
+from numpy_typing import np as np_, ax
 
 from typing import overload, TypeVar
 

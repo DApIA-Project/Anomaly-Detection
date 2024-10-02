@@ -1,7 +1,7 @@
 from _Utils.os_wrapper import os
 from typing import TypeVar
 
-from _Utils.numpy import np, ax
+from numpy_typing import np, ax, ax
 from _Utils.plotADSB import Color
 
 

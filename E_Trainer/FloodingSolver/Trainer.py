@@ -5,11 +5,12 @@ from   matplotlib.backends.backend_pdf import PdfPages
 
 from   B_Model.AbstractModel import Model as _Model_
 from   D_DataLoader.FloodingSolver.DataLoader import DataLoader
+import D_DataLoader.FloodingSolver.Utils as SU
 import D_DataLoader.Utils as U
 from   E_Trainer.AbstractTrainer import Trainer as AbstractTrainer
 
 
-from   _Utils.numpy import np, ax
+from numpy_typing import np, ax
 import _Utils.Color as C
 from   _Utils.Color import prntC
 from   _Utils.FeatureGetter import FG_flooding as FG
@@ -20,6 +21,7 @@ import _Utils.Metrics as Metrics
 from   _Utils.plotADSB import PLT
 from   _Utils.ProgressBar import ProgressBar
 from   _Utils.save import write, load
+from   _Utils.ADSB_Streamer import streamer, __FEATURES__ as STREAMER_FEATURES
 
 
 
@@ -305,8 +307,8 @@ class Trainer(AbstractTrainer):
 
         # stream message and build input batch
         for i in range(len(x)):
-            
-            sample, y_sample, valid, o = self.dl.streamer.stream(x[i])
+
+            sample, y_sample, valid, o = self.dl.process_stream_of(x[i])
             x_batch[i] = sample[0]
             if (valid): y_batch[i] = y_sample[0]
 
@@ -346,11 +348,15 @@ class Trainer(AbstractTrainer):
         # compute loss
         loss = np.full(len(x), np.nan, dtype=np.float64)
         for i in range(len(x)):
+
+
             if (is_interesting[i]):
                 distance =  GEO.distance(y_[i][0], y_[i][1], y[i][0], y[i][1])
-                loss[i] = self.dl.streamer.add_to_mean_loss(x[i], distance)
+                loss_win = self.dl.loss_cache.append(x[i]["icao24"], x[i]["tag"], distance)
             else:
-                self.dl.streamer.add_to_mean_loss(x[i], 0)
+                loss_win = self.dl.loss_cache.append(x[i]["icao24"], x[i]["tag"], 0)
+
+            loss[i] = np.mean(loss_win[-self.CTX["LOSS_MOVING_AVERAGE"]:])
 
         return y_, loss
 
@@ -401,27 +407,30 @@ class Trainer(AbstractTrainer):
 # |     EVALUATION
 # |====================================================================================================================
 
-    def __gen_eval_batch__(self, files:"list[str]")->"""
-            tuple[list[pd.DataFrame], int,
+    def __gen_eval_batch__(self, files:"list[str]")->"""tuple[
+            list[pd.DataFrame], int,
             list[np.float64_2d[ax.time, ax.feature]],
             list[np.float64_2d[ax.time, ax.feature]],
+            list[np.float64_1d[ax.time]],
             list[np.float64_1d[ax.time]]]""":
 
         # load all ressources needed for the batch
-        files_df, max_lenght, y, y_, loss = [], 0, [], [], []
+        files_df, max_lenght, y, y_, loss, loss_ = [], 0, [], [], [], []
         for f in range(len(files)):
             df = U.read_trajectory(files[f])
+            df = df[:128] # TODO
             files_df.append(df)
             y_.append(np.full((len(df), self.CTX["FEATURES_OUT"]), np.nan, dtype=np.float64))
             y .append(np.full((len(df), self.CTX["FEATURES_OUT"]), np.nan, dtype=np.float64))
             loss.append(np.full(len(df), np.nan, dtype=np.float64))
+            loss_.append(np.full(len(df), np.nan, dtype=np.float64))
 
             max_lenght = max(max_lenght, len(df))
 
-        return files_df, max_lenght, y, y_, loss
+        return files_df, max_lenght, y, y_, loss, loss_
 
 
-    def __next_msgs__(self, dfs:"list[pd.DataFrame]", t:int)-> "list[dict[str:float]]":
+    def __next_msgs__(self, dfs:"list[pd.DataFrame]", t:int)-> "tuple[list[dict[str:float]], list[int]]":
         x, files = [], []
         for f in range(len(dfs)):
             # if there is a message at this time
@@ -444,26 +453,31 @@ class Trainer(AbstractTrainer):
         mean_acc = np.zeros(3, dtype=np.float64)
         for folder in self.__eval_files__:
 
-            self.dl.streamer.clear()
-            dfs, max_len, y, y_, loss = self.__gen_eval_batch__(folder)
+            dfs, max_len, y, y_, loss, loss_ = self.__gen_eval_batch__(folder)
 
             BAR.reset(max=max_len)
             prntC(C.INFO, "Evaluating model on : ", C.BLUE, folder[0].split("/")[-2])
 
+            first = True
 
             for t in range(max_len):
                 x, files = self.__next_msgs__(dfs, t)
-                yt_, _ = self.predict(x)
+                if (first):
+                    first = False
+                    pass
+                for i in range(len(x)): streamer.add(x[i])
+
+                yt_, losst_ = self.predict(x)
 
                 for i in range(len(files)):
                     y_[files[i]][t] = yt_[i]
                     y [files[i]][t] = [x[i]["latitude"], x[i]["longitude"]]
-
-                    loss[files[i]][t] = GEO.distance(x[i]["latitude"], x[i]["longitude"], yt_[i][0], yt_[i][1])
+                    loss_[files[i]][t] = losst_[i]
+                    loss [files[i]][t] = GEO.distance(x[i]["latitude"], x[i]["longitude"], yt_[i][0], yt_[i][1])
                 BAR.update()
 
             name = folder[0].split("/")[-2]
-            best, acc = self.__eval_stats__(loss, y_, y, dfs, max_len, name=name)
+            best, acc = self.__eval_stats__(loss, loss_, y_, y, dfs, max_len, name=name)
             mean_acc += acc
             prntC(C.INFO, "Accuracy for ", C.BLUE, name, C.RESET, " : ", C.BLUE, round(best*100, 2), "% (", acc,")" )
 
@@ -486,6 +500,7 @@ class Trainer(AbstractTrainer):
 
     def __eval_stats__(self,
                        loss:"list[np.float64_1d]",
+                       loss_:"list[np.float64_1d]",
                        y_:"list[np.float64_2d[ax.time, ax.feature]]",
                        y:"list[np.float64_2d[ax.time, ax.feature]]",
                        dfs:"list[pd.DataFrame]",
@@ -498,18 +513,18 @@ class Trainer(AbstractTrainer):
             mean_loss[t] = np.nanmean([loss[f][t] for f in files])
 
 
-
-        return self.__plot_eval__(dfs, y_, y, loss, mean_loss, max_len, name)
+        return self.__plot_eval__(dfs, y_, y, loss, loss_, mean_loss, max_len, name)
 
 
 
     def __plot_eval__(self, dfs:"list[pd.DataFrame]",
                       y_:"list[np.float64_2d[ax.time, ax.feature]]", y:"list[np.float64_2d[ax.time, ax.feature]]",
-                      loss:"list[np.float64_1d]", mean_loss:np.float64_1d, max_len:int, name:str) -> float:
+                      loss:"list[np.float64_1d]", loss_:"list[np.float64_1d]", mean_loss:np.float64_1d,
+                      max_len:int, name:str) -> float:
 
         self.__plot_loss_curves__(loss, mean_loss, max_len, name)
         self.__plot_predictions_on_saturation__(dfs, y_, y, loss, max_len, name)
-        # self.__plot_prediction_on_error_spikes__(dfs, y_, y, mean_loss, loss, max_len, name)
+        self.__plot_prediction_on_error_spikes__(dfs, y_, y, loss, loss_, max_len, name)
         return self.__plot_safe_icao24__(dfs, loss, name)
 
 
@@ -524,7 +539,7 @@ class Trainer(AbstractTrainer):
         for f in range(len(loss)):
             plt.plot(loss[f])
         plt.plot(mean_loss, color="black", linestyle="--", linewidth=2)
-        plt.plot([0, max_len], [70, 70], color="black", linestyle="--", linewidth=2)
+        plt.plot([0, max_len], [self.CTX["THRESHOLD"]]*2, color="black", linestyle="--", linewidth=2)
         plt.title("Mean Loss along timestamps")
         plt.xlabel("Timestamp")
         plt.ylabel("Distance Loss (m)")
@@ -540,6 +555,7 @@ class Trainer(AbstractTrainer):
                                             y:"list[np.float64_2d[ax.time, ax.feature]]",
                                             loss:"list[np.float64_1d]", max_len:int, name:str) -> None:
 
+        if (len(dfs) == 1): return
         # find when the saturation is reached
         attack_t = 0
         while(loss[0][attack_t] == loss[1][attack_t] or np.isnan(loss[0][attack_t]) or np.isnan(loss[1][attack_t])):
@@ -595,18 +611,20 @@ class Trainer(AbstractTrainer):
     def __plot_prediction_on_error_spikes__(self, dfs:"list[pd.DataFrame]",
                                             y_:"list[np.float64_2d[ax.time, ax.feature]]",
                                             y:"list[np.float64_2d[ax.time, ax.feature]]",
-                                            mean_loss:np.float64_1d, loss:"list[np.float64_1d]",
+                                            loss:"list[np.float64_1d]", loss_:"list[np.float64_1d]",
                                             max_len:int, name:str) -> None:
 
         # find error spikes
         spikes = []
         for t in range(max_len):
-            max_i = np.argmax([loss[f][t] for f in range(len(loss))])
-            if (loss[max_i][t] > 70):
+            remaining = [i for i in range(len(dfs)) if t < len(dfs[i])]
+            max_i = remaining[np.argmax([loss_[f][t] for f in remaining])]
+            if (loss_[max_i][t] > self.CTX["THRESHOLD"]):
                 spikes.append([t, max_i])
 
         if (len(spikes) == 0):
             return
+
 
         GAP = 15
         gaps = []
@@ -643,34 +661,54 @@ class Trainer(AbstractTrainer):
 
             box = [lat[traj_slice].min(), lon[traj_slice].min(),
                    lat[traj_slice].max(), lon[traj_slice].max()]
+            box = [min(box[0], laty_[traj_slice].min())-0.001, min(box[1], lony_[traj_slice].min()-0.001),
+                   max(box[2], laty_[traj_slice].max()+0.001), max(box[3], lony_[traj_slice].max()+0.001)]
 
             PLT.figure(name, box[0], box[1], box[2], box[3],
                         figsize=(15, 15),
                         sub_plots=(2, 1), display_map=[[True], [False]])
 
-            PLT.subplot(name, 0, 0).plot   (lon[traj_slice],  lat[traj_slice],  color="tab:blue")
+            PLT.subplot(name, 0, 0).plot   (lon[traj_slice],  lat[traj_slice],  color="tab:blue", label="trajectory")
             PLT.subplot(name, 0, 0).scatter(lon[traj_slice],  lat[traj_slice],  color="tab:blue", marker="x")
-            PLT.subplot(name, 0, 0).scatter(lony_[traj_slice], laty_[traj_slice], color="tab:green", marker="x")
-            PLT.subplot(name, 0, 0).scatter(lony_[pred_slice], laty_[pred_slice], color="tab:purple", marker="x")
-
+            PLT.subplot(name, 0, 0).scatter(lony_[traj_slice], laty_[traj_slice], color="tab:green",
+                                            marker="x", label="prediction")
+            PLT.subplot(name, 0, 0).scatter(lony_[pred_slice], laty_[pred_slice], color="tab:purple",
+                                            marker="x", label="wrong")
+            # plot actual position
+            PLT.subplot(name, 0, 0).scatter(lon[traj_slice.stop-1], lat[traj_slice.stop-1], color="tab:red",
+                                            marker="o", label="actual position")
             for t in range(traj_slice.start, traj_slice.stop):
                 PLT.subplot(name, 0, 0).plot([lon[t], lony_[t]], [lat[t], laty_[t]], color="black", linestyle="--")
 
 
-            PLT.subplot(name, 1, 0).plot(list(range(traj_slice.start, traj_slice.stop)), loss[0][traj_slice])
+            # plot loss_
+            PLT.subplot(name, 1, 0).plot(list(range(traj_slice.start, traj_slice.stop)),
+                                         loss_[flight][traj_slice],
+                                         label="loss_")
             PLT.subplot(name, 1, 0).scatter(list(range(traj_slice.start, traj_slice.stop)),
-                                            loss[0][traj_slice],
+                                            loss_[flight][traj_slice],
                                             color="tab:green", marker="x")
-            PLT.subplot(name, 1, 0).scatter(list(range(pred_start, pred_end)),
-                                            loss[0][pred_slice],
-                                            color="tab:purple", marker="x")
 
+            PLT.subplot(name, 1, 0).scatter(list(range(pred_start, pred_end)),
+                                            loss_[flight][pred_slice],
+                                            color="tab:purple", marker="x",
+                                            label="prediction")
+
+            # plot loss
+            PLT.subplot(name, 1, 0).plot(list(range(traj_slice.start, traj_slice.stop)),
+                                         loss[flight][traj_slice],
+                                         label="loss")
+
+
+            PLT.subplot(name, 1, 0).plot([traj_slice.start, traj_slice.stop-1],
+                                         [self.CTX["THRESHOLD"]]*2, label="limit", linestyle="--", color="black")
+            PLT.legend(name)
             PLT.show(name, pdf=pdf)
         pdf.close()
 
 
     def __plot_safe_icao24__(self, dfs:"list[pd.DataFrame]", loss:"list[np.float64_1d]", name:str) -> float:
-
+        if (len(dfs) == 1): return 1,  [1, 1, 1]
         icaos24 = [df["icao24"].iloc[0] for df in dfs]
 
         # find when the saturation is reached
@@ -678,7 +716,7 @@ class Trainer(AbstractTrainer):
         while(loss[0][attack_t] == loss[1][attack_t] or np.isnan(loss[0][attack_t]) or np.isnan(loss[1][attack_t])):
             attack_t += 1
 
-        short_slice = slice(attack_t, attack_t+self.CTX["HORIZON"])
+        short_slice = slice(attack_t, attack_t+self.CTX["LOSS_MOVING_AVERAGE"])
         long_slice = slice(attack_t, attack_t+self.CTX["HISTORY"]//2)
 
 
