@@ -1,6 +1,7 @@
 from numpy_typing import np, ax
 import _Utils.Limits as Limits
 import _Utils.geographic_maths as GEO
+from   _Utils.Color import prntC
 
 
 # |====================================================================================================================
@@ -23,12 +24,12 @@ def print_loss_matrix(mat:np.float64_2d[ax.sample, ax.sample]) -> None:
     for i in range(len(mat)):
         for j in range(len(mat[i])):
             if (mat[i, j] == Limits.INT_MAX):
-                print(str("X").rjust(3), end=" ")
+                prntC(str("X").rjust(3), end=" ")
             else:
-                print(str(int(mat[i, j])).rjust(3), end=" ")
-        print()
-    print()
-    print()
+                prntC(str(int(mat[i, j])).rjust(3), end=" ")
+        prntC()
+    prntC()
+    prntC()
 
 
 

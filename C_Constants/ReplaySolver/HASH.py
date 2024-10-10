@@ -1,8 +1,11 @@
 INT_MAX = 2**31 - 1
  # undetermined (depending on the size of the dataset the number of epochs will be adjusted)
-EPOCHS =  INT_MAX
+EPOCHS =  0 #INT_MAX
 
-WHILDCARD_LIMIT = 7
+MAX_BATCH_SIZE = 512
+MAX_NB_BATCH = 512
+
+WHILDCARD_LIMIT = 5
 MIN_DIVERSITY = 5
 
 HISTORY = 32

@@ -3,6 +3,8 @@
 # Convert CTX to dict for logging hyperparameters
 from _Utils.module import buildCTX
 from numpy_typing import np, ax, ax
+from   _Utils.Color import prntC
+import _Utils.Color as C
 
 # For auto-completion, we use Abstract class as virtual type
 from B_Model.AbstractModel import Model as _Model_
@@ -52,7 +54,7 @@ def multiFit(Model:"type[_Model_]", Trainer:"type[_Trainer_]", CTX, default_CTX=
 
         # Analyze the results if it is the last run
         if (i == repeats -1):
-            print("Metric".rjust(15), "|", "min".rjust(10), "|", "mean".rjust(10), "|", "std".rjust(10), "|", "median".rjust(10), "|", "max".rjust(10), sep="")
+            prntC("Metric".rjust(15), "|", "min".rjust(10), "|", "mean".rjust(10), "|", "std".rjust(10), "|", "median".rjust(10), "|", "max".rjust(10), sep="")
             for metric in metrics:
                 # min, mean, std, median, max
                 _min = np.min(metrics_stats[metric])
@@ -61,6 +63,6 @@ def multiFit(Model:"type[_Model_]", Trainer:"type[_Trainer_]", CTX, default_CTX=
                 _median = np.median(metrics_stats[metric])
                 _max = np.max(metrics_stats[metric])
 
-                print(metric.rjust(15), "|", str(round(_min, 3)).rjust(10), "|", str(round(_mean, 3)).rjust(10), "|", str(round(_std, 3)).rjust(10), "|", str(round(_median, 3)).rjust(10), "|", str(round(_max, 3)).rjust(10), sep="")
+                prntC(metric.rjust(15), "|", str(round(_min, 3)).rjust(10), "|", str(round(_mean, 3)).rjust(10), "|", str(round(_std, 3)).rjust(10), "|", str(round(_median, 3)).rjust(10), "|", str(round(_max, 3)).rjust(10), sep="")
 
 

@@ -5,7 +5,8 @@
 import numpy as np
 import torch
 import torch.nn as nn
-
+from   _Utils.Color import prntC
+import _Utils.Color as C
 
 def get_frequency_modes(seq_len, modes=64, mode_select_method='random'):
     """
@@ -28,14 +29,14 @@ def get_frequency_modes(seq_len, modes=64, mode_select_method='random'):
 class FourierBlock(nn.Module):
     def __init__(self, in_channels, out_channels, seq_len, modes=0, mode_select_method='random'):
         super(FourierBlock, self).__init__()
-        print('fourier enhanced block used!')
+        prntC('fourier enhanced block used!')
         """
-        1D Fourier block. It performs representation learning on frequency domain, 
-        it does FFT, linear transform, and Inverse FFT.    
+        1D Fourier block. It performs representation learning on frequency domain,
+        it does FFT, linear transform, and Inverse FFT.
         """
         # get modes on frequency domain
         self.index = get_frequency_modes(seq_len, modes=modes, mode_select_method=mode_select_method)
-        print('modes={}, index={}'.format(modes, self.index))
+        prntC('modes={}, index={}'.format(modes, self.index))
 
         self.scale = (1 / (in_channels * out_channels))
         self.weights1 = nn.Parameter(
@@ -82,9 +83,9 @@ class FourierCrossAttention(nn.Module):
     def __init__(self, in_channels, out_channels, seq_len_q, seq_len_kv, modes=64, mode_select_method='random',
                  activation='tanh', policy=0, num_heads=8):
         super(FourierCrossAttention, self).__init__()
-        print(' fourier enhanced cross attention used!')
+        prntC(' fourier enhanced cross attention used!')
         """
-        1D Fourier Cross Attention layer. It does FFT, linear transform, attention mechanism and Inverse FFT.    
+        1D Fourier Cross Attention layer. It does FFT, linear transform, attention mechanism and Inverse FFT.
         """
         self.activation = activation
         self.in_channels = in_channels
@@ -93,8 +94,8 @@ class FourierCrossAttention(nn.Module):
         self.index_q = get_frequency_modes(seq_len_q, modes=modes, mode_select_method=mode_select_method)
         self.index_kv = get_frequency_modes(seq_len_kv, modes=modes, mode_select_method=mode_select_method)
 
-        print('modes_q={}, index_q={}'.format(len(self.index_q), self.index_q))
-        print('modes_kv={}, index_kv={}'.format(len(self.index_kv), self.index_kv))
+        prntC('modes_q={}, index_q={}'.format(len(self.index_q), self.index_q))
+        prntC('modes_kv={}, index_kv={}'.format(len(self.index_kv), self.index_kv))
 
         self.scale = (1 / (in_channels * out_channels))
         self.weights1 = nn.Parameter(

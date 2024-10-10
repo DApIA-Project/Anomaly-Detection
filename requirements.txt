@@ -21,4 +21,6 @@ sudo apt -y install libgeos-dev
 pip uninstall shapely
 pip install --no-binary :all: shapely
 
+pip install numpy-typing
+
 

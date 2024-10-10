@@ -1,6 +1,6 @@
-from numpy_typing import np, ax, ax
-
-
+from numpy_typing import np, ax
+import _Utils.Color as C
+from   _Utils.Color import prntC
 
 
 # max wildcards in the fingerprint
@@ -9,6 +9,7 @@ def sub_fingerprint(fp:np.int8_1d[ax.time]) -> np.int8_2d[ax.sample, ax.time]:
 
     wildcard_loc = np.where(fp == 0)[0]
     if (len(wildcard_loc) > MAX_SUB_FP_LEVEL):
+        prntC(C.WARNING, "Too many wildcards in the fingerprint")
         return np.zeros((0, len(fp)), dtype=np.int8)
 
     if (len(wildcard_loc) == 0):
@@ -58,14 +59,21 @@ def hash(fp:np.int8_2d[ax.sample, ax.time]) -> np.int32_1d:
 
 
 
-def match(hashes:np.int64_1d, hashtable:"dict[int, list[str]]") -> "list[str]":
+def match(hashes:np.int64_1d[ax.sample], hashtable:"dict[int, list[str]]") -> "list[str]":
     """
     Match the hash with the hashtable
     """
+    if (len(hashes) == 0):
+        prntC(C.WARNING, "cannot match an empty hash")
+        return ["unknown"]
+
     res = []
     for i in range(len(hashes)):
         matches = hashtable.get(hashes[i], [])
         res.extend(matches)
+
+    if (len(res) == 0):
+        res.append("unknown")
 
     return res
 

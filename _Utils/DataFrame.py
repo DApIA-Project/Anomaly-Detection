@@ -32,6 +32,7 @@ class DataFrame:
         elif (isinstance(arg, pd.DataFrame)):
             cols = [c for c in arg.columns if arg[c].dtype != object]
             self.from_numpy(arg[cols].to_numpy())
+            self.columns = {cols[i]:i for i in range(len(cols))}
 
         elif (isinstance(arg, np.ndarray)):
             self.from_numpy(arg)
@@ -88,6 +89,9 @@ class DataFrame:
 # | PUBLIC METHODS
 # |====================================================================================================================
 
+    def cast(self, dtype:type) -> None:
+        self.array = self.array.astype(dtype)
+        self.dtype = dtype
 
     def copy(self) -> Self:
         df = DataFrame(self.array.shape[1])
@@ -256,8 +260,10 @@ class DataFrame:
         if isinstance(key, slice):
             start, stop, step = key.start, key.stop, key.step
             if (start == None): start = 0
+            elif(start < -self.len): start = 0
             elif (start < 0): start += self.len
             if (stop == None): stop = self.len
+            elif(stop < -self.len): stop = 0
             elif (stop < 0): stop += self.len
 
             sub = DataFrame(self.array[start:stop:step])

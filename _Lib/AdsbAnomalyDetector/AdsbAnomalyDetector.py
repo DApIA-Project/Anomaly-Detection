@@ -12,22 +12,7 @@ from ._Utils_ADSB_Streamer import streamer
 
 
 
-# |====================================================================================================================
-# | SPOOFING DETECTION
-# |====================================================================================================================
 
-# prntC(C.INFO, "LOADING SPOOFING MODEL ", end="...", flush=True)
-
-# from .E_Trainer_AircraftClassification_Trainer import Trainer as AircraftClassification
-# from .B_Model_AircraftClassification import Model as MODEL_SPOOFING
-# from . import C_Constants_AircraftClassification as CTX_SPOOFING
-# from . import C_Constants_AircraftClassification_DefaultCTX as DefaultCTX_SPOOFING
-
-# CTX_AC = buildCTX(CTX_SPOOFING, DefaultCTX_SPOOFING)
-# aircraftClassification = AircraftClassification(CTX_AC, MODEL_SPOOFING)
-# aircraftClassification.load(HERE+"/AircraftClassification")
-
-# prntC("\r",C.INFO, "LOADING SPOOFING MODEL", C.CYAN, " [DONE]")
 
 
 # |====================================================================================================================
@@ -40,7 +25,6 @@ from ._Utils_ADSB_Streamer import streamer
 # from .B_Model_TrajectorySeparator import Model as MODEL_SEPARETOR
 # from . import C_Constants_TrajectorySeparator as CTX_SEPARETOR
 # from . import C_Constants_TrajectorySeparator_DefaultCTX as DefaultCTX_SEPARETOR
-# from .D_DataLoader_AircraftClassification_Utils import getLabel
 
 # CTX_TS = buildCTX(CTX_SEPARETOR, DefaultCTX_SEPARETOR)
 # trajectorySeparator = TrajectorySeparator(CTX_TS, MODEL_SEPARETOR)
@@ -69,18 +53,37 @@ prntC("\r",C.INFO, "LOADING FLOODING MODEL", C.CYAN, " [DONE]")
 # | REPLAY DETECTION
 # |====================================================================================================================
 
-# prntC(C.INFO, "LOADING REPLAY MODEL ", end="...", flush=True)
+prntC(C.INFO, "LOADING REPLAY MODEL ", end="...", flush=True)
 
-# from .E_Trainer_ReplaySolver_Trainer import Trainer as ReplaySolver
-# from .B_Model_ReplaySolver import Model as MODEL_REPLAY
-# from . import C_Constants_ReplaySolver as CTX_REPLAY
-# from . import C_Constants_ReplaySolver_DefaultCTX as DefaultCTX_REPLAY
+from .E_Trainer_ReplaySolver_Trainer import Trainer as ReplaySolver
+from .B_Model_ReplaySolver import Model as MODEL_REPLAY
+from . import C_Constants_ReplaySolver as CTX_REPLAY
+from . import C_Constants_ReplaySolver_DefaultCTX as DefaultCTX_REPLAY
 
-# CTX_RS = buildCTX(CTX_REPLAY, DefaultCTX_REPLAY)
-# replaySolver = ReplaySolver(CTX_RS, MODEL_REPLAY)
-# replaySolver.load(HERE+"/ReplaySolver/hashtable")
+CTX_RS = buildCTX(CTX_REPLAY, DefaultCTX_REPLAY)
+replaySolver = ReplaySolver(CTX_RS, MODEL_REPLAY)
+replaySolver.load(HERE+"/ReplaySolver/hashtable")
 
-# prntC("\r",C.INFO, "LOADING REPLAY MODEL", C.CYAN, " [DONE]")
+prntC("\r",C.INFO, "LOADING REPLAY MODEL", C.CYAN, " [DONE]")
+
+# |====================================================================================================================
+# | SPOOFING DETECTION
+# |====================================================================================================================
+
+prntC(C.INFO, "LOADING SPOOFING MODEL ", end="...", flush=True)
+
+from .E_Trainer_AircraftClassification_Trainer import Trainer as AircraftClassification
+from .B_Model_AircraftClassification import Model as MODEL_SPOOFING
+from . import C_Constants_AircraftClassification as CTX_SPOOFING
+from . import C_Constants_AircraftClassification_DefaultCTX as DefaultCTX_SPOOFING
+from .D_DataLoader_AircraftClassification_Utils import getLabel
+
+
+CTX_AC = buildCTX(CTX_SPOOFING, DefaultCTX_SPOOFING)
+aircraftClassification = AircraftClassification(CTX_AC, MODEL_SPOOFING)
+aircraftClassification.load(HERE+"/AircraftClassification")
+
+prntC("\r",C.INFO, "LOADING SPOOFING MODEL", C.CYAN, " [DONE]")
 
 
 def hash_message(message: "dict[str, str]") -> "int":
@@ -180,45 +183,49 @@ def predict(messages: "list[dict[str, str]]", compress=True) -> "list[dict[str, 
     #         sub_i += 1
 
 
-    # # check for replay anomalies
-    # matches = replaySolver.predict(sub_msg)
-    # sub_i = 0
-    # for i in range(len(messages)):
-    #     if (message_filter[i]):
-    #         response[i]["replay"] = (matches[sub_i] != "none" and matches[sub_i] != "unknown")
-
-    #         message_filter[i] = not(response[i]["replay"])
-    #         sub_i += 1
-
-
-    # check for flooding anomalies
+    # check for replay anomalies
     sub_msg = message_subset(messages, message_filter)
-    y_, loss = floodingSolver.predict(sub_msg)
+    matches = replaySolver.predict(sub_msg)
     sub_i = 0
     for i in range(len(messages)):
         if (message_filter[i]):
-            response[i]["flooding"] = (loss[sub_i] > CTX_FS["THRESHOLD"])
-            response[i]["flooding_lat"] = y_[sub_i][0]
-            response[i]["flooding_lon"] = y_[sub_i][1]
-
-            message_filter[i] = not(response[i]["flooding"])
+            response[i]["replay"] = (matches[sub_i] != "unknown")
+            if (response[i]["replay"]):
+                print("REPLAY")
+            message_filter[i] = not(response[i]["replay"])
             sub_i += 1
 
-    # # check for spoofing
-    # # filter messages having unknown icao24
-    # true_labels = get_true_aircraft_type(messages)
-    # for i in range(len(messages)):
-    #     if (true_labels[i] == 0):
-    #         message_filter[i] = False
 
+    # # check for flooding anomalies
     # sub_msg = message_subset(messages, message_filter)
-    # _, label_proba = aircraftClassification.predict(sub_msg)
-    # spoofing = is_spoofing(true_labels[message_filter], label_proba)
+    # y_, loss = floodingSolver.predict(sub_msg)
     # sub_i = 0
     # for i in range(len(messages)):
     #     if (message_filter[i]):
-    #         response[i]["spoofing"] = spoofing[sub_i]
+    #         response[i]["flooding"] = (loss[sub_i] > CTX_FS["THRESHOLD"])
+    #         response[i]["flooding_lat"] = y_[sub_i][0]
+    #         response[i]["flooding_lon"] = y_[sub_i][1]
+
+    #         message_filter[i] = not(response[i]["flooding"])
     #         sub_i += 1
+
+    # # check for spoofing
+    # # filter messages having unknown icao24
+    true_labels = get_true_aircraft_type(messages)
+    for i in range(len(messages)):
+        if (true_labels[i] == 0):
+            message_filter[i] = False
+
+    sub_msg = message_subset(messages, message_filter)
+    _, label_proba = aircraftClassification.predict(sub_msg)
+    spoofing = is_spoofing(true_labels[message_filter], label_proba)
+    sub_i = 0
+    for i in range(len(messages)):
+        if (message_filter[i]):
+            response[i]["spoofing"] = spoofing[sub_i]
+            if (response[i]["spoofing"]):
+                print("SPOOFING")
+            sub_i += 1
 
 
     # save messages predictions in case of a future request

@@ -21,7 +21,7 @@ import _Utils.Metrics as Metrics
 from   _Utils.plotADSB import PLT
 from   _Utils.ProgressBar import ProgressBar
 from   _Utils.save import write, load
-from   _Utils.ADSB_Streamer import streamer, __FEATURES__ as STREAMER_FEATURES
+from   _Utils.ADSB_Streamer import streamer
 
 
 
@@ -260,6 +260,9 @@ class Trainer(AbstractTrainer):
         PLT.scatter(NAME, y_sample[1],  y_sample[0],  color="tab:green", marker="x")
         PLT.scatter(NAME, y_sample_[1], y_sample_[0], color="tab:purple", marker="x")
 
+        loss = GEO.distance(y_sample[0], y_sample[1], y_sample_[0], y_sample_[1])
+        PLT.title  (NAME, "Flooding Solver - Prediction on a training sample - Loss : "+ str(round(loss, 2)) + "m")
+
         PLT.show(NAME, self.ARTIFACTS+"/train_example.png")
 
 
@@ -308,8 +311,8 @@ class Trainer(AbstractTrainer):
         # stream message and build input batch
         for i in range(len(x)):
 
-            sample, y_sample, valid, o = self.dl.process_stream_of(x[i])
-            x_batch[i] = sample[0]
+            x_sample, y_sample, valid, o = self.dl.process_stream_of(x[i])
+            x_batch[i] = x_sample[0]
             if (valid): y_batch[i] = y_sample[0]
 
             is_interesting[i] = valid
@@ -348,8 +351,6 @@ class Trainer(AbstractTrainer):
         # compute loss
         loss = np.full(len(x), np.nan, dtype=np.float64)
         for i in range(len(x)):
-
-
             if (is_interesting[i]):
                 distance =  GEO.distance(y_[i][0], y_[i][1], y[i][0], y[i][1])
                 loss_win = self.dl.loss_cache.append(x[i]["icao24"], x[i]["tag"], distance)
@@ -418,7 +419,6 @@ class Trainer(AbstractTrainer):
         files_df, max_lenght, y, y_, loss, loss_ = [], 0, [], [], [], []
         for f in range(len(files)):
             df = U.read_trajectory(files[f])
-            df = df[:128] # TODO
             files_df.append(df)
             y_.append(np.full((len(df), self.CTX["FEATURES_OUT"]), np.nan, dtype=np.float64))
             y .append(np.full((len(df), self.CTX["FEATURES_OUT"]), np.nan, dtype=np.float64))
@@ -462,9 +462,6 @@ class Trainer(AbstractTrainer):
 
             for t in range(max_len):
                 x, files = self.__next_msgs__(dfs, t)
-                if (first):
-                    first = False
-                    pass
                 for i in range(len(x)): streamer.add(x[i])
 
                 yt_, losst_ = self.predict(x)

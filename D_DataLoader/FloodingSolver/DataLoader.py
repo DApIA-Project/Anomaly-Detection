@@ -13,8 +13,7 @@ from   _Utils.Scaler3D import  StandardScaler3D, SigmoidScaler2D, fill_nan_3d, f
 from   _Utils.ProgressBar import ProgressBar
 from   _Utils.plotADSB import PLT
 from numpy_typing import np, ax
-from   _Utils.ADSB_Streamer import streamer
-from   _Utils.ADSB_Streamer import CacheArray2D
+from   _Utils.ADSB_Streamer import streamer, CacheArray2D
 
 
 
@@ -41,6 +40,9 @@ class DataLoader(AbstractDataLoader):
 
     x_train:"list[np.float64_2d[ax.time, ax.feature]]"
     x_test :"list[np.float64_2d[ax.time, ax.feature]]"
+
+    win_cache:CacheArray2D
+    loss_cache:CacheArray2D
 
 # |====================================================================================================================
 # |     INITIALISATION : LOADING RAW DATASET FROM DISK
@@ -177,12 +179,10 @@ class DataLoader(AbstractDataLoader):
         box[2] += size * 0.1
         box[3] += size * 0.1
 
-
         PLT.figure (NAME, box[0], box[1], box[2], box[3])
-        PLT.title  (NAME, "Flooding Solver - Prediction on a training sample")
         PLT.plot   (NAME, lon, lat, color="tab:blue", linestyle="--")
         PLT.scatter(NAME, lon, lat, color="tab:blue", marker="x")
-        PLT.scatter(NAME, y_lon, y_lat, color="tab:green", marker="+")
+        # PLT.scatter(NAME, y_lon, y_lat, color="tab:green", marker="+")
 
         PLT.attach_data(NAME+"Origin", (o_lat, o_lon, o_track))
 
@@ -263,9 +263,8 @@ class DataLoader(AbstractDataLoader):
             new_msg = fill_nan_2d(new_msg, self.PAD)[1:]
 
         win = self.win_cache.extend(icao24, tag, new_msg, [len(df)] * len(new_msg))
+        
         x_batch, y_batch = SU.alloc_batch(self.CTX, 1)
-
-        # set valid to None, mean that we don't know yet
         x_batch[0], y, valid, origin = SU.gen_sample(
             self.CTX, [win], self.PAD, 0, len(win)-1-self.CTX["HORIZON"], training=False)
         y_batch[0] = FG.lat_lon(y)

@@ -22,7 +22,7 @@ for path, subdirs, files in os.walk('./'):
         n += 1
         if p.endswith('.py'):
             f.append(p)
-print(f)
+
 
 # remove ../tmp folder
 os.system('rm -r ../tmp/*')
@@ -33,7 +33,6 @@ for file in f:
     folder = file.split('/')
     folder =  "/".join(folder[1:-1])
     file = file.split('/')[-1]
-    print(folder, file)
     if (folder == ''):
         os.system('cp ' + file + ' ../tmp/'+file)
     else:

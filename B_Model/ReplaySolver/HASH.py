@@ -58,7 +58,8 @@ class Model(AbstactModel):
             fps = hashing.sub_fingerprint(x[b, :, 0])
             hashes = hashing.hash(fps)
             matches = hashing.match(hashes, self.hashtable)
-            y_.append(matches)
+            unique_matches = list(set(matches))
+            y_.append(unique_matches)
 
         return y_
 
@@ -71,19 +72,23 @@ class Model(AbstactModel):
 
         accuracy, size = 0, 0
         for s in range(len(y_)):
-            if (len(y_[s]) == 0):
-                y_[s].append("unknown")
-
             if (y[s] == np.nan):
                 continue
+
+            # if (y_[s][0] == "skip"):
+            #     continue
 
             nb_correct = 0
             for pred in y_[s]:
                 if (pred == y[s]):
                     nb_correct += 1
+                    break
+
+            if (nb_correct == 0):
+                print(y[s], y_[s])
 
             if (len(y_[s]) > 0):
-                accuracy += nb_correct / len(y_[s])
+                accuracy += nb_correct
             size += 1
 
         return accuracy / size, y_
@@ -92,7 +97,7 @@ class Model(AbstactModel):
 
     def training_step(self, x:np.float64_3d[ax.sample, ax.time, ax.feature], y:np.str_1d[ax.sample]) -> None:
         for b in range(len(x)):
-            if (y[b] == np.nan):
+            if (y[b] == 'nan'):
                 continue
 
             fps = hashing.sub_fingerprint(x[b, :, 0])

@@ -8,9 +8,9 @@ from   _Utils.Scaler3D import StandardScaler3D, MinMaxScaler3D, MinMaxScaler2D, 
 from   _Utils.SparceLabelBinarizer import SparceLabelBinarizer
 from   _Utils.ProgressBar import ProgressBar
 import _Utils.Limits as Limits
-from _Utils.plotADSB import PLT
-from   _Utils.ADSB_Streamer import Streamer
-from numpy_typing import np, ax, ax
+from   _Utils.plotADSB import PLT
+from   numpy_typing import np, ax, ax
+from   _Utils.ADSB_Streamer import streamer, CacheArray2D
 
 import D_DataLoader.Utils as U
 import D_DataLoader.AircraftClassification.Utils as SU
@@ -22,7 +22,6 @@ from   D_DataLoader.AbstractDataLoader import DataLoader as AbstractDataLoader
 # |====================================================================================================================
 
 BAR = ProgressBar()
-STREAMER = Streamer()
 
 
 # |====================================================================================================================
@@ -31,6 +30,22 @@ STREAMER = Streamer()
 
 class DataLoader(AbstractDataLoader):
 
+    CTX:dict
+    PAD:np.float64_1d[ax.feature]
+
+    xScaler:StandardScaler3D
+    xTakeOffScaler:StandardScaler3D
+    xAirportScaler:MinMaxScaler2D
+    yScaler:SparceLabelBinarizer
+
+    x_train:np.float64_3d[ax.sample, ax.time, ax.feature]
+    y_train:np.float64_2d[ax.sample, ax.label]
+    x_test:np.float64_3d[ax.sample, ax.time, ax.feature]
+    y_test:np.float64_2d[ax.sample, ax.label]
+
+    win_cache:CacheArray2D
+    prediction_cache:CacheArray2D
+
 # |====================================================================================================================
 # |     INITIALISATION : LOADING RAW DATASET FROM DISK
 # |====================================================================================================================
@@ -38,8 +53,6 @@ class DataLoader(AbstractDataLoader):
     def __init__(self, CTX:dict, path:str="") -> None:
         self.CTX = CTX
         self.PAD = None
-
-        self.streamer:StreamerInterface = StreamerInterface(self)
 
         Scaler = self.getScalerClass(self.CTX["SCALER"])
 
@@ -52,6 +65,11 @@ class DataLoader(AbstractDataLoader):
         if (training):
             x, y, self.filenames = self.__get_dataset__(path)
             self.x_train, self.y_train, self.x_test, self.y_test = self.__split__(x, y)
+
+        self.win_cache = CacheArray2D()
+        self.win_cache.set_feature_size(CTX["FEATURES_IN"])
+        self.prediction_cache = CacheArray2D()
+        self.prediction_cache.set_feature_size(CTX["LABELS_OUT"])
 
 
 
@@ -291,72 +309,49 @@ class DataLoader(AbstractDataLoader):
                     y_batch,
                     nb_batches, batch_size)
 
-
-# |====================================================================================================================
-# | STREAMING ADS-B MESSAGE TO EVALUATE THE MODEL UNDER REAL CONDITIONS
-# |====================================================================================================================
-
-class StreamerInterface:
-    def __init__(self, dl:DataLoader) -> None:
-        self.dl = dl
-        self.CTX = dl.CTX
-
-    def stream(self, x:"dict[str, object]")-> """tuple[
-            tuple[
+    def process_stream_of(self, message:"dict[str, object]") -> """tuple[
+             tuple[
                 np.float64_3d[ax.sample, ax.time, ax.feature],
                 np.float64_3d[ax.sample, ax.time, ax.feature],
                 np.float64_4d[ax.sample, ax.x, ax.y, ax.rgb],
                 np.float64_3d[ax.sample, ax.feature],
                 np.float64_3d[ax.sample, ax.label]
             ],
-            list[bool]]""":
+            list[bool]]""" :
 
-        tag = x['icao24']+"_"+x.get("tag", "0")
-        raw_df = STREAMER.add(x, tag=tag)
-        last_df = STREAMER.cache("AircraftClassification", tag)
+        icao24 = message["icao24"]
+        tag = message.get("tag", "0")
 
-        array = U.df_to_feature_array(self.CTX, raw_df[-2:], check_length=False)
-        array = fill_nan_2d(array, self.dl.PAD)
+        df = streamer.get(icao24, tag)
+        if (df is None):
+            prntC(C.ERROR, "Cannot get stream of unknown trajectory")
 
+        df = df.until(message["timestamp"] + 1)
 
-        if (last_df is not None):
-            df = np.concatenate([last_df, array[1:]], axis=0)
+        if (len(df) <= 1):
+            new_msg = U.df_to_feature_array(self.CTX, df.copy(), check_length=False)
+            new_msg = fill_nan_2d(new_msg, self.PAD)
         else:
-            df = array
-        STREAMER.cache("AircraftClassification", tag, df)
+            new_msg = U.df_to_feature_array(self.CTX, df[-2:], check_length=False)
+            new_msg = fill_nan_2d(new_msg, self.PAD)[1:]
+
+        win = self.win_cache.extend(icao24, tag, new_msg, [len(df)] * len(new_msg))
 
         # batch assembly
         x_batch, _, x_batch_takeoff, x_batch_map, x_batch_airport =\
             SU.alloc_batch(self.CTX, 1)
         x_sample, x_sample_takeoff, x_sample_map, x_sample_airport, valid =\
-            SU.gen_sample(self.CTX, [df], self.dl.PAD, 0, len(df)-1)
+            SU.gen_sample(self.CTX, [win], self.PAD, 0, len(win)-1)
 
         x_batch[0] = x_sample
         if (self.CTX["ADD_TAKE_OFF_CONTEXT"]): x_batch_takeoff[0] = x_sample_takeoff
         if (self.CTX["ADD_MAP_CONTEXT"]): x_batch_map[0] = x_sample_map
         if (self.CTX["ADD_AIRPORT_CONTEXT"]): x_batch_airport[0] = x_sample_airport
 
-        x_batches, _ =  self.dl.__post_process_batch__(self.CTX,
+        x_batches, _ =  self.__post_process_batch__(self.CTX,
                     x_batch, x_batch_takeoff, x_batch_map, x_batch_airport,
                     np.zeros((1, self.CTX["LABELS_OUT"])),
                     1, 1)
         return x_batches[0], valid
-
-
-
-    """
-    Attach the prediction to the cache
-    """
-    def predicted(self, x:"dict[str, object]", y_:np.ndarray) -> np.ndarray:
-        tag = x['icao24']+"_"+x.get("tag", "0")
-        preds = STREAMER.cache("AircraftClassification_Pred", tag)
-
-        if (preds is None):
-            STREAMER.cache("AircraftClassification_Pred", tag, [y_])
-            return np.array([y_])
-
-        preds.append(y_)
-        return np.array(preds)
-
 
 

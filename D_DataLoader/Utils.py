@@ -179,8 +179,10 @@ def df_to_feature_array(CTX:dict, df:DataFrame, check_length:bool=True) -> np.fl
     Convert a complete ADS-B trajectory dataframe into a numpy array
     with the right features and preprocessing
     """
+
     if isinstance(df, pd.DataFrame):
         df = DataFrame(df)
+
     df = __pad__(CTX, df)
 
     # if no padding check there is no nan in latitude
@@ -229,6 +231,8 @@ def df_to_feature_array(CTX:dict, df:DataFrame, check_length:bool=True) -> np.fl
         if (len(CTX["USED_FEATURES"]) == 1):
             df.cast(np.int8)
 
+    if ("distance_var" in CTX["FEATURE_MAP"]):
+        df.add_column("distance_var", np.zeros(len(df), dtype=np.float64))
 
     # remove too short flights
     if (check_length and len(df) < CTX["HISTORY"]):

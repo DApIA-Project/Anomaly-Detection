@@ -15,6 +15,7 @@ from numpy_typing import np, ax
 from   _Utils.save import write, load
 from   _Utils.ProgressBar import ProgressBar
 from   _Utils.FeatureGetter import FG_replay as FG
+from   _Utils.ADSB_Streamer import streamer
 
 # |====================================================================================================================
 # | CONSTANTS
@@ -95,7 +96,12 @@ class Trainer(AbstractTrainer):
 
             # Allocate batches
             x_train, y_train = self.dl.get_train()
+            if(len(x_train) == 0):
+                prntC(C.INFO, "Whole dataset has been used, training is over.")
+                break
+
             x_test,  y_test  = self.dl.get_test()
+
 
             # Training
             CHRONO.start()
@@ -111,9 +117,7 @@ class Trainer(AbstractTrainer):
 
             self.__epoch_stats__(ep, accuracy)
 
-            if(len(x_train) == 0):
-                prntC(C.INFO, "Whole dataset has been used, training is over.")
-                break
+
 
         self.save()
 
@@ -137,45 +141,41 @@ class Trainer(AbstractTrainer):
     def predict(self, x:"list[dict[str,object]]") -> "list[str]":
         if(len(x) == 0): return []
 
-        x_batch = np.zeros((len(x), self.CTX["INPUT_LEN"], self.CTX["FEATURES_IN"]), dtype=np.float64)
+        x_batch:np.float32_3d[ax.sample, ax.time, ax.feature] = np.zeros(
+            (len(x), self.CTX["INPUT_LEN"], self.CTX["FEATURES_IN"]), dtype=np.float64)
         is_interesting:"list[int]" = []
-        y_:"list[list[str]]" = [["none"] for _ in range(len(x))]
+        y_:"list[list[str]]" = [["unknown"] for _ in range(len(x))]
 
         for i in range(len(x)):
-            x_sample, valid = self.dl.streamer.stream(x[i])
+            x_sample, valid = self.dl.process_stream_of(x[i])
             if (valid):
                 x_batch[i] = x_sample
                 is_interesting.append(i)
+            else:
+                y_[i] = ["skip"]
 
         # TODO check x_batch size < MAX_BATCH_SIZE
         y_is_interesting = self.model.predict(x_batch[is_interesting])
         for i in range(len(is_interesting)):
             y_[is_interesting[i]] = y_is_interesting[i]
 
+        res:"list[str]" = ["unknown"] * len(x)
         for i in range(len(x)):
-            tag = x[i]["icao24"] + "_" + x[i].get("tag", "0")
-
-            predictions = self.dl.streamer.get_cache(f"y_{tag}")
-            if (predictions is None):
-                predictions = []
-            predictions.append(y_[i])
-            self.dl.streamer.cache(f"y_{tag}", predictions)
-
+            # TODO cache the count of predictions
+            predictions = self.dl.pred_cache.append(x[i]["icao24"], x[i]["tag"], y_[i])
 
             # find the most frequent prediction
             count = {}
             for t in range(len(predictions)):
                 for p in predictions[t]:
-                    count[p] = count.get(p, 0) + 1
+                    if (p != "skip"):
+                        count[p] = count.get(p, 0) + 1
 
-            prediction = "unknown"
             if (len(count) > 0):
                 best = max(count, key=count.get)
                 if (count[best] > 30):
-                    prediction = best
-            y_[i] = prediction
-
-        return y_
+                    res[i] = best
+        return res
 
 
 # |====================================================================================================================
@@ -212,8 +212,12 @@ class Trainer(AbstractTrainer):
 
         preds_for_files:"dict[str, list[str]]" = {}
 
+
         for t in range(max_len):
             x, y = self.__next_msgs__(dfs, t, files)
+
+            for i in range(len(x)): streamer.add(x[i])
+
             matches = self.predict(x)
 
             for i in range(len(y)):
@@ -227,7 +231,6 @@ class Trainer(AbstractTrainer):
 
 
     def __eval_stats__(self, preds_for_files:"dict[str, list[str]]") -> None:
-
         for f in preds_for_files:
             count = {}
             for p in preds_for_files[f]:

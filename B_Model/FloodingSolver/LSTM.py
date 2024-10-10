@@ -40,18 +40,37 @@ class Model(AbstactModel):
 
 
         n = self.CTX["LAYERS"]
-        z = Conv1DModule(128, 1)(z)
+        # on 8 features keep 2:8
+        z_gps = z[:, :, 0:2]
+        z_other = z[:, :, 2:8]
+
+        z = Conv1DModule(128, 1)(z_gps)
         for _ in range(n-1):
             # dilatation = int(self.CTX["DILATION_RATE"] ** i)
             res = z * self.CTX["RESUDUAL"]
             z = LSTM(128, return_sequences=True, dropout=self.dropout)(z)
 
             z = Add()([z, res])
-        z= LSTM(self.outs, return_sequences=False)(z)
+        z_gps= LSTM(128, return_sequences=False)(z)
+
+        z = Conv1DModule(128, 1)(z_other)
+        for _ in range(n-1):
+            # dilatation = int(self.CTX["DILATION_RATE"] ** i)
+            res = z * self.CTX["RESUDUAL"]
+            z = LSTM(128, return_sequences=True, dropout=self.dropout)(z)
+
+            z = Add()([z, res])
+        z_other= LSTM(128, return_sequences=False)(z)
+
+        z = Concatenate()([z_gps, z_other])
+
+
+
 
         # z = DenseModule(256, dropout=self.dropout)(z)
-        # z = Dense(self.outs, activation="sigmoid")(z)
-        y = (z + 1) / 2
+        z = Dense(self.outs, activation="sigmoid")(z)
+        y = z
+        # y = (z + 1) / 2
 
 
         self.model = tf.keras.Model(x, y)

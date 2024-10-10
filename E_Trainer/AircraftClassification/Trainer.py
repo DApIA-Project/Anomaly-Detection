@@ -25,8 +25,9 @@ from   _Utils.DebugGui import GUI
 from   _Utils.plotADSB import PLT
 from   _Utils.Chrono import Chrono
 import _Utils.Metrics as Metrics
-from   _Utils.save import write, load
 from   _Utils.ProgressBar import ProgressBar
+from   _Utils.save import write, load
+from   _Utils.ADSB_Streamer import streamer
 
 
 # |====================================================================================================================
@@ -320,7 +321,7 @@ class Trainer(AbstractTrainer):
         x_inputs, is_interesting = None, []
 
         for i in range(len(x)):
-            sample, valid = self.dl.streamer.stream(x[i])
+            sample, valid = self.dl.process_stream_of(x[i])
             is_interesting.append(valid)
 
             # Initialize batch size
@@ -341,7 +342,7 @@ class Trainer(AbstractTrainer):
         y_agg = np.zeros((len(y_), self.CTX["LABELS_OUT"]), dtype=np.float64)
         for i in range(len(y_)):
             if not(np.isnan(y_[i]).all()):
-                all_y_ = self.dl.streamer.predicted(x[i], y_[i])
+                all_y_ = self.dl.prediction_cache.append(x[i]["icao24"], x[i]["tag"], y_[i])
                 # use mean method for now
                 y_agg[i] = np.nanmean(all_y_, axis=0)
 
@@ -375,7 +376,7 @@ class Trainer(AbstractTrainer):
         for f in range(len(files)):
 
             df = U.read_trajectory(files[f])
-            df["tag"] = df["icao24"]+"_"+str(f)
+            df["tag"] = str(f)
 
             l = SU.getLabel(self.CTX, df["icao24"].iloc[0])
             if (l == 0):
@@ -424,8 +425,10 @@ class Trainer(AbstractTrainer):
             batch_files = self.__eval_files__[BATCH_I]
             dfs, max_len, y[BATCH_I], y_[BATCH_I] = self.__gen_eval_batch__(batch_files)
 
+
             for t in range(max_len):
                 x, files = self.__next_msgs__(dfs, y[BATCH_I], t)
+                for i in range(len(x)): streamer.add(x[i])
                 yt_, _ = self.predict(x)
                 for i in range(len(files)):
                     y_[BATCH_I][files[i]][t] = yt_[i]

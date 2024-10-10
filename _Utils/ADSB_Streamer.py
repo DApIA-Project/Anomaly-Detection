@@ -64,21 +64,25 @@ class CacheArray2DElement(CacheElement):
     data:np.float64_2d[ax.time, ax.feature]
     indexing:"list[int]"
 
-    def __init__(self, icao:str, tag:str, feature_size:int) -> None:
-        super().__init__(icao, tag, np.empty((0, feature_size), dtype=np.float64))
+    def __init__(self, icao:str, tag:str, feature_size:int, dtype=np.float64) -> None:
+        super().__init__(icao, tag, np.empty((0, feature_size), dtype=dtype))
         self.indexing = []
 
 
 class CacheArray2D(Cache):
     data:"dict[str, CacheArray2DElement]"
     feature_size:int
+    dtype:np.dtype
 
-    def __init__(self) -> None:
+    def __init__(self, dtype:np.dtype=np.float64) -> None:
         """
         if fiexed size, array length is physically always the same (size may vary)
         """
         super().__init__()
         self.data:dict[str, CacheArray2DElement] = {}
+        self.dtype = dtype
+
+
 
     def set_feature_size(self, feature_size:int) -> None:
         self.feature_size = feature_size
@@ -88,7 +92,7 @@ class CacheArray2D(Cache):
         i_tag = icao+"_"+tag
         el = self.data.get(i_tag, None)
         if (el is None):
-            el = CacheArray2DElement(icao, tag, self.feature_size)
+            el = CacheArray2DElement(icao, tag, self.feature_size, self.dtype)
             self.data[i_tag] = el
         else:
             prntC(C.ERROR, f"Cache for {i_tag} already exists")
@@ -110,7 +114,7 @@ class CacheArray2D(Cache):
 
 
     def set(self, icao:str, tag:str, data:np.float64_2d[ax.time, ax.feature], indexing:"list[int]"=None) \
-            -> np.float64_2d[ax.time, ax.feature]:
+            -> "np.float64_2d[ax.time, ax.feature]|None":
         i_tag = icao+"_"+tag
         if (len(data) == 0):
             if (i_tag in self.data):
@@ -122,7 +126,7 @@ class CacheArray2D(Cache):
 
         el = self.data.get(i_tag, None)
         if (el is None):
-            el = CacheArray2DElement(data.shape[0], data.shape[1])
+            el = CacheArray2DElement(icao, tag, self.feature_size, self.dtype)
             el.data = data
             el.indexing = indexing
             self.data[i_tag] = el
@@ -138,7 +142,7 @@ class CacheArray2D(Cache):
             -> np.float64_2d[ax.time, ax.feature]:
 
         # convert to np array data
-        data = np.array(data, dtype=np.float64)
+        data = np.array(data, dtype=self.dtype)
         return self.extend(icao, tag, data.reshape(1, self.feature_size), index)
 
 
@@ -150,17 +154,16 @@ class CacheArray2D(Cache):
         if (el is None):
             return self.set(icao, tag, data, indexs)
         else:
-            el.data = np.vstack([el.data, data])
             if (indexs is None):
                 indexs = list(range(len(el.data), len(el.data)+len(data)))
+            el.data = np.vstack([el.data, data])
             el.indexing.extend(indexs)
         return el.data
 
     def subset(self, icao:str, tag:str, start:int, end:int) -> np.float64_2d[ax.time, ax.feature]:
         el = self.data.get(icao+"_"+tag, None)
         if (el is None):
-            return np.empty((0, self.feature_size), dtype=np.float64)
-
+            return np.empty((0, self.feature_size), dtype=self.dtype)
         a = 0
         while (a < len(el.indexing) and el.indexing[a] < start):
             a += 1
@@ -168,6 +171,105 @@ class CacheArray2D(Cache):
         while (b < len(el.indexing) and el.indexing[b] < end):
             b += 1
         return el.data[a:b]
+
+
+
+# |--------------------------------------------------------------------------------------------------------------------
+# | Cache of list of Any
+# |--------------------------------------------------------------------------------------------------------------------
+
+class CacheListElement(CacheElement):
+    data:"list[object]"
+
+    def __init__(self, icao:str, tag:str) -> None:
+        super().__init__(icao, tag, [])
+        self.indexing = []
+
+class CacheList(Cache):
+    data:"dict[str, CacheListElement]"
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.data:dict[str, CacheListElement] = {}
+
+
+    def open_cache_for(self, icao:str, tag:str) -> CacheListElement:
+        i_tag = icao+"_"+tag
+        el = self.data.get(i_tag, None)
+        if (el is None):
+            el = CacheListElement(icao, tag)
+            self.data[i_tag] = el
+        else:
+            prntC(C.ERROR, f"Cache for {i_tag} already exists")
+        return el
+
+
+    def close_cache_for(self, icao:str, tag:str) -> None:
+        i_tag = icao+"_"+tag
+        if (i_tag in self.data):
+            del self.data[i_tag]
+
+
+    def get(self, icao:str, tag:str) -> "list[object]":
+        i_tag = icao+"_"+tag
+        el = self.data.get(i_tag, None)
+        if (el is None):
+            return None
+        return el.data
+
+
+    def set(self, icao:str, tag:str, data:"list[object]", indexing:"list[int]"=None) -> "list[object]|None":
+        i_tag = icao+"_"+tag
+        if (len(data) == 0):
+            if (i_tag in self.data):
+                del self.data[i_tag]
+            return None
+
+        if (indexing is None):
+            indexing = list(range(len(data)))
+
+        el = self.data.get(i_tag, None)
+        if (el is None):
+            el = CacheListElement(icao, tag)
+            el.data = data
+            el.indexing = indexing
+            self.data[i_tag] = el
+        else:
+            el.data = data
+            el.indexing = indexing
+
+        return el.data
+
+
+    def append(self, icao:str, tag:str, data:object, index:int=None) -> "list[object]":
+        return self.extend(icao, tag, [data], [index])
+
+
+    def extend(self, icao:str, tag:str, data:"list[object]", indexs:"list[int]"=None) -> "list[object]":
+        i_tag = icao+"_"+tag
+        el = self.data.get(i_tag, None)
+        if (el is None):
+            return self.set(icao, tag, data, indexs)
+        else:
+            if (indexs is None):
+                indexs = list(range(len(el.data), len(el.data)+len(data)))
+            el.data.extend(data)
+            el.indexing.extend(indexs)
+        return el.data
+
+    def subset(self, icao:str, tag:str, start:int, end:int) -> "list[object]":
+        el = self.data.get(icao+"_"+tag, None)
+        if (el is None):
+            return []
+        a = 0
+        while (a < len(el.indexing) and el.indexing[a] < start):
+            a += 1
+        b = a
+        while (b < len(el.indexing) and el.indexing[b] < end):
+            b += 1
+        return el.data[a:b]
+
+
 
 # |====================================================================================================================
 # | STREAMER

@@ -20,6 +20,7 @@ def check_sample(CTX:dict, x:"list[np.float64_2d[ax.time, ax.feature]]", i:int, 
     if (nb_left < CTX["MIN_DIVERSITY"]): return False
     if (nb_right < CTX["MIN_DIVERSITY"]): return False
 
+
     return True
 
 # |====================================================================================================================
@@ -56,7 +57,8 @@ def gen_sample(CTX:dict, x:"list[np.float64_2d[ax.time, ax.feature]]", i:int, t:
         -> "tuple[np.float64_2d[ax.time, ax.feature], bool]":
 
     if (valid is None): valid = check_sample(CTX, x, i, t)
-    if (not valid): return None, False
+    if (not valid):
+        return None, False
 
     start, end, _, _, _ = U.window_slice(CTX, t)
     x_sample = x[i][start:end]
