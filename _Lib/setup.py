@@ -27,9 +27,7 @@ setup(
     package_data={'': ['*.py', "w", "xs", "xts", "map.png", "labels.csv"]},
     keywords=['python', 'deep learning', 'tensorflow', 'aircraft', 'classification', 'ADS-B'],
     classifiers= [
-        "Development Status :: 3 - Alpha",
         "Intended Audience :: Education",
-        "Programming Language :: Python :: 2",
         "Programming Language :: Python :: 3",
         "Operating System :: MacOS :: MacOS X",
         "Operating System :: Microsoft :: Windows",

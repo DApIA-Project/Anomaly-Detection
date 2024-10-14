@@ -28,7 +28,7 @@ USED_FEATURES = [
     "vertical_rate",
     # "alert", "spi", "squawk",
     "altitude", "geoaltitude",
-    "timestamp", "distance_var"
+    "timestamp", #"distance_var"
 ]
 FEATURES_IN = len(USED_FEATURES)
 FEATURE_MAP = dict([[USED_FEATURES[i], i] for i in range(FEATURES_IN)])
@@ -39,7 +39,7 @@ PRED_FEATURES = [
 FEATURES_OUT = len(PRED_FEATURES)
 PRED_FEATURE_MAP = dict([[PRED_FEATURES[i], i] for i in range(FEATURES_OUT)])
 
-RESUDUAL = 0.5
+RESUDUAL = 1.0
 
 # possibilities "valid", "last", "nan"
 INPUT_PADDING = "nan"

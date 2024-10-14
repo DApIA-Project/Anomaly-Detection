@@ -110,6 +110,14 @@ def add_message_predictions(hash:int, message: "dict[str, str]") -> None:
     expiration = time.time() + 30 * 60 # 30 minutes
     hash_table[hash] = [message, expiration]
 
+def compress_messages(messages: "list[dict[str, str]]"):
+    res = []
+    for i in range(len(messages)):
+        res.append({
+            "tag": messages[i].get("tag", ""),
+            "anomaly": messages[i].get("anomaly", UNSET),
+        })
+    return res
 
 last_clean = 0
 def clean_hash_table() -> None:
@@ -121,118 +129,87 @@ def clean_hash_table() -> None:
     last_clean = time.time()
 
 
-def message_subset(messages: "list[dict[str, str]]", indices: "list[bool]") -> "list[dict[str, str]]":
-    return [messages[i] for i in range(len(messages)) if indices[i]]
+def message_subset(messages: "list[dict[str, str]]") -> "tuple[list[dict[str, str]], list[int]]":
+    indices = [i for i in range(len(messages)) if messages[i]["anomaly"] == UNSET]
+    sub = [messages[i] for i in indices]
+    return sub, indices
+
+
+UNSET = 0
+SPOOFING = 1
+FLOODING = 2
+REPLAY = 3
+INVALID = 1000
+
 
 def predict(messages: "list[dict[str, str]]", compress=True) -> "list[dict[str, str]]":
-    # TODO remplacer response[i]["replay"] par juste un ID
-
-    # print("i")
-    # clean_hash_table()
-
-    # load messages predictions if they has already been computed
-    message_filter = np.ones(len(messages), dtype=bool)
-
-    response = [{
-        "tag": messages[i].get("tag", ""),
-        "spoofing": False,
-        "replay": False,
-        "flooding": False
-    } for i in range(len(messages))]
 
     # stream messages
-    for i in range(len(messages)): streamer.add(messages[i])
+    for i in range(len(messages)):
+        messages[i]["tag"] = messages[i].get("tag", "")
+        messages[i]["anomaly"] = UNSET
 
-    if not compress:
-        for i in range(len(messages)):
-            for key in messages[i]:
-                response[i][key] = messages[i][key]
+        streamer.add(messages[i])
 
 
     # check validity of messages
     for i in range(len(messages)):
         if (messages[i].get("icao24", None) == None or messages[i].get("timestamp", None) == None or \
             messages[i].get("latitude", None) == None or messages[i].get("longitude", None) == None):
-            message_filter[i] = False
-
-
-    # check if the message has already been processed
-    # + cast other messages to the right type
-    # hashes = np.zeros(len(messages), dtype=np.uint32)
-    # for i in range(len(messages)):
-    #     if (not message_filter[i]):
-    #         continue
-
-    #     y_, hashes[i] = get_message_predictions(messages[i])
-    #     if (y_ != None):
-    #         message_filter[i] = False
-    #         response[i] = y_
-    #     else:
-    #         messages[i] = {col:cast_msg(col,  messages[i].get(col, np.nan)) for col in messages[i]}
-
+            messages[i]["alteration"] = INVALID
 
 
     # # separate trajectories with duplicated icao24
-    # sub_msg = message_subset(messages, message_filter)
+    # sub_msg, indices = message_subset(messages)
     # sub_icaos = trajectorySeparator.predict(sub_msg)
-    # sub_i = 0
-    # for i in range(len(messages)):
-    #     if (message_filter[i]):
-    #         response[i]["tag"] = sub_icaos[sub_i]
-
-    #         sub_i += 1
+    # for i in range(len(sub_msg)):
+    #     messages[indices[i]]["tag"] = sub_icaos[i]
 
 
     # check for replay anomalies
-    sub_msg = message_subset(messages, message_filter)
+    sub_msg, indices = message_subset(messages)
     matches = replaySolver.predict(sub_msg)
-    sub_i = 0
-    for i in range(len(messages)):
-        if (message_filter[i]):
-            response[i]["replay"] = (matches[sub_i] != "unknown")
-            if (response[i]["replay"]):
-                print("REPLAY")
-            message_filter[i] = not(response[i]["replay"])
-            sub_i += 1
+    for i in range(len(indices)):
+        if (matches[i] != "unknown"):
+            print("REPLAY")
+            messages[indices[i]]["anomaly"] = REPLAY
 
 
     # # check for flooding anomalies
-    # sub_msg = message_subset(messages, message_filter)
-    # y_, loss = floodingSolver.predict(sub_msg)
-    # sub_i = 0
-    # for i in range(len(messages)):
-    #     if (message_filter[i]):
-    #         response[i]["flooding"] = (loss[sub_i] > CTX_FS["THRESHOLD"])
-    #         response[i]["flooding_lat"] = y_[sub_i][0]
-    #         response[i]["flooding_lon"] = y_[sub_i][1]
+    # sub_msg, indices = message_subset(messages)
+    # _, loss = floodingSolver.predict(sub_msg)
+    # for i in range(len(indices)):
+    #     if (loss[i] > CTX_FS["THRESHOLD"]):
+    #         messages[indices[i]]["anomaly"] = FLOODING
 
-    #         message_filter[i] = not(response[i]["flooding"])
-    #         sub_i += 1
 
     # # check for spoofing
     # # filter messages having unknown icao24
     true_labels = get_true_aircraft_type(messages)
     for i in range(len(messages)):
-        if (true_labels[i] == 0):
-            message_filter[i] = False
+        if (true_labels[i] == 0 and messages[i]["anomaly"] == UNSET):
+            messages[i]["anomaly"] = INVALID
 
-    sub_msg = message_subset(messages, message_filter)
+    sub_msg, indices = message_subset(messages)
     _, label_proba = aircraftClassification.predict(sub_msg)
-    spoofing = is_spoofing(true_labels[message_filter], label_proba)
-    sub_i = 0
-    for i in range(len(messages)):
-        if (message_filter[i]):
-            response[i]["spoofing"] = spoofing[sub_i]
-            if (response[i]["spoofing"]):
-                print("SPOOFING")
-            sub_i += 1
+    spoofing = is_spoofing(true_labels[indices], label_proba)
+    for i in range(len(indices)):
+        if (spoofing[i]):
+            print("SPOOFING")
+            messages[indices[i]]["anomaly"] = SPOOFING
 
 
     # save messages predictions in case of a future request
     # for i in range(len(messages)):
     #     add_message_predictions(hashes[i], response[i])
 
-    return response
+    for i in range(len(messages)):
+        if (messages[i]["anomaly"] == INVALID):
+            messages[i]["anomaly"] = UNSET
+    if compress:
+        messages = compress_messages(messages)
+
+    return messages
 
 
 

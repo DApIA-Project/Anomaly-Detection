@@ -41,28 +41,28 @@ class Model(AbstactModel):
 
         n = self.CTX["LAYERS"]
         # on 8 features keep 2:8
-        z_gps = z[:, :, 0:2]
-        z_other = z[:, :, 2:8]
+        # z_gps = z[:, :, :2]
+        # z_other = z[:, :, 2:]
 
-        z = Conv1DModule(128, 1)(z_gps)
+        # z = Conv1DModule(128, 1)(z_gps)
+        # for _ in range(n-1):
+        #     # dilatation = int(self.CTX["DILATION_RATE"] ** i)
+        #     res = z * self.CTX["RESUDUAL"]
+        #     z = LSTM(128, return_sequences=True, dropout=self.dropout)(z)
+
+        #     z = Add()([z, res])
+        # z_gps= LSTM(128, return_sequences=False)(z)
+
+        z = Conv1DModule(128, 1)(z)
         for _ in range(n-1):
             # dilatation = int(self.CTX["DILATION_RATE"] ** i)
             res = z * self.CTX["RESUDUAL"]
             z = LSTM(128, return_sequences=True, dropout=self.dropout)(z)
 
             z = Add()([z, res])
-        z_gps= LSTM(128, return_sequences=False)(z)
+        z = LSTM(128, return_sequences=False)(z)
 
-        z = Conv1DModule(128, 1)(z_other)
-        for _ in range(n-1):
-            # dilatation = int(self.CTX["DILATION_RATE"] ** i)
-            res = z * self.CTX["RESUDUAL"]
-            z = LSTM(128, return_sequences=True, dropout=self.dropout)(z)
-
-            z = Add()([z, res])
-        z_other= LSTM(128, return_sequences=False)(z)
-
-        z = Concatenate()([z_gps, z_other])
+        # z = Concatenate()([z_gps, z_other])
 
 
 

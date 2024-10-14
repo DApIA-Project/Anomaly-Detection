@@ -170,8 +170,9 @@ def gen_sample(CTX:dict,
     y_sample = x[i][t+CTX["HORIZON"]]
 
     if ("distance_var" in CTX["USED_FEATURES"]):
-        distance = GEO.distance(lat, lon, FG.lat(x[i][t+CTX["HORIZON"]]), FG.lon(x[i][t+CTX["HORIZON"]]))
-        x_sample[:, CTX["FEATURE_MAP"]["distance_var"]] = distance
+        # distance = GEO.distance(lat, lon, FG.lat(x[i][t+CTX["HORIZON"]]), FG.lon(x[i][t+CTX["HORIZON"]]))
+        x_sample[::2, CTX["FEATURE_MAP"]["distance_var"]] = FG.lat(x[i][t+CTX["HORIZON"]])
+        x_sample[1::2, CTX["FEATURE_MAP"]["distance_var"]] = FG.lon(x[i][t+CTX["HORIZON"]])
 
 
     random_track = CTX["RANDOM_TRACK"] and training
