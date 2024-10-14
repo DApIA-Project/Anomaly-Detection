@@ -25,16 +25,42 @@ And it is very fast, even with very large database thanks to the usage of an has
 
 ## Experiment 3: FloodingSolver
 
+Detect flooding attack by checking the coherence of ghost aircrafts trajectories.
+The approach uses a deep learning model to predict the next position of an aircraft given his historical trajectory.
+If the predicted position is too far from the real position, it means the model is "surprised" by the trajectory and it is likely to be a fake one.
+
 ## Experiment 4: TrajectorySeparator
 
 Separate messages having duplicated identification code (when the system is under flooding).
 Allow to reconstruct the trajectories of ghost aircraft to find which message are fake with our FloodingSolver module.
 
-## lib compilation
+## How to make detection with you own files ?
 
-```cd _lib```
+Install our compiled library with pip
 
-```python build.py sdist bdist_wheel```
+```pip install AdsbAnomalyDetector```
 
-```pip install dist/AircraftClassifier-0.0.1-py3-none-any.whl```
+
+Then you will be able to run the codes in the ```_Examples``` folder.
+So go to the ```_Examples``` folder and run our webserver example with :
+
+```python webserver.py```
+
+Then startup our visualizer available at [https://adsb-visualizer.web.app/](https://adsb-visualizer.web.app/)
+Drop any ADS-B file you want to check in the visualizer. It will automatically send the right request to your webserver and display the results with green trajectories for normal aircrafts and red ones for anomalies.
+
+
+Take care of not running multiple instances of the visualizer at the same time, as it will cause the webserver to crash.
+
+
+
+## Re-build the library
+
+Novigate to the ```_lib``` folder and build script to create the library from the source files.
+
+```python build.py```
+
+Then you can install the library with pip
+
+```pip install dist/AdsbAnomalyDetector-{a.b.c}-py3-none-any.whl```
 
