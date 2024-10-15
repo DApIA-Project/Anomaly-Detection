@@ -46,15 +46,15 @@ def check_sample(CTX:"dict[str, object]", x:"np.ndarray", i:int, t:int, training
         return False
 
     # Check there is no abnormal distance between two consecutive points (only at the end of the trajectory)
-    # dist_values, i = np.zeros((HORIZON + HORIZON)), 0
+    dist_values, i = np.zeros((HORIZON + HORIZON)), 0
 
-    # for t in range(t - HORIZON + 1, t + HORIZON + 1):
-    #     d = GEO.distance(lats[t-1], lons[t-1], lats[t], lons[t])
-    #     dist_values[i] = d
-    #     i += 1
+    for t in range(t - HORIZON + 1, t + HORIZON + 1):
+        d = GEO.distance(lats[t-1], lons[t-1], lats[t], lons[t])
+        dist_values[i] = d
+        i += 1
 
-    # if (np.min(dist_values) < 1.0):
-    #     return False
+    if (np.min(dist_values) < 1.0):
+        return False
 
     # if (training):
     #     if (np.max(dist_values) > 400):
@@ -170,15 +170,13 @@ def gen_sample(CTX:dict,
     y_sample = x[i][t+CTX["HORIZON"]]
 
     if ("distance_var" in CTX["USED_FEATURES"]):
-        # distance = GEO.distance(lat, lon, FG.lat(x[i][t+CTX["HORIZON"]]), FG.lon(x[i][t+CTX["HORIZON"]]))
-        x_sample[::2, CTX["FEATURE_MAP"]["distance_var"]] = FG.lat(x[i][t+CTX["HORIZON"]])
-        x_sample[1::2, CTX["FEATURE_MAP"]["distance_var"]] = FG.lon(x[i][t+CTX["HORIZON"]])
+        distance = GEO.distance(lat, lon, FG.lat(x[i][t+CTX["HORIZON"]]), FG.lon(x[i][t+CTX["HORIZON"]]))
+        x_sample[:, CTX["FEATURE_MAP"]["distance_var"]] = distance
+
 
 
     random_track = CTX["RANDOM_TRACK"] and training
-    relative_track = CTX["RELATIVE_TRACK"]
-    if (CTX["RANDOM_TRACK"] and not(training)):
-        relative_track = True
+    relative_track = CTX["RELATIVE_TRACK"] or (CTX["RANDOM_TRACK"] and not(training))
 
     x_sample, y_sample = U.batch_preprocess(CTX, x_sample, PAD,
                                 relative_track=relative_track,

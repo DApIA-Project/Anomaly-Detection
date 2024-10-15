@@ -9,7 +9,57 @@ from . import _Utils_Color as C
 from ._Utils_Color import prntC
 from ._Utils_module import buildCTX
 from ._Utils_ADSB_Streamer import streamer
+import shutil
 
+VERSION = "0.5.9"
+
+
+def download_hash_table():
+    URL = "http://51.77.221.41/hashtable.zip"
+    import urllib.request
+    import zipfile
+
+    if (os.path.exists(HERE+"/hashtable.zip")):
+        os.remove(HERE+"/hashtable.zip")
+
+
+    if not(os.path.exists(HERE+"/version")):
+        if (os.path.exists(HERE+"/ReplaySolver/hashtable")):
+            shutil.rmtree(HERE+"/ReplaySolver/hashtable/")
+
+        file = open(HERE+"/version", "w")
+        file.write(VERSION)
+        file.close()
+    else:
+        last_version = open(HERE+"/version", "r").read()
+
+        if (last_version != VERSION):
+            if (os.path.exists(HERE+"/ReplaySolver/hashtable")):
+                shutil.rmtree(HERE+"/ReplaySolver/hashtable/")
+
+            file = open(HERE+"/version", "w")
+            file.write(VERSION)
+            file.close()
+
+    if (os.path.exists(HERE+"/ReplaySolver/hashtable")):
+        return
+
+    os.makedirs(HERE+"/ReplaySolver", exist_ok=True)
+    prntC(C.INFO, "DOWNLOADING HASH TABLE ", end="...", flush=True)
+    # create dir
+    urllib.request.urlretrieve(URL, HERE+"/hashtable.zip")
+    prntC("\r",C.INFO, "DOWNLOADING HASH TABLE", C.CYAN, " [DONE]")
+
+    prntC(C.INFO, "UNZIPPING HASH TABLE ", end="...", flush=True)
+    # Unzipping the file
+    with zipfile.ZipFile(HERE+"/hashtable.zip", 'r') as zip_ref:
+        zip_ref.extractall(HERE+"/ReplaySolver")
+    os.remove(HERE+"/hashtable.zip")
+    prntC("\r",C.INFO, "UNZIPPING HASH TABLE", C.CYAN, " [DONE]")
+
+
+
+download_hash_table()
 
 
 
@@ -49,6 +99,8 @@ floodingSolver.load(HERE+"/FloodingSolver")
 
 prntC("\r",C.INFO, "LOADING FLOODING MODEL", C.CYAN, " [DONE]")
 
+flooding_icao: "dict[str, int]" = {}
+
 # |====================================================================================================================
 # | REPLAY DETECTION
 # |====================================================================================================================
@@ -86,6 +138,23 @@ aircraftClassification.load(HERE+"/AircraftClassification")
 prntC("\r",C.INFO, "LOADING SPOOFING MODEL", C.CYAN, " [DONE]")
 
 
+
+
+
+# |====================================================================================================================
+# | ANOMALY DETECTION
+# |====================================================================================================================
+
+
+class AnomalyType:
+    VALID = 0
+    SPOOFING = 1
+    FLOODING = 2
+    REPLAY = 3
+    __INVALID__ = 1000
+
+
+
 def hash_message(message: "dict[str, str]") -> "int":
     # message["icao24"] -> hex to int
     return (hash(message["icao24"]) \
@@ -115,7 +184,7 @@ def compress_messages(messages: "list[dict[str, str]]"):
     for i in range(len(messages)):
         res.append({
             "tag": messages[i].get("tag", ""),
-            "anomaly": messages[i].get("anomaly", UNSET),
+            "anomaly": messages[i].get("anomaly", AnomalyType.VALID),
         })
     return res
 
@@ -130,25 +199,19 @@ def clean_hash_table() -> None:
 
 
 def message_subset(messages: "list[dict[str, str]]") -> "tuple[list[dict[str, str]], list[int]]":
-    indices = [i for i in range(len(messages)) if messages[i]["anomaly"] == UNSET]
+    indices = [i for i in range(len(messages)) if messages[i]["anomaly"] == AnomalyType.VALID]
     sub = [messages[i] for i in indices]
     return sub, indices
 
 
-UNSET = 0
-SPOOFING = 1
-FLOODING = 2
-REPLAY = 3
-INVALID = 1000
-
 
 def predict(messages: "list[dict[str, str]]", compress=True) -> "list[dict[str, str]]":
-
+    print("predict")
     # stream messages
     for i in range(len(messages)):
-        messages[i]["tag"] = messages[i].get("tag", "")
-        messages[i]["anomaly"] = UNSET
-
+        messages[i]["tag"] = messages[i].get("tag", "0")
+        messages[i]["anomaly"] = AnomalyType.VALID
+        messages[i] = cast_msg(messages[i])
         streamer.add(messages[i])
 
 
@@ -156,10 +219,10 @@ def predict(messages: "list[dict[str, str]]", compress=True) -> "list[dict[str, 
     for i in range(len(messages)):
         if (messages[i].get("icao24", None) == None or messages[i].get("timestamp", None) == None or \
             messages[i].get("latitude", None) == None or messages[i].get("longitude", None) == None):
-            messages[i]["alteration"] = INVALID
+            messages[i]["alteration"] =AnomalyType.__INVALID__
 
 
-    # # separate trajectories with duplicated icao24
+    # separate trajectories with duplicated icao24
     # sub_msg, indices = message_subset(messages)
     # sub_icaos = trajectorySeparator.predict(sub_msg)
     # for i in range(len(sub_msg)):
@@ -167,36 +230,58 @@ def predict(messages: "list[dict[str, str]]", compress=True) -> "list[dict[str, 
 
 
     # check for replay anomalies
-    sub_msg, indices = message_subset(messages)
-    matches = replaySolver.predict(sub_msg)
-    for i in range(len(indices)):
-        if (matches[i] != "unknown"):
-            print("REPLAY")
-            messages[indices[i]]["anomaly"] = REPLAY
-
-
-    # # check for flooding anomalies
     # sub_msg, indices = message_subset(messages)
-    # _, loss = floodingSolver.predict(sub_msg)
+    # matches = replaySolver.predict(sub_msg)
     # for i in range(len(indices)):
-    #     if (loss[i] > CTX_FS["THRESHOLD"]):
-    #         messages[indices[i]]["anomaly"] = FLOODING
+    #     if (matches[i] != "unknown"):
+    #         print("REPLAY")
+    #         messages[indices[i]]["anomaly"] = AnomalyType.REPLAY
 
 
-    # # check for spoofing
-    # # filter messages having unknown icao24
-    true_labels = get_true_aircraft_type(messages)
+    # check for flooding anomalies
+
+    # find messages with duplicates icao
+    flooding_messages: "dict[str, list[int]]" = {}
     for i in range(len(messages)):
-        if (true_labels[i] == 0 and messages[i]["anomaly"] == UNSET):
-            messages[i]["anomaly"] = INVALID
+        icao = messages[i]["icao24"]
+        if (icao in flooding_messages):
+            flooding_messages[icao].append(i)
+        else:
+            flooding_messages[icao] = [i]
+
+    for icao, indices in flooding_messages.items():
+        if (len(indices) > 1):
+            if (icao not in flooding_icao):
+                prntC(C.INFO, icao, " started flooding")
+                flooding_icao[icao] = 0
 
     sub_msg, indices = message_subset(messages)
-    _, label_proba = aircraftClassification.predict(sub_msg)
-    spoofing = is_spoofing(true_labels[indices], label_proba)
+    _, loss = floodingSolver.predict(sub_msg)
     for i in range(len(indices)):
-        if (spoofing[i]):
-            print("SPOOFING")
-            messages[indices[i]]["anomaly"] = SPOOFING
+        if (loss[i] > CTX_FS["THRESHOLD"]):
+            messages[indices[i]]["anomaly"] = AnomalyType.FLOODING
+
+    for icao in list(flooding_icao.keys()):
+        flooding_icao[icao] += 1
+        if (flooding_icao[icao] > 10):
+            prntC(C.INFO, icao, " stopped flooding")
+            del flooding_icao[icao]
+
+
+    # check for spoofing
+    # filter messages having unknown icao24
+    # true_labels = get_true_aircraft_type(messages)
+    # for i in range(len(messages)):
+    #     if (true_labels[i] == 0 and messages[i]["anomaly"] == AnomalyType.VALID):
+    #         messages[i]["anomaly"] = AnomalyType.__INVALID__
+
+    # sub_msg, indices = message_subset(messages)
+    # _, label_proba = aircraftClassification.predict(sub_msg)
+    # spoofing = is_spoofing(true_labels[indices], label_proba)
+    # for i in range(len(indices)):
+    #     if (spoofing[i]):
+    #         print("SPOOFING")
+    #         messages[indices[i]]["anomaly"] = AnomalyType.SPOOFING
 
 
     # save messages predictions in case of a future request
@@ -204,12 +289,13 @@ def predict(messages: "list[dict[str, str]]", compress=True) -> "list[dict[str, 
     #     add_message_predictions(hashes[i], response[i])
 
     for i in range(len(messages)):
-        if (messages[i]["anomaly"] == INVALID):
-            messages[i]["anomaly"] = UNSET
+        if (messages[i]["anomaly"] == AnomalyType.__INVALID__):
+            messages[i]["anomaly"] = AnomalyType.VALID
     if compress:
         messages = compress_messages(messages)
 
     return messages
+
 
 
 

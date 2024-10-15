@@ -50,7 +50,7 @@ Then startup our visualizer available at [https://adsb-visualizer.web.app/](http
 Drop any ADS-B file you want to check in the visualizer. It will automatically send the right request to your webserver and display the results with green trajectories for normal aircrafts and red ones for anomalies.
 
 
-Take care of not running multiple instances of the visualizer at the same time, as it will cause the webserver to crash.
+Take care of not running multiple instances of the visualizer at the same time, as it will cause the webserver to crash or behave unexpectedly.
 
 
 

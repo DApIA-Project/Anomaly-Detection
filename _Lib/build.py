@@ -1,6 +1,6 @@
 import os
 import subprocess
-
+from .AdsbAnomalyDetector import VERSION
 
 
 class MODELS:
@@ -9,7 +9,6 @@ class MODELS:
     replay = "HASH"
     flooding = "LSTM"
 
-VERSION = "0.5.5"
 
 
 ALL_PY = []
@@ -334,9 +333,9 @@ os.system(f"mv ./AdsbAnomalyDetector/{constants[0]} ./AdsbAnomalyDetector/C_Cons
 
 # ReplaySolver
 # # copy weights
-os.system(f"mkdir ./AdsbAnomalyDetector/ReplaySolver")
-if (not os.path.exists("./AdsbAnomalyDetector/ReplaySolver/hashtable")):
-    os.system(f"cp -r ../_Artifacts/ReplaySolver/hashtable ./AdsbAnomalyDetector/ReplaySolver/hashtable")
+# os.system(f"mkdir ./AdsbAnomalyDetector/ReplaySolver")
+# if (not os.path.exists("./AdsbAnomalyDetector/ReplaySolver/hashtable")):
+#     os.system(f"cp -r ../_Artifacts/ReplaySolver/hashtable ./AdsbAnomalyDetector/ReplaySolver/hashtable")
 
 # rename model and constant file to be generic
 model = find_files_and_filter("B_Model_ReplaySolver_", [
@@ -397,6 +396,18 @@ for file in files:
 if (os.path.exists("./dist")):
     os.system("rm -r ./dist/*")
 
+# write in setup.py at first line the version
+file = open("./setup.py", "r")
+content = file.readlines()
+file.close()
+
+content[0] = f"VERSION = \"{VERSION}\"\n"
+
+file = open("./setup.py", "w")
+file.writelines(content)
+file.close()
+
+
 
 # run setup.py
-os.system(f"echo {VERSION} | python ./setup.py sdist")
+os.system(f"python ./setup.py bdist_wheel")

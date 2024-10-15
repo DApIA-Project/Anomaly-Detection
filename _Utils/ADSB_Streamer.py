@@ -295,18 +295,27 @@ __FEATURE_MAP__ = dict([[__FEATURES__[i], i] for i in range(len(__FEATURES__))])
 # |====================================================================================================================
 
 
-def cast_msg(col:str, msg:object) -> float:
-
+def cast_feature(col:str, msg:object) -> float:
     if (msg is np.nan or msg == None or msg == ""):
         return np.nan
+
     elif (col == "icao24" or col == "callsign" or col == "tag"):
         return msg
     elif (col == "onground" or col == "alert" or col == "spi"):
         return float(msg == "True")
     elif (col == "timestamp"):
         return int(msg)
-    else:
+    elif (col == "latitude" or col == "longitude" or col == "altitude" or col == "geoaltitude" \
+            or col == "groundspeed" or col == "vertical_rate" or col == "track" or col == "squawk"):
         return float(msg)
+    else:
+        return msg
+
+
+
+def cast_msg(msg:"dict[str, object]") -> "dict[str, float]":
+    return {col:cast_feature(col, value) for col, value in msg.items()}
+
 
 # |====================================================================================================================
 # | TRAJECTORY
@@ -365,7 +374,7 @@ class Streamer:
                 traj.parent = parent_trajectory.i_tag()
 
                 # transfer the history of the parent trajectory to the child
-                i = parent_trajectory.data.arguntil(start_time)
+                i = parent_trajectory.data.get_relative_loc(start_time)
                 parent_trajectory.data = parent_trajectory.data[:i]
                 for cache in self.__cache__:
                     cache.set(icao, tag, cache.subset(icao, "0", 0, i))
@@ -424,7 +433,7 @@ class Streamer:
             trajectory = self.__create_trajectory__(icao, tag, start_time=actual_time)
 
         # append the message to the trajectory
-        x = [cast_msg(col, x.get(col, np.nan)) for col in __FEATURES__]
+        x = [x.get(col, np.nan) for col in __FEATURES__]
         trajectory.data.__append__(x)
 
         return trajectory.data

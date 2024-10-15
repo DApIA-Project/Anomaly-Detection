@@ -326,7 +326,7 @@ class DataLoader(AbstractDataLoader):
         if (df is None):
             prntC(C.ERROR, "Cannot get stream of unknown trajectory")
 
-        df = df.until(message["timestamp"] + 1)
+        df = df.until(message["timestamp"])
 
         if (len(df) <= 1):
             new_msg = U.df_to_feature_array(self.CTX, df.copy(), check_length=False)

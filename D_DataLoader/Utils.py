@@ -256,6 +256,7 @@ def __pad__(CTX:dict, df:DataFrame) -> DataFrame:
     df.add_column("pad", np.zeros(len(df), dtype=np.float64))
     if (CTX["INPUT_PADDING"] == "valid"): return df
 
+
     start = df["timestamp"][0]
     total_length = df["timestamp"][-1] - df["timestamp"][0] + 1
 

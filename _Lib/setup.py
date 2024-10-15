@@ -1,9 +1,8 @@
-
+VERSION = "0.5.8"
 
 from setuptools import setup, find_packages
 import sys
 
-VERSION = input()
 print(f"VERSION : {VERSION}")
 DESCRIPTION = 'Low altitude aircraft anomaly detector'
 LONG_DESCRIPTION = """
@@ -24,7 +23,9 @@ setup(
     packages=find_packages(),
     install_requires=["tensorflow", "numpy", "pandas", "scikit-learn", "matplotlib", "pickle-mixin"], # add any additional packages that
     # needs to be installed along with your package. Eg: 'caer'
-    package_data={'': ['*.py', "w", "xs", "xts", "map.png", "labels.csv"]},
+    package_data={
+        '': ['*.py', "map.png", "labels.csv", "./AircraftClassification/*", "./FloodingSolver/*"],
+    },
     keywords=['python', 'deep learning', 'tensorflow', 'aircraft', 'classification', 'ADS-B'],
     classifiers= [
         "Intended Audience :: Education",

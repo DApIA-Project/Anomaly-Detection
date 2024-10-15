@@ -61,14 +61,13 @@ class Model(AbstactModel):
 
             z = Add()([z, res])
         z = LSTM(128, return_sequences=False)(z)
-
         # z = Concatenate()([z_gps, z_other])
 
 
 
 
         # z = DenseModule(256, dropout=self.dropout)(z)
-        z = Dense(self.outs, activation="sigmoid")(z)
+        z = Dense(self.outs, activation="linear")(z)
         y = z
         # y = (z + 1) / 2
 

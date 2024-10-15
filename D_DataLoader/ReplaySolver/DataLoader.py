@@ -212,7 +212,7 @@ class DataLoader(AbstractDataLoader):
             prntC(C.ERROR, "Cannot get stream of unknown trajectory")
 
         # last_df = STREAMER.cache("ReplaySolver", tag)
-        df = df.until(message["timestamp"] + 1)
+        df = df.until(message["timestamp"])
         new_msg = U.df_to_feature_array(self.CTX, df[-3:], check_length=False)
         if (len(df) >= 3):
             win = self.win_cache.extend(icao24, tag, new_msg[1:2], [len(df)])

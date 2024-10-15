@@ -1,2 +1,2 @@
-from .AdsbAnomalyDetector import predict
+from .AdsbAnomalyDetector import predict, AnomalyType, VERSION
 

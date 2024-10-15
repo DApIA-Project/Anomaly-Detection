@@ -248,8 +248,8 @@ class Trainer(AbstractTrainer):
     def __plot_train_exemple__(self, y_train:np.float64_2d[ax.sample, ax.feature],
                                     _y_train:np.float64_2d[ax.sample, ax.feature]) -> None:
         NAME = "train_example"
-        y_sample  = self.dl.yScaler.inverse_transform([y_train[-1]])[0]
-        y_sample_ = self.dl.yScaler.inverse_transform([_y_train[-1]])[0]
+        y_sample  = self.dl.yScaler.inverse_transform(np.array([y_train[-1]]))[0]
+        y_sample_ = self.dl.yScaler.inverse_transform(np.array([_y_train[-1]]))[0]
 
         o_lat, o_lon, o_track = PLT.get_data(NAME+"Origin")
         y_sample  = U.denormalize_trajectory(self.CTX, [y_sample[0]], [y_sample[1]],
@@ -352,10 +352,14 @@ class Trainer(AbstractTrainer):
         loss = np.full(len(x), np.nan, dtype=np.float64)
         for i in range(len(x)):
             if (is_interesting[i]):
+                pred_distance = GEO.distance(origin[i, 0], origin[i, 1], y[i][0], y[i][1])
                 distance =  GEO.distance(y_[i][0], y_[i][1], y[i][0], y[i][1])
-                loss_win = self.dl.loss_cache.append(x[i]["icao24"], x[i]["tag"], distance)
+                l = distance/pred_distance * 250
+
+                loss_win = self.dl.loss_cache.append(x[i]["icao24"], x[i]["tag"], l)
             else:
                 loss_win = self.dl.loss_cache.append(x[i]["icao24"], x[i]["tag"], 0)
+
 
             loss[i] = np.mean(loss_win[-self.CTX["LOSS_MOVING_AVERAGE"]:])
 
@@ -450,6 +454,9 @@ class Trainer(AbstractTrainer):
         for f in to_remove:
             os.remove(self.ARTIFACTS+"/"+f)
 
+        # only keep folder named exp_solo
+        self.__eval_files__ = [f for f in self.__eval_files__ if f[0].split("/")[-2] == "exp_solo"]
+
         mean_acc = np.zeros(3, dtype=np.float64)
         for folder in self.__eval_files__:
 
@@ -505,21 +512,23 @@ class Trainer(AbstractTrainer):
 
         # plot mean loss (along flights), per timestamp
         mean_loss = np.zeros(max_len, dtype=np.float64)
+        mean_loss_ = np.zeros(max_len, dtype=np.float64)
         for t in range(max_len):
             files = [f for f in range(len(loss)) if t < len(loss[f])]
             mean_loss[t] = np.nanmean([loss[f][t] for f in files])
+            mean_loss_[t] = np.nanmean([loss_[f][t] for f in files])
 
 
-        return self.__plot_eval__(dfs, y_, y, loss, loss_, mean_loss, max_len, name)
+        return self.__plot_eval__(dfs, y_, y, loss, loss_, mean_loss, mean_loss_, max_len, name)
 
 
 
     def __plot_eval__(self, dfs:"list[pd.DataFrame]",
                       y_:"list[np.float64_2d[ax.time, ax.feature]]", y:"list[np.float64_2d[ax.time, ax.feature]]",
-                      loss:"list[np.float64_1d]", loss_:"list[np.float64_1d]", mean_loss:np.float64_1d,
+                      loss:"list[np.float64_1d]", loss_:"list[np.float64_1d]", mean_loss:np.float64_1d, mean_loss_:np.float64_1d,
                       max_len:int, name:str) -> float:
 
-        self.__plot_loss_curves__(loss, mean_loss, max_len, name)
+        self.__plot_loss_curves__(loss, loss_, mean_loss, mean_loss_, max_len, name)
         self.__plot_predictions_on_saturation__(dfs, y_, y, loss, max_len, name)
         self.__plot_prediction_on_error_spikes__(dfs, y_, y, loss, loss_, max_len, name)
         return self.__plot_safe_icao24__(dfs, loss, name)
@@ -530,12 +539,16 @@ class Trainer(AbstractTrainer):
 # |====================================================================================================================
 
 
-    def __plot_loss_curves__(self, loss:"list[np.float64_1d]", mean_loss:np.float64_1d, max_len:int, name:str) -> None:
-
+    def __plot_loss_curves__(self, loss:"list[np.float64_1d]", loss_:"list[np.float64_1d]",
+                             mean_loss:np.float64_1d, mean_loss_:np.float64_1d,
+                             max_len:int, name:str) -> None:
+        COLORS = ["tab:blue", "tab:orange", "tab:green", "tab:red", "tab:purple", "tab:brown", "tab:pink", "tab:gray", "tab:olive", "tab:cyan"]
         plt.figure(figsize=(24 * max_len / 500, 12))
         for f in range(len(loss)):
-            plt.plot(loss[f])
-        plt.plot(mean_loss, color="black", linestyle="--", linewidth=2)
+            plt.plot(loss[f], color=COLORS[f%len(COLORS)], linestyle="--")
+            plt.plot(loss_[f], color=COLORS[f%len(COLORS)])
+        plt.plot(mean_loss, color="black", linestyle="--", linewidth=1)
+        plt.plot(mean_loss_, color="black", linewidth=2)
         plt.plot([0, max_len], [self.CTX["THRESHOLD"]]*2, color="black", linestyle="--", linewidth=2)
         plt.title("Mean Loss along timestamps")
         plt.xlabel("Timestamp")
