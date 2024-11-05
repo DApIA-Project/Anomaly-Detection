@@ -1,6 +1,6 @@
 
 LEARNING_RATE = 0.0003
-EPOCHS = 0
+EPOCHS = 80
 BATCH_SIZE = 64
 NB_BATCH = 32
 
@@ -43,3 +43,4 @@ RESUDUAL = 1.0
 
 # possibilities "valid", "last", "nan"
 INPUT_PADDING = "nan"
+

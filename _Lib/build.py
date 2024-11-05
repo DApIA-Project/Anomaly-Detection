@@ -1,6 +1,8 @@
 import os
 import subprocess
-from .AdsbAnomalyDetector import VERSION
+
+
+VERSION = "0.5.9"
 
 
 class MODELS:
@@ -150,21 +152,21 @@ def file_content_remplace(_file, find, remplace):
 
 
 # clean lib before build
-to_reomve = []
+to_remove = []
 for root, dirs, files in os.walk(f"./AdsbAnomalyDetector/"):
     print(root)
     if (root.startswith("./AdsbAnomalyDetector/ReplaySolver")):
         continue
 
     for file in files:
-        if file != "AdsbAnomalyDetector.py" and file != "__init__.py":
-            to_reomve.append(os.path.join(root, file))
+        if file != "AdsbAnomalyDetector.py" and file != "__init__.py" and file != "version":
+            to_remove.append(os.path.join(root, file))
 
     for dir in dirs:
         if dir != "__pycache__" and dir != "ReplaySolver":
-            to_reomve.append(os.path.join(root, dir))
+            to_remove.append(os.path.join(root, dir))
 
-for file in to_reomve:
+for file in to_remove:
     os.system(f"rm -r {file}")
 
 
@@ -191,17 +193,17 @@ for path in files:
 imports = list(imports)
 
 
-to_reomve = []
+to_remove = []
 for i in range(len(imports)):
     # remove all lib imports (files that are not in ALL_PY)
     if imports[i] not in ALL_PY:
-        to_reomve.append(i)
+        to_remove.append(i)
 
     # remove runner imports (launching training so useless)
     if imports[i].startswith("F_Runner"):
-        to_reomve.append(i)
+        to_remove.append(i)
 
-for i in to_reomve[::-1]:
+for i in to_remove[::-1]:
     imports.pop(i)
 
 imports.append("_Utils.module")
@@ -404,6 +406,18 @@ file.close()
 content[0] = f"VERSION = \"{VERSION}\"\n"
 
 file = open("./setup.py", "w")
+file.writelines(content)
+file.close()
+
+
+# write version in AdsbAnomalyDetector.py
+file = open("./AdsbAnomalyDetector/AdsbAnomalyDetector.py", "r")
+content = file.readlines()
+file.close()
+
+content[0] = f"VERSION = \"{VERSION}\"\n"
+
+file = open("./AdsbAnomalyDetector/AdsbAnomalyDetector.py", "w")
 file.writelines(content)
 file.close()
 

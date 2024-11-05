@@ -207,17 +207,17 @@ class DataLoader(AbstractDataLoader):
         icao24 = message["icao24"]
         tag = message.get("tag", "0")
 
-        df = streamer.get(icao24, tag)
-        if (df is None):
+        traj = streamer.get(icao24, tag)
+        if (traj is None):
             prntC(C.ERROR, "Cannot get stream of unknown trajectory")
 
-        # last_df = STREAMER.cache("ReplaySolver", tag)
-        df = df.until(message["timestamp"])
+        df = traj.data.until(message["timestamp"])
+
         new_msg = U.df_to_feature_array(self.CTX, df[-3:], check_length=False)
         if (len(df) >= 3):
-            win = self.win_cache.extend(icao24, tag, new_msg[1:2], [len(df)])
+            win = self.win_cache.extend(icao24, tag, new_msg[1:2], [len(df)-1])
         else:
-            win = self.win_cache.extend(icao24, tag, new_msg[len(df)-1:len(df)], [len(df)])
+            win = self.win_cache.extend(icao24, tag, new_msg[len(df)-1:len(df)], [len(df)-1])
 
         x_batch, y_batch = SU.alloc_batch(self.CTX, 1)
         x_batch, valid = SU.gen_sample(self.CTX, [win], 0, len(win) - 1)

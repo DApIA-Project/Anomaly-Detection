@@ -84,9 +84,6 @@ class Model(AbstactModel):
                     nb_correct += 1
                     break
 
-            if (nb_correct == 0):
-                print(y[s], y_[s])
-
             if (len(y_[s]) > 0):
                 accuracy += nb_correct
             size += 1

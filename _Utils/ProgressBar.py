@@ -46,6 +46,9 @@ class ProgressBar:
     def disable_reprint(self) -> None:
         self._reprint = False
 
+    def get_value(self) -> float:
+        return self._progress
+
 
 
     def update(self, value:float=None, additional_text="") -> None:

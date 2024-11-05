@@ -251,12 +251,12 @@ class DataLoader(AbstractDataLoader):
         icao24 = message["icao24"]
         tag = message.get("tag", "0")
 
-        df = streamer.get(icao24, tag)
-        if (df is None):
+        traj = streamer.get(icao24, tag)
+        if (traj is None):
             prntC(C.ERROR, "Cannot get stream of unknown trajectory")
 
+        df = traj.data.until(message["timestamp"])
 
-        df = df.until(message["timestamp"])
         if (len(df) <= 1):
             new_msg = U.df_to_feature_array(self.CTX, df.copy(), check_length=False)
             new_msg = fill_nan_2d(new_msg, self.PAD)
@@ -264,11 +264,16 @@ class DataLoader(AbstractDataLoader):
             new_msg = U.df_to_feature_array(self.CTX, df[-2:], check_length=False)
             new_msg = fill_nan_2d(new_msg, self.PAD)[1:]
 
-        win = self.win_cache.extend(icao24, tag, new_msg, [len(df)] * len(new_msg))
+        win = self.win_cache.extend(icao24, tag, new_msg, [len(df)-1] * len(new_msg))
 
         x_batch, y_batch = SU.alloc_batch(self.CTX, 1)
+
+        t = len(win)-1-self.CTX["HORIZON"]
+        if (t >= 0):
+            while (t < len(win)-1 and FG.timestamp(win[t]) + self.CTX["HORIZON"] < message["timestamp"]):
+                t += 1
         x_batch[0], y, valid, origin = SU.gen_sample(
-            self.CTX, [win], self.PAD, 0, len(win)-1-self.CTX["HORIZON"], training=False)
+            self.CTX, [win], self.PAD, 0, t, len(win)-1, training=False)
         y_batch[0] = FG.lat_lon(y)
 
 

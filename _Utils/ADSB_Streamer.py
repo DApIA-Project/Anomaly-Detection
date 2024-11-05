@@ -242,7 +242,9 @@ class CacheList(Cache):
 
 
     def append(self, icao:str, tag:str, data:object, index:int=None) -> "list[object]":
-        return self.extend(icao, tag, [data], [index])
+        if index is not None:
+            index = [index]
+        return self.extend(icao, tag, [data], index)
 
 
     def extend(self, icao:str, tag:str, data:"list[object]", indexs:"list[int]"=None) -> "list[object]":
@@ -321,15 +323,34 @@ def cast_msg(msg:"dict[str, object]") -> "dict[str, float]":
 # | TRAJECTORY
 # |====================================================================================================================
 
+class FloodingData:
+    timestamp:int
+    index:int
+
+    def __init__(self, timestamp:int, index:int) -> None:
+        self.timestamp = timestamp
+        self.index = index
+
 class Trajectory:
+    icao:str
+    tag:str
+    data:DataFrame
+    childs:"set[str]"
+    parent:str
+    __cache_items__:"list[CacheElement]"
+    flooding:"list[FloodingData]"
+    abnormal:int
+
     def __init__(self, icao:str, tag:str) -> None:
         self.icao = icao
         self.tag = tag
-        self.data:DataFrame = DataFrame(len(__FEATURES__))
+        self.data = DataFrame(len(__FEATURES__))
         self.data.rename_columns(__FEATURES__)
-        self.childs:set[str] = set()
-        self.parent:str = None
-        self.__cache_items__:list[CacheElement] = []
+        self.childs = set()
+        self.parent = None
+        self.__cache_items__ = []
+        self.flooding=[]
+        self.abnormal = -1
 
     def i_tag(self) -> str:
         return self.icao+"_"+self.tag
@@ -375,11 +396,17 @@ class Streamer:
 
                 # transfer the history of the parent trajectory to the child
                 i = parent_trajectory.data.get_relative_loc(start_time)
-                parent_trajectory.data = parent_trajectory.data[:i]
+                traj.data = parent_trajectory.data[:i]
                 for cache in self.__cache__:
                     cache.set(icao, tag, cache.subset(icao, "0", 0, i))
 
                 prntC(C.INFO, f"New trajectory {i_tag} created as child of {icao}_0")
+                parent_trajectory.flooding.append(FloodingData(start_time, i))
+                traj.flooding.append(FloodingData(start_time, 0))
+
+
+
+
 
         return traj
 
@@ -402,7 +429,7 @@ class Streamer:
         if (parent is not None):
             self.trajectories[parent].childs.remove(trajectory.i_tag())
 
-        for child in childs:
+        for child in list(childs):
             self.__remove_trajectory__(self.trajectories[child])
 
         del self.trajectories[trajectory.icao+"_"+trajectory.tag]
@@ -423,7 +450,6 @@ class Streamer:
             self.__remove_trajectory__(trajectory)
             trajectory = self.__create_trajectory__(icao, tag, start_time=actual_time)
 
-
         # check if the message doesn't go back in time
         i = trajectory.data.get_relative_loc(actual_time)
         if (i < len(trajectory.data)):
@@ -439,11 +465,36 @@ class Streamer:
         return trajectory.data
 
 
-    def get(self, icao:str, tag:str) -> "DataFrame|None":
-        trajectory = self.trajectories.get(icao+"_"+tag, None)
-        if (trajectory is None):
-            return None
-        return trajectory.data
+    def get(self, icao:str, tag:str) -> "Trajectory|None":
+        return self.trajectories.get(icao+"_"+tag, None)
+
+    def is_flooding(self, traj:Trajectory, timestamp:int, delay:int) -> bool:
+        for flood in traj.flooding:
+            if (flood.timestamp <= timestamp and timestamp < flood.timestamp + delay):
+                return True
+        return False
+
+    def ended_flooding(self, traj:Trajectory, timestamp:int, delay:int) -> bool:
+        t = traj.data.get_relative_loc(timestamp)
+        last_timestamp = traj.data["timestamp", t-1]
+        for flood in traj.flooding:
+            if (last_timestamp <=flood.timestamp + delay and timestamp >= flood.timestamp + delay):
+                return True
+        return False
+
+    def setAbnormal(self, icao:str, tag:str, timestamp:int) -> None:
+        traj = self.get(icao, tag)
+        if (traj is None): return
+        traj.abnormal = timestamp
+
+    def isAbnormal(self, icao:str, tag:str, timestamp:int) -> bool:
+        traj = self.get(icao, tag)
+        if (traj is None): return False
+        if (traj.abnormal == -1): return False
+        return traj.abnormal < timestamp
+
+
+
 
 
 streamer = Streamer()

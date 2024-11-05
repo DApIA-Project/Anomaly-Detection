@@ -52,4 +52,6 @@ _images/
 
 catboost_info/
 
-test/
+.coverage
+
+
