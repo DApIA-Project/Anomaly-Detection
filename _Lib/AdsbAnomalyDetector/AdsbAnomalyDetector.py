@@ -237,13 +237,44 @@ def predict(messages: "list[dict[str, str]]", compress:bool=True, debug:bool=Fal
     # str_messages = [str(messages[i]) for i in range(len(messages))]
     # print("\n".join(str_messages))
 
-    # stream messages
+    # stream message
+    splits = []
+    split_caches = np.zeros(len(messages), dtype=bool)
     for i in range(len(messages)):
         messages[i]["tag"] = messages[i].get("tag", "0")
         messages[i]["anomaly"] = AnomalyType.VALID
         messages[i] = cast_msg(messages[i])
-        print(messages[i])
-        streamer.add(messages[i])
+        split_caches[i] = streamer.add(messages[i])
+        print(split_caches[i])
+        if (split_caches[i]):
+            splits.append(i)
+
+    # remove consecutive splits with reversed for
+    for i in range(len(splits)-1, 0, -1):
+        if (splits[i] == splits[i-1]+1):
+            splits.pop(i)
+
+    if (len(splits) == 0):
+        return __predict__(messages, compress=compress, debug=debug)
+
+    splits.append(len(messages))
+    res = []
+    if (splits[0] != 0):
+        res += __predict__(messages[:splits[0]], compress=compress, debug=debug)
+
+    for i in range(1, len(splits)):
+        for t in range(splits[i-1], splits[i]):
+            if (split_caches[t]):
+                streamer.split_cache(messages[t])
+
+        res += __predict__(messages[splits[i-1]:splits[i]], compress=compress, debug=debug)
+    return res
+
+
+
+
+def __predict__(messages: "list[dict[str, str]]", compress:bool=True, debug:bool=False) -> "list[dict[str, str]]":
+
 
     # check validity of messages
     for i in range(len(messages)):

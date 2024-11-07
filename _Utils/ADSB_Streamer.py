@@ -86,6 +86,8 @@ class CacheArray2D(Cache):
 
     def set_feature_size(self, feature_size:int) -> None:
         self.feature_size = feature_size
+    def get_feature_size(self) -> int:
+        return self.feature_size
 
 
     def open_cache_for(self, icao:str, tag:str) -> CacheArray2DElement:
@@ -377,6 +379,7 @@ class Streamer:
         i_tag = icao+"_"+tag
         traj = Trajectory(icao, tag)
         self.trajectories[i_tag] = traj
+        split = False
 
         for cache in self.__cache__:
             cache_el = cache.open_cache_for(icao, tag)
@@ -385,30 +388,51 @@ class Streamer:
         if (tag == "0"):
             traj.parent = None
             prntC(C.INFO, f"New trajectory {i_tag} created")
+            return traj, split
 
+        parent_trajectory:Trajectory = self.trajectories.get(icao+"_0", None)
+        if (parent_trajectory == None):
+            prntC(C.WARNING, f"New trajectory {i_tag} created but parent trajectory {icao}_0 does not exist")
         else:
-            parent_trajectory:Trajectory = self.trajectories.get(icao+"_0", None)
-            if (parent_trajectory == None):
-                prntC(C.WARNING, f"New trajectory {i_tag} created but parent trajectory {icao}_0 does not exist")
-            else:
-                parent_trajectory.childs.add(traj.i_tag())
-                traj.parent = parent_trajectory.i_tag()
+            parent_trajectory.childs.add(traj.i_tag())
+            traj.parent = parent_trajectory.i_tag()
 
-                # transfer the history of the parent trajectory to the child
-                i = parent_trajectory.data.get_relative_loc(start_time)
-                traj.data = parent_trajectory.data[:i]
-                for cache in self.__cache__:
-                    cache.set(icao, tag, cache.subset(icao, "0", 0, i))
-
-                prntC(C.INFO, f"New trajectory {i_tag} created as child of {icao}_0")
-                parent_trajectory.flooding.append(FloodingData(start_time, i))
-                traj.flooding.append(FloodingData(start_time, 0))
+            # transfer the history of the parent trajectory to the child
+            i = parent_trajectory.data.get_relative_loc(start_time)
+            traj.data = parent_trajectory.data[:i]
 
 
+            # for cache in self.__cache__:
+            #     cache.set(icao, tag, cache.subset(icao, "0", 0, i))
+                # subset = cache.subset(icao, "0", 0, i)
+                # if (len(subset) > 0 and len(subset[0]) > FG.timestamp()):
+                #     print(FG.timestamp(cache.subset(icao, "0", 0, i)))
 
 
+            prntC(C.INFO, f"New trajectory {i_tag} created as child of {icao}_0")
+            parent_trajectory.flooding.append(FloodingData(start_time, i))
+            traj.flooding.append(FloodingData(start_time, i))
 
-        return traj
+            split = True
+
+            print(traj.data["timestamp"][-10:].astype(int), start_time)
+
+        return traj, split
+
+    def split_cache(self, message:"dict[str, object]") -> None:
+        icao = message["icao24"]
+        tag = message.get("tag", "0")
+
+        traj = self.get(icao, tag)
+        i = traj.flooding[-1].index
+
+
+        for cache in self.__cache__:
+            cache.set(icao, tag, cache.subset(icao, "0", 0, i))
+            subset = cache.subset(icao, "0", 0, i)
+            if (len(subset) > 0 and len(subset[0]) > FG.timestamp()):
+                print(FG.timestamp(cache.subset(icao, "0", 0, i)))
+
 
     def __is_a_new_trajectory__(self, trajectory:Trajectory, next_message:"dict[str, object]") -> bool:
         MAX_GAP = 30 * 60 # 30 min gap
@@ -440,15 +464,16 @@ class Streamer:
         icao = x["icao24"]
         i_tag = icao+"_"+tag
         actual_time = x["timestamp"]
+        split = False
 
         # create a new trajectory if it doesn't exist
         trajectory = self.trajectories.get(i_tag, None)
         if trajectory is None:
-            trajectory = self.__create_trajectory__(icao, tag, start_time=actual_time)
+            trajectory, split = self.__create_trajectory__(icao, tag, start_time=actual_time)
 
-        if self.__is_a_new_trajectory__(trajectory, x):
+        elif self.__is_a_new_trajectory__(trajectory, x):
             self.__remove_trajectory__(trajectory)
-            trajectory = self.__create_trajectory__(icao, tag, start_time=actual_time)
+            trajectory, split = self.__create_trajectory__(icao, tag, start_time=actual_time)
 
         # check if the message doesn't go back in time
         i = trajectory.data.get_relative_loc(actual_time)
@@ -456,13 +481,13 @@ class Streamer:
             prntC(C.WARNING, f"Duplicate message for {i_tag} at timestamp {actual_time}")
 
             self.__remove_trajectory__(trajectory)
-            trajectory = self.__create_trajectory__(icao, tag, start_time=actual_time)
+            trajectory, split = self.__create_trajectory__(icao, tag, start_time=actual_time)
 
         # append the message to the trajectory
         x = [x.get(col, np.nan) for col in __FEATURES__]
         trajectory.data.__append__(x)
 
-        return trajectory.data
+        return split
 
 
     def get(self, icao:str, tag:str) -> "Trajectory|None":
@@ -498,4 +523,3 @@ class Streamer:
 
 
 streamer = Streamer()
-

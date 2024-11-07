@@ -19,7 +19,7 @@ import D_DataLoader.Utils      as U
 # | CHECKING CLEANESS FOR TRAINING DATA
 # |====================================================================================================================
 
-def check_sample(CTX:"dict[str, object]", x:"np.ndarray", i:int, t:int, t_:int, training:bool=True) -> bool:
+def check_sample(CTX:"dict[str, object]", x:"np.float64_2d[ax.time, ax.feature]", i:int, t:int, t_:int, training:bool=True) -> bool:
 
     lats = FG.lat(x[i])
     lons = FG.lon(x[i])
