@@ -1,4 +1,4 @@
-VERSION = "0.6.0"
+VERSION = "0.6.1"
 
 from ._Utils_os_wrapper import os
 from numpy_typing import np, ax

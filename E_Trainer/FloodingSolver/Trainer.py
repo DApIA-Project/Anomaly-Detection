@@ -299,7 +299,7 @@ class Trainer(AbstractTrainer):
             np.float64_2d[ax.sample, ax.feature],
             np.float64_1d[ax.sample],
             np.bool_1d[ax.sample]]""":
-        if (len(x) == 0): return np.zeros((0, self.CTX["FEATURES_OUT"])), np.zeros((0, self.CTX["FEATURES_OUT"]))
+        if (len(x) == 0): return np.zeros((0, self.CTX["FEATURES_OUT"])), np.zeros((0, self.CTX["FEATURES_OUT"])), np.zeros((0, ))
 
         # allocate memory
         x_batch  = np.zeros((len(x), self.CTX["INPUT_LEN"], self.CTX["FEATURES_IN"]))
