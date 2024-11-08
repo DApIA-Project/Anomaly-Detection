@@ -99,7 +99,6 @@ def test_flooding(streamer:Streamer) -> None:
             assert  streamer.ended_flooding(parent, msg["timestamp"], 5)
 
     traj_1 = streamer.get("39ac45", "1")
-    print(traj_1.data["timestamp"])
     for i in range(1, len(traj_1.data)):
         assert traj_1.data["timestamp", i-1] == traj_1.data["timestamp", i] - 1
 

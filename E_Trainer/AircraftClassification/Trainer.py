@@ -85,10 +85,11 @@ class Trainer(AbstractTrainer):
         FG.init(CTX)
 
         self.model:_Model_ = Model(CTX)
-        self.__makes_artifacts__()
-        self.__init_GUI__()
-        self.viz_model(self.ARTIFACTS)
-        GUI.visualize("/Model/Achitecture", GUI.IMAGE, self.ARTIFACTS+f"/{self.model.name}.png")
+        if ("LIB" not in CTX):
+            self.__makes_artifacts__()
+            self.__init_GUI__()
+            self.viz_model(self.ARTIFACTS)
+            GUI.visualize("/Model/Achitecture", GUI.IMAGE, self.ARTIFACTS+f"/{self.model.name}.png")
 
         self.dl = DataLoader(CTX, TRAIN_FOLDER)
 

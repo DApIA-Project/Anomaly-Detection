@@ -402,20 +402,12 @@ class Streamer:
             traj.data = parent_trajectory.data[:i]
 
 
-            # for cache in self.__cache__:
-            #     cache.set(icao, tag, cache.subset(icao, "0", 0, i))
-                # subset = cache.subset(icao, "0", 0, i)
-                # if (len(subset) > 0 and len(subset[0]) > FG.timestamp()):
-                #     print(FG.timestamp(cache.subset(icao, "0", 0, i)))
 
-
-            prntC(C.INFO, f"New trajectory {i_tag} created as child of {icao}_0")
             parent_trajectory.flooding.append(FloodingData(start_time, i))
             traj.flooding.append(FloodingData(start_time, i))
 
             split = True
 
-            print(traj.data["timestamp"][-10:].astype(int), start_time)
 
         return traj, split
 
@@ -426,12 +418,9 @@ class Streamer:
         traj = self.get(icao, tag)
         i = traj.flooding[-1].index
 
-
         for cache in self.__cache__:
             cache.set(icao, tag, cache.subset(icao, "0", 0, i))
             subset = cache.subset(icao, "0", 0, i)
-            if (len(subset) > 0 and len(subset[0]) > FG.timestamp()):
-                print(FG.timestamp(cache.subset(icao, "0", 0, i)))
 
 
     def __is_a_new_trajectory__(self, trajectory:Trajectory, next_message:"dict[str, object]") -> bool:

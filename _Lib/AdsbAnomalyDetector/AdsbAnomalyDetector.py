@@ -1,4 +1,4 @@
-VERSION = "0.5.9"
+VERSION = "0.6.0"
 
 from ._Utils_os_wrapper import os
 from numpy_typing import np, ax
@@ -93,6 +93,7 @@ def nan_to_null(value):
 # from . import C_Constants_TrajectorySeparator_DefaultCTX as DefaultCTX_SEPARETOR
 
 # CTX_TS = buildCTX(CTX_SEPARETOR, DefaultCTX_SEPARETOR)
+# CTX_TS["LIB"] = True
 # trajectorySeparator = TrajectorySeparator(CTX_TS, MODEL_SEPARETOR)
 # trajectorySeparator.load(HERE+"/TrajectorySeparator")
 
@@ -110,6 +111,7 @@ from . import C_Constants_FloodingSolver as CTX_FLOODING
 from . import C_Constants_FloodingSolver_DefaultCTX as DefaultCTX_FLOODING
 
 CTX_FS = buildCTX(CTX_FLOODING, DefaultCTX_FLOODING)
+CTX_FS["LIB"] = True
 floodingSolver = FloodingSolver(CTX_FS, MODEL_FLOODING)
 floodingSolver.load(HERE+"/FloodingSolver")
 
@@ -129,6 +131,7 @@ from . import C_Constants_ReplaySolver as CTX_REPLAY
 from . import C_Constants_ReplaySolver_DefaultCTX as DefaultCTX_REPLAY
 
 CTX_RS = buildCTX(CTX_REPLAY, DefaultCTX_REPLAY)
+CTX_RS["LIB"] = True
 replaySolver = ReplaySolver(CTX_RS, MODEL_REPLAY)
 replaySolver.load(HERE+"/ReplaySolver/hashtable")
 
@@ -148,6 +151,7 @@ from .D_DataLoader_AircraftClassification_Utils import getLabel
 
 
 CTX_AC = buildCTX(CTX_SPOOFING, DefaultCTX_SPOOFING)
+CTX_AC["LIB"] = True
 aircraftClassification = AircraftClassification(CTX_AC, MODEL_SPOOFING)
 aircraftClassification.load(HERE+"/AircraftClassification")
 
@@ -234,8 +238,6 @@ def message_subset(messages: "list[dict[str, str]]") -> "tuple[list[dict[str, st
 
 
 def predict(messages: "list[dict[str, str]]", compress:bool=True, debug:bool=False) -> "list[dict[str, str]]":
-    # str_messages = [str(messages[i]) for i in range(len(messages))]
-    # print("\n".join(str_messages))
 
     # stream message
     splits = []
@@ -245,7 +247,7 @@ def predict(messages: "list[dict[str, str]]", compress:bool=True, debug:bool=Fal
         messages[i]["anomaly"] = AnomalyType.VALID
         messages[i] = cast_msg(messages[i])
         split_caches[i] = streamer.add(messages[i])
-        print(split_caches[i])
+
         if (split_caches[i]):
             splits.append(i)
 
@@ -295,7 +297,6 @@ def __predict__(messages: "list[dict[str, str]]", compress:bool=True, debug:bool
     matches = replaySolver.predict(sub_msg)
     for i in range(len(indices)):
         if (matches[i] != "unknown"):
-            print("REPLAY")
             messages[indices[i]]["anomaly"] = AnomalyType.REPLAY
 
 
@@ -324,7 +325,6 @@ def __predict__(messages: "list[dict[str, str]]", compress:bool=True, debug:bool
     spoofing = is_spoofing(true_labels[indices], label_proba)
     for i in range(len(indices)):
         if (spoofing[i]):
-            print("SPOOFING")
             messages[indices[i]]["anomaly"] = AnomalyType.SPOOFING
 
         messages[indices[i]]["debug_spoofing_proba"] = label_proba[i].tolist()
