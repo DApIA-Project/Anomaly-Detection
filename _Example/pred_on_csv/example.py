@@ -30,7 +30,7 @@ for t in range(0, max_length):
     # making predictions for these new messages
     # returns a prediction for each aircraft in a dictionary icao -> proba_array
 
-    messages = predict(messages, compress=False)
+    messages = predict(messages, compress=True, debug=True)
 
     for i in range(len(messages)):
         print(messages[i]["icao24"] \

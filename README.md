@@ -83,23 +83,23 @@ from AdsbAnomalyDetector import predict, AnomalyType
 
 messages = [ # list of flights messages at t = 1609459200
     {
-        "icao": "3C4A4D",
+        "icao24": "3C4A4D",
         "callsign": "AFR123",
-        "timestamp": 1609459200,
-        "latitude": 48.8583,
-        "longitude": 2.2945,
-        "altitude": 10000,
-        "geoaltitude": 10000,
-        "velocity": 250,
-        "vertical_rate": 0,
-        "track": 90,
-        "alert": False,
-        "spi": False,
+        "timestamp": "1609459200",
+        "latitude": "48.8583",
+        "longitude": "2.2945",
+        "altitude": "10000",
+        "geoaltitude": "10000",
+        "velocity": "250",
+        "vertical_rate": "0",
+        "track": "90",
+        "alert": "False",
+        "spi": "False"
     },
     {
-        "icao": "39AC45",
+        "icao24": "39AC45",
         "callsign": "SAMU31",
-        "timestamp": 1609459200,
+        "timestamp": "1609459200",
         ...
     }, ...
 ]
