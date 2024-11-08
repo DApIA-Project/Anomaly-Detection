@@ -19,33 +19,32 @@ import D_DataLoader.Utils      as U
 # | CHECKING CLEANESS FOR TRAINING DATA
 # |====================================================================================================================
 
-def check_sample(CTX:"dict[str, object]", x:"np.ndarray", i:int, t:int, training:bool=True) -> bool:
+def check_sample(CTX:"dict[str, object]", x:"np.float64_2d[ax.time, ax.feature]", i:int, t:int, t_:int, training:bool=True) -> bool:
 
     lats = FG.lat(x[i])
     lons = FG.lon(x[i])
     HORIZON = CTX["HORIZON"]
 
-    if (t <= HORIZON + 1):
+    if (t < CTX["HISTORY"] / 2):
         return False
 
     if (lats[t] == 0 and lons[t] == 0):
         return False
-    if (lats[t+HORIZON] == 0 and lons[t+HORIZON] == 0):
+    if (lats[t_] == 0 and lons[t_] == 0):
         return False
 
-    # count nb lats = 0
-    nb = np.sum(lats == 0)
-    if (nb/float(len(lats))>0.333):
-        return False
+    # # count nb lats = 0
+    # nb = np.sum(lats == 0)
+    # if (nb/float(len(lats))>0.333):
+    #     return False
 
-    # Check there is no missing timestamp between last timestamp t and prediction timestamp t+HORIZON
+    # Check there is a y value for the prediction
     ts_actu = FG.timestamp(x[i][t])
-    ts_pred = FG.timestamp(x[i][t+HORIZON])
-
+    ts_pred = FG.timestamp(x[i][t_])
     if (ts_actu + HORIZON != ts_pred):
         return False
 
-    # Check there is no abnormal distance between two consecutive points (only at the end of the trajectory)
+    # # Check there is no abnormal distance between two consecutive points (only at the end of the trajectory)
     # dist_values, i = np.zeros((HORIZON + HORIZON)), 0
 
     # for t in range(t - HORIZON + 1, t + HORIZON + 1):
@@ -65,16 +64,29 @@ def check_sample(CTX:"dict[str, object]", x:"np.ndarray", i:int, t:int, training
 
     return True
 
+def get_t_(CTX:dict, x:"list[np.float64_2d[ax.time, ax.feature]]", i:int, t:int) -> int:
+    """
+    Find the index of the prediction point in the trajectory.
+    usually t_ = t + CTX["HORIZON"] but if there is a small gap we can sometimes find the right index.
+    Eg. timestamp = [0, 1, 3, 4] Horizon = 3
+    """
+    ts_actu = FG.timestamp(x[i][t])
+    t_ = t + CTX["HORIZON"]
+    while FG.timestamp(x[i][t_]) > ts_actu + CTX["HORIZON"]:
+        t_ -= 1
+    return t_
 
 
-def eval_curvature(CTX:dict, x:"list[np.float64_2d[ax.time, ax.feature]]", i:int, t:int) -> float:
+
+def eval_curvature(CTX:dict, x:"list[np.float64_2d[ax.time, ax.feature]]", i:int, t:int, t_:int) -> float:
     """
     Evaluate the curvature degree of the trajectory.
 
     Used in order to filter straight trajectories that are too easy for training the model.
     """
     start = max(0, t-CTX["HISTORY"])
-    end = t+CTX["HORIZON"]
+
+    end = t_
     lat = FG.lat(x[i][start:end])
     lon = FG.lon(x[i][start:end])
     a_lat, a_lon = lat[0], lon[0]
@@ -101,20 +113,19 @@ def eval_curvature(CTX:dict, x:"list[np.float64_2d[ax.time, ax.feature]]", i:int
 def pick_random_loc(CTX:dict, x:"list[np.float64_2d[ax.time, ax.feature]]") -> "tuple[int, int]":
     HORIZON = CTX["HORIZON"]
     flight_i = np.random.randint(0, len(x))
-    negative = np.random.randint(0, 100) < 10
-    if (negative):
-        t = np.random.randint(0, CTX["INPUT_LEN"])
-    else:
-        t = np.random.randint(0, len(x[flight_i])-HORIZON)
+    negative = np.random.randint(0, 100) < 5 # 5% of samples
+    t, t_ = -1, -1
 
-    while not(check_sample(CTX, x, flight_i, t)) or eval_curvature(CTX, x, flight_i, t) < 20:
+
+    while t < 0 or not(check_sample(CTX, x, flight_i, t, t_)) or eval_curvature(CTX, x, flight_i, t, t_) < 20:
         flight_i = np.random.randint(0, len(x))
         if (negative):
-            t = np.random.randint(0, CTX["INPUT_LEN"])
+            t = np.random.randint(CTX["HISTORY"]//2, CTX["HISTORY"])
         else:
-            t = np.random.randint(0, len(x[flight_i])-HORIZON)
+            t = np.random.randint(CTX["HISTORY"], len(x[flight_i])-HORIZON)
+        t_ = get_t_(CTX, x, flight_i, t)
 
-    return flight_i, t
+    return flight_i, t, t_
 
 
 # |====================================================================================================================
@@ -141,8 +152,8 @@ def alloc_batch(CTX:dict, size:int) -> """tuple[
 
 def gen_random_sample(CTX:dict, x:"list[np.float64_2d[ax.time, ax.feature]]", PAD:np.float64_1d)\
         -> "tuple[np.float64_2d[ax.time, ax.feature], np.float64_1d[ax.feature], tuple[float, float]]":
-    i, t = pick_random_loc(CTX, x)
-    x_sample, y_sample, _, origin = gen_sample(CTX, x, PAD, i, t, valid=True)
+    i, t, t_ = pick_random_loc(CTX, x)
+    x_sample, y_sample, _, origin = gen_sample(CTX, x, PAD, i, t, t_, valid=True)
     y_sample = FG.lat_lon(y_sample)
     return x_sample, y_sample, origin
 
@@ -150,12 +161,12 @@ def gen_random_sample(CTX:dict, x:"list[np.float64_2d[ax.time, ax.feature]]", PA
 def gen_sample(CTX:dict,
                x:"list[np.float64_2d[ax.time, ax.feature]]",
                PAD:np.float64_1d,
-               i:int, t:int, valid:bool=None, training:bool=True)\
+               i:int, t:int, t_:int, valid:bool=None, training:bool=True)\
         -> """tuple[np.float64_2d[ax.time, ax.feature],
                     np.float64_1d[ax.feature],
                     bool, tuple[float, float, float]]""":
 
-    if (valid is None): valid = check_sample(CTX, x, i, t, training)
+    if (valid is None): valid = check_sample(CTX, x, i, t, t_, training)
     x_sample = alloc_sample(CTX)
     if (not(valid)): return x_sample, None, valid, (0, 0, 0)
 
@@ -167,17 +178,16 @@ def gen_sample(CTX:dict,
     last_message = U.get_aircraft_last_message(CTX, x_sample)
     lat, lon, track = FG.lat(last_message), FG.lon(last_message), FG.track(last_message)
 
-    y_sample = x[i][t+CTX["HORIZON"]]
+    y_sample = x[i][t_]
 
     if ("distance_var" in CTX["USED_FEATURES"]):
-        distance = GEO.distance(lat, lon, FG.lat(x[i][t+CTX["HORIZON"]]), FG.lon(x[i][t+CTX["HORIZON"]]))
+        distance = GEO.distance(lat, lon, FG.lat(x[i][t_]), FG.lon(x[i][t_]))
         x_sample[:, CTX["FEATURE_MAP"]["distance_var"]] = distance
 
 
+
     random_track = CTX["RANDOM_TRACK"] and training
-    relative_track = CTX["RELATIVE_TRACK"]
-    if (CTX["RANDOM_TRACK"] and not(training)):
-        relative_track = True
+    relative_track = CTX["RELATIVE_TRACK"] or (CTX["RANDOM_TRACK"] and not(training))
 
     x_sample, y_sample = U.batch_preprocess(CTX, x_sample, PAD,
                                 relative_track=relative_track,

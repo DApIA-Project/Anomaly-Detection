@@ -322,11 +322,11 @@ class DataLoader(AbstractDataLoader):
         icao24 = message["icao24"]
         tag = message.get("tag", "0")
 
-        df = streamer.get(icao24, tag)
-        if (df is None):
+        traj = streamer.get(icao24, tag)
+        if (traj is None):
             prntC(C.ERROR, "Cannot get stream of unknown trajectory")
 
-        df = df.until(message["timestamp"] + 1)
+        df = traj.data.until(message["timestamp"])
 
         if (len(df) <= 1):
             new_msg = U.df_to_feature_array(self.CTX, df.copy(), check_length=False)
@@ -335,7 +335,7 @@ class DataLoader(AbstractDataLoader):
             new_msg = U.df_to_feature_array(self.CTX, df[-2:], check_length=False)
             new_msg = fill_nan_2d(new_msg, self.PAD)[1:]
 
-        win = self.win_cache.extend(icao24, tag, new_msg, [len(df)] * len(new_msg))
+        win = self.win_cache.extend(icao24, tag, new_msg, [len(df)-1] * len(new_msg))
 
         # batch assembly
         x_batch, _, x_batch_takeoff, x_batch_map, x_batch_airport =\

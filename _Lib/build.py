@@ -2,6 +2,8 @@ import os
 import subprocess
 
 
+VERSION = "0.6.0"
+
 
 class MODELS:
     spoofing = "CNN2"
@@ -9,7 +11,6 @@ class MODELS:
     replay = "HASH"
     flooding = "LSTM"
 
-VERSION = "0.5.5"
 
 
 ALL_PY = []
@@ -151,21 +152,21 @@ def file_content_remplace(_file, find, remplace):
 
 
 # clean lib before build
-to_reomve = []
+to_remove = []
 for root, dirs, files in os.walk(f"./AdsbAnomalyDetector/"):
     print(root)
     if (root.startswith("./AdsbAnomalyDetector/ReplaySolver")):
         continue
 
     for file in files:
-        if file != "AdsbAnomalyDetector.py" and file != "__init__.py":
-            to_reomve.append(os.path.join(root, file))
+        if file != "AdsbAnomalyDetector.py" and file != "__init__.py" and file != "version":
+            to_remove.append(os.path.join(root, file))
 
     for dir in dirs:
         if dir != "__pycache__" and dir != "ReplaySolver":
-            to_reomve.append(os.path.join(root, dir))
+            to_remove.append(os.path.join(root, dir))
 
-for file in to_reomve:
+for file in to_remove:
     os.system(f"rm -r {file}")
 
 
@@ -192,17 +193,17 @@ for path in files:
 imports = list(imports)
 
 
-to_reomve = []
+to_remove = []
 for i in range(len(imports)):
     # remove all lib imports (files that are not in ALL_PY)
     if imports[i] not in ALL_PY:
-        to_reomve.append(i)
+        to_remove.append(i)
 
     # remove runner imports (launching training so useless)
     if imports[i].startswith("F_Runner"):
-        to_reomve.append(i)
+        to_remove.append(i)
 
-for i in to_reomve[::-1]:
+for i in to_remove[::-1]:
     imports.pop(i)
 
 imports.append("_Utils.module")
@@ -334,9 +335,9 @@ os.system(f"mv ./AdsbAnomalyDetector/{constants[0]} ./AdsbAnomalyDetector/C_Cons
 
 # ReplaySolver
 # # copy weights
-os.system(f"mkdir ./AdsbAnomalyDetector/ReplaySolver")
-if (not os.path.exists("./AdsbAnomalyDetector/ReplaySolver/hashtable")):
-    os.system(f"cp -r ../_Artifacts/ReplaySolver/hashtable ./AdsbAnomalyDetector/ReplaySolver/hashtable")
+# os.system(f"mkdir ./AdsbAnomalyDetector/ReplaySolver")
+# if (not os.path.exists("./AdsbAnomalyDetector/ReplaySolver/hashtable")):
+#     os.system(f"cp -r ../_Artifacts/ReplaySolver/hashtable ./AdsbAnomalyDetector/ReplaySolver/hashtable")
 
 # rename model and constant file to be generic
 model = find_files_and_filter("B_Model_ReplaySolver_", [
@@ -397,6 +398,30 @@ for file in files:
 if (os.path.exists("./dist")):
     os.system("rm -r ./dist/*")
 
+# write in setup.py at first line the version
+file = open("./setup.py", "r")
+content = file.readlines()
+file.close()
+
+content[0] = f"VERSION = \"{VERSION}\"\n"
+
+file = open("./setup.py", "w")
+file.writelines(content)
+file.close()
+
+
+# write version in AdsbAnomalyDetector.py
+file = open("./AdsbAnomalyDetector/AdsbAnomalyDetector.py", "r")
+content = file.readlines()
+file.close()
+
+content[0] = f"VERSION = \"{VERSION}\"\n"
+
+file = open("./AdsbAnomalyDetector/AdsbAnomalyDetector.py", "w")
+file.writelines(content)
+file.close()
+
+
 
 # run setup.py
-os.system(f"echo {VERSION} | python ./setup.py sdist")
+os.system(f"python ./setup.py bdist_wheel")

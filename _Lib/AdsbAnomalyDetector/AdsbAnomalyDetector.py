@@ -1,7 +1,9 @@
+VERSION = "0.6.0"
+
 from ._Utils_os_wrapper import os
 from numpy_typing import np, ax
 HERE = os.path.abspath(os.path.dirname(__file__))
-from ._Utils_module import module_to_dict
+from ._Utils_ProgressBar import ProgressBar
 from ._Utils_ADSB_Streamer import cast_msg
 from . import _Utils_Limits as Limits
 import time
@@ -9,8 +11,72 @@ from . import _Utils_Color as C
 from ._Utils_Color import prntC
 from ._Utils_module import buildCTX
 from ._Utils_ADSB_Streamer import streamer
+import shutil
 
 
+bar = ProgressBar()
+
+def show_progress(block_num, block_size, total_size):
+    if (bar.get_value() == 0):
+        print()
+        bar.reset(0, total_size)
+    bar.update((block_num+1) * block_size)
+
+
+def download_hash_table():
+    URL = "http://51.77.221.41/hashtable.zip"
+    import urllib.request
+    import zipfile
+
+    if (os.path.exists(HERE+"/hashtable.zip")):
+        os.remove(HERE+"/hashtable.zip")
+
+    update_version = False
+
+    if not(os.path.exists(HERE+"/version")):
+        if (os.path.exists(HERE+"/ReplaySolver/hashtable")):
+            shutil.rmtree(HERE+"/ReplaySolver/hashtable/")
+
+        update_version = True
+
+    else:
+        last_version = open(HERE+"/version", "r").read()
+
+        if (last_version != VERSION):
+            if (os.path.exists(HERE+"/ReplaySolver/hashtable")):
+                shutil.rmtree(HERE+"/ReplaySolver/hashtable/")
+
+            update_version = True
+
+    if (os.path.exists(HERE+"/ReplaySolver/hashtable")):
+        return
+
+    os.makedirs(HERE+"/ReplaySolver", exist_ok=True)
+    prntC(C.INFO, "DOWNLOADING HASH TABLE ", end="...", flush=True)
+    # create dir
+    urllib.request.urlretrieve(URL, HERE+"/hashtable.zip", show_progress)
+    prntC(C.INFO, "DOWNLOADING HASH TABLE", C.CYAN, " [DONE]")
+
+    prntC(C.INFO, "UNZIPPING HASH TABLE ", end="...", flush=True)
+    # Unzipping the file
+    with zipfile.ZipFile(HERE+"/hashtable.zip", 'r') as zip_ref:
+        zip_ref.extractall(HERE+"/ReplaySolver")
+    os.remove(HERE+"/hashtable.zip")
+    prntC("\r",C.INFO, "UNZIPPING HASH TABLE", C.CYAN, " [DONE]")
+
+    if (update_version):
+        file = open(HERE+"/version", "w")
+        file.write(VERSION)
+        file.close()
+
+
+download_hash_table()
+
+
+def nan_to_null(value):
+    if (np.isnan(value)):
+        return None
+    return value
 
 
 
@@ -27,6 +93,7 @@ from ._Utils_ADSB_Streamer import streamer
 # from . import C_Constants_TrajectorySeparator_DefaultCTX as DefaultCTX_SEPARETOR
 
 # CTX_TS = buildCTX(CTX_SEPARETOR, DefaultCTX_SEPARETOR)
+# CTX_TS["LIB"] = True
 # trajectorySeparator = TrajectorySeparator(CTX_TS, MODEL_SEPARETOR)
 # trajectorySeparator.load(HERE+"/TrajectorySeparator")
 
@@ -44,10 +111,13 @@ from . import C_Constants_FloodingSolver as CTX_FLOODING
 from . import C_Constants_FloodingSolver_DefaultCTX as DefaultCTX_FLOODING
 
 CTX_FS = buildCTX(CTX_FLOODING, DefaultCTX_FLOODING)
+CTX_FS["LIB"] = True
 floodingSolver = FloodingSolver(CTX_FS, MODEL_FLOODING)
 floodingSolver.load(HERE+"/FloodingSolver")
 
 prntC("\r",C.INFO, "LOADING FLOODING MODEL", C.CYAN, " [DONE]")
+
+flooding_icao: "dict[str, int]" = {}
 
 # |====================================================================================================================
 # | REPLAY DETECTION
@@ -61,6 +131,7 @@ from . import C_Constants_ReplaySolver as CTX_REPLAY
 from . import C_Constants_ReplaySolver_DefaultCTX as DefaultCTX_REPLAY
 
 CTX_RS = buildCTX(CTX_REPLAY, DefaultCTX_REPLAY)
+CTX_RS["LIB"] = True
 replaySolver = ReplaySolver(CTX_RS, MODEL_REPLAY)
 replaySolver.load(HERE+"/ReplaySolver/hashtable")
 
@@ -80,159 +151,196 @@ from .D_DataLoader_AircraftClassification_Utils import getLabel
 
 
 CTX_AC = buildCTX(CTX_SPOOFING, DefaultCTX_SPOOFING)
+CTX_AC["LIB"] = True
 aircraftClassification = AircraftClassification(CTX_AC, MODEL_SPOOFING)
 aircraftClassification.load(HERE+"/AircraftClassification")
 
 prntC("\r",C.INFO, "LOADING SPOOFING MODEL", C.CYAN, " [DONE]")
 
 
-def hash_message(message: "dict[str, str]") -> "int":
-    # message["icao24"] -> hex to int
-    return (hash(message["icao24"]) \
-                + hash(message["timestamp"]) \
-                + hash(message["latitude"]) \
-                + hash(message["longitude"]) \
-                + hash(message["altitude"])) % (Limits.INT_MAX)
+# |====================================================================================================================
+# | ANOMALY DETECTION
+# |====================================================================================================================
 
 
-hash_table:"dict[int, list]" = {}
-def get_message_predictions(message: "dict[str, str]") -> "dict[str, str]":
-    h = hash_message(message)
-    data = hash_table.get(h, None)
-    if (data == None):
-        return None, h
-    return data[0], h
-
-def add_message_predictions(hash:int, message: "dict[str, str]") -> None:
-    global hash_table
-    if (hash == 0):
-        return
-    expiration = time.time() + 30 * 60 # 30 minutes
-    hash_table[hash] = [message, expiration]
+class AnomalyType:
+    VALID = 0
+    SPOOFING = 1
+    FLOODING = 2
+    REPLAY = 3
+    __INVALID__ = 1000
 
 
-last_clean = 0
-def clean_hash_table() -> None:
-    global hash_table, last_clean
-    if (time.time() - last_clean < 1 * 60):
-        return
 
-    hash_table = {k:v for k, v in hash_table.items() if v[1] > time.time()}
-    last_clean = time.time()
+# def hash_message(message: "dict[str, str]") -> "int":
+#     # message["icao24"] -> hex to int
+#     return (hash(message["icao24"]) \
+#                 + hash(message["timestamp"]) \
+#                 + hash(message["latitude"]) \
+#                 + hash(message["longitude"]) \
+#                 + hash(message["altitude"])) % (Limits.INT_MAX)
 
 
-def message_subset(messages: "list[dict[str, str]]", indices: "list[bool]") -> "list[dict[str, str]]":
-    return [messages[i] for i in range(len(messages)) if indices[i]]
+# hash_table:"dict[int, list]" = {}
+# def get_message_predictions(message: "dict[str, str]") -> "dict[str, str]":
+#     h = hash_message(message)
+#     data = hash_table.get(h, None)
+#     if (data == None):
+#         return None, h
+#     return data[0], h
 
-def predict(messages: "list[dict[str, str]]", compress=True) -> "list[dict[str, str]]":
-    # TODO remplacer response[i]["replay"] par juste un ID
+# def add_message_predictions(hash:int, message: "dict[str, str]") -> None:
+#     global hash_table
+#     if (hash == 0):
+#         return
+#     expiration = time.time() + 30 * 60 # 30 minutes
+#     hash_table[hash] = [message, expiration]
 
-    # print("i")
-    # clean_hash_table()
+# last_clean = 0
+# def clean_hash_table() -> None:
+#     global hash_table, last_clean
+#     if (time.time() - last_clean < 1 * 60):
+#         return
 
-    # load messages predictions if they has already been computed
-    message_filter = np.ones(len(messages), dtype=bool)
+#     hash_table = {k:v for k, v in hash_table.items() if v[1] > time.time()}
+#     last_clean = time.time()
 
-    response = [{
-        "tag": messages[i].get("tag", ""),
-        "spoofing": False,
-        "replay": False,
-        "flooding": False
-    } for i in range(len(messages))]
 
-    # stream messages
-    for i in range(len(messages)): streamer.add(messages[i])
+def compress_messages(messages: "list[dict[str, str]]", compress=True, keep_debug=False) -> "list[dict[str, str]]":
+    res = []
 
-    if not compress:
+    if (compress):
         for i in range(len(messages)):
-            for key in messages[i]:
-                response[i][key] = messages[i][key]
+            res.append({
+                "tag": messages[i].get("tag", ""),
+                "anomaly": messages[i].get("anomaly", AnomalyType.VALID),
+            })
+
+        if keep_debug:
+            for i in range(len(messages)):
+                for k in messages[i].keys():
+                    if (k.startswith("debug")):
+                        res[i][k] = messages[i][k]
+    else:
+        res = messages
+        if not keep_debug:
+            for i in range(len(messages)):
+                for k in list(messages[i].keys()):
+                    if (k.startswith("debug")):
+                        del res[i][k]
+
+    return res
+
+def message_subset(messages: "list[dict[str, str]]") -> "tuple[list[dict[str, str]], list[int]]":
+    indices = [i for i in range(len(messages)) if messages[i]["anomaly"] == AnomalyType.VALID]
+    sub = [messages[i] for i in indices]
+    return sub, indices
+
+
+def predict(messages: "list[dict[str, str]]", compress:bool=True, debug:bool=False) -> "list[dict[str, str]]":
+
+    # stream message
+    splits = []
+    split_caches = np.zeros(len(messages), dtype=bool)
+    for i in range(len(messages)):
+        messages[i]["tag"] = messages[i].get("tag", "0")
+        messages[i]["anomaly"] = AnomalyType.VALID
+        messages[i] = cast_msg(messages[i])
+        split_caches[i] = streamer.add(messages[i])
+
+        if (split_caches[i]):
+            splits.append(i)
+
+    # remove consecutive splits with reversed for
+    for i in range(len(splits)-1, 0, -1):
+        if (splits[i] == splits[i-1]+1):
+            splits.pop(i)
+
+    if (len(splits) == 0):
+        return __predict__(messages, compress=compress, debug=debug)
+
+    splits.append(len(messages))
+    res = []
+    if (splits[0] != 0):
+        res += __predict__(messages[:splits[0]], compress=compress, debug=debug)
+
+    for i in range(1, len(splits)):
+        for t in range(splits[i-1], splits[i]):
+            if (split_caches[t]):
+                streamer.split_cache(messages[t])
+
+        res += __predict__(messages[splits[i-1]:splits[i]], compress=compress, debug=debug)
+    return res
+
+
+
+
+def __predict__(messages: "list[dict[str, str]]", compress:bool=True, debug:bool=False) -> "list[dict[str, str]]":
 
 
     # check validity of messages
     for i in range(len(messages)):
         if (messages[i].get("icao24", None) == None or messages[i].get("timestamp", None) == None or \
             messages[i].get("latitude", None) == None or messages[i].get("longitude", None) == None):
-            message_filter[i] = False
+            messages[i]["alteration"] =AnomalyType.__INVALID__
 
 
-    # check if the message has already been processed
-    # + cast other messages to the right type
-    # hashes = np.zeros(len(messages), dtype=np.uint32)
-    # for i in range(len(messages)):
-    #     if (not message_filter[i]):
-    #         continue
-
-    #     y_, hashes[i] = get_message_predictions(messages[i])
-    #     if (y_ != None):
-    #         message_filter[i] = False
-    #         response[i] = y_
-    #     else:
-    #         messages[i] = {col:cast_msg(col,  messages[i].get(col, np.nan)) for col in messages[i]}
-
-
-
-    # # separate trajectories with duplicated icao24
-    # sub_msg = message_subset(messages, message_filter)
+    # separate trajectories with duplicated icao24
+    # sub_msg, indices = message_subset(messages)
     # sub_icaos = trajectorySeparator.predict(sub_msg)
-    # sub_i = 0
-    # for i in range(len(messages)):
-    #     if (message_filter[i]):
-    #         response[i]["tag"] = sub_icaos[sub_i]
-
-    #         sub_i += 1
+    # for i in range(len(sub_msg)):
+    #     messages[indices[i]]["tag"] = sub_icaos[i]
 
 
-    # check for replay anomalies
-    sub_msg = message_subset(messages, message_filter)
+    # # check for replay anomalies
+    sub_msg, indices = message_subset(messages)
     matches = replaySolver.predict(sub_msg)
-    sub_i = 0
-    for i in range(len(messages)):
-        if (message_filter[i]):
-            response[i]["replay"] = (matches[sub_i] != "unknown")
-            if (response[i]["replay"]):
-                print("REPLAY")
-            message_filter[i] = not(response[i]["replay"])
-            sub_i += 1
+    for i in range(len(indices)):
+        if (matches[i] != "unknown"):
+            messages[indices[i]]["anomaly"] = AnomalyType.REPLAY
 
 
-    # # check for flooding anomalies
-    # sub_msg = message_subset(messages, message_filter)
-    # y_, loss = floodingSolver.predict(sub_msg)
-    # sub_i = 0
-    # for i in range(len(messages)):
-    #     if (message_filter[i]):
-    #         response[i]["flooding"] = (loss[sub_i] > CTX_FS["THRESHOLD"])
-    #         response[i]["flooding_lat"] = y_[sub_i][0]
-    #         response[i]["flooding_lon"] = y_[sub_i][1]
+    # check for flooding anomalies
+    sub_msg, indices = message_subset(messages)
+    y_, loss, anomaly = floodingSolver.predict(sub_msg)
+    for i in range(len(indices)):
+        # if (loss[i] > CTX_FS["THRESHOLD"]):
+        #     messages[indices[i]]["anomaly"] = AnomalyType.FLOODING
+        messages[indices[i]]["debug_flooding_loss"] = loss[i]
+        messages[indices[i]]["debug_lat_lon"] = [nan_to_null(y_[i][0]), nan_to_null(y_[i][1])]
 
-    #         message_filter[i] = not(response[i]["flooding"])
-    #         sub_i += 1
+        if (anomaly[i]):
+            messages[indices[i]]["anomaly"] = AnomalyType.FLOODING
 
-    # # check for spoofing
-    # # filter messages having unknown icao24
+
+    # check for spoofing
+    # filter messages having unknown icao24
     true_labels = get_true_aircraft_type(messages)
     for i in range(len(messages)):
-        if (true_labels[i] == 0):
-            message_filter[i] = False
+        if (true_labels[i] == 0 and messages[i]["anomaly"] == AnomalyType.VALID):
+            messages[i]["anomaly"] = AnomalyType.__INVALID__
 
-    sub_msg = message_subset(messages, message_filter)
+    sub_msg, indices = message_subset(messages)
     _, label_proba = aircraftClassification.predict(sub_msg)
-    spoofing = is_spoofing(true_labels[message_filter], label_proba)
-    sub_i = 0
-    for i in range(len(messages)):
-        if (message_filter[i]):
-            response[i]["spoofing"] = spoofing[sub_i]
-            if (response[i]["spoofing"]):
-                print("SPOOFING")
-            sub_i += 1
+    spoofing = is_spoofing(true_labels[indices], label_proba)
+    for i in range(len(indices)):
+        if (spoofing[i]):
+            messages[indices[i]]["anomaly"] = AnomalyType.SPOOFING
+
+        messages[indices[i]]["debug_spoofing_proba"] = label_proba[i].tolist()
 
 
-    # save messages predictions in case of a future request
+    # # save messages predictions in case of a future request
     # for i in range(len(messages)):
     #     add_message_predictions(hashes[i], response[i])
 
-    return response
+    for i in range(len(messages)):
+        if (messages[i]["anomaly"] == AnomalyType.__INVALID__):
+            messages[i]["anomaly"] = AnomalyType.VALID
+
+
+    return compress_messages(messages, compress=compress, keep_debug=debug)
+
 
 
 
@@ -261,3 +369,4 @@ def is_spoofing(true_labels: "np.int32_1d[ax.sample]", predictions: np.float64_2
     pred_labels = get_pred_aircraft_type(predictions)
     return [pred_labels[i] != 0 and true_labels[i] != 0 and pred_labels[i] != true_labels[i]
         for i in range(len(true_labels))]
+

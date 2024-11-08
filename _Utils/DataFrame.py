@@ -103,7 +103,7 @@ class DataFrame:
 
     def get_relative_loc(self, key:int)->int:
         """
-        Get the index of the first element greater than the key
+        Get the index of the first element equal or greater than the key
         return len if the key is greater than all elements
         """
         left = 0
@@ -182,12 +182,17 @@ class DataFrame:
             return None
         return self.array[mid]
 
-    def until(self, key_end:int) -> "Self":
+    def before(self, key_end:int) -> "Self":
         """return a new DataFrame with all elements up to key_end (excluded)"""
         i = self.get_relative_loc(key_end)
         return self[:i]
 
-    def arguntil(self, key_end:int) -> "int":
+    def until(self, key_end:int) -> "Self":
+        """return a new DataFrame with all elements up to key_end (included)"""
+        i = self.get_relative_loc(key_end)
+        return self[:i+1]
+
+    def index_of(self, key_end:int) -> "int":
         return self.get_relative_loc(key_end)
 
 

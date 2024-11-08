@@ -9,7 +9,7 @@ from  _Utils.FeatureGetter import FG_flooding as FG
 import _Utils.Color as C
 from   _Utils.Color import prntC
 import _Utils.Limits as Limits
-from   _Utils.Scaler3D import  StandardScaler3D, SigmoidScaler2D, fill_nan_3d, fill_nan_2d
+from   _Utils.Scaler3D import  StandardScaler3D, StandardScaler2D, fill_nan_3d, fill_nan_2d
 from   _Utils.ProgressBar import ProgressBar
 from   _Utils.plotADSB import PLT
 from numpy_typing import np, ax
@@ -36,7 +36,7 @@ class DataLoader(AbstractDataLoader):
     PAD:np.float64_1d[ax.feature]
 
     xScaler:StandardScaler3D
-    yScaler:SigmoidScaler2D
+    yScaler:StandardScaler2D
 
     x_train:"list[np.float64_2d[ax.time, ax.feature]]"
     x_test :"list[np.float64_2d[ax.time, ax.feature]]"
@@ -53,7 +53,7 @@ class DataLoader(AbstractDataLoader):
         self.PAD = None
 
         self.xScaler = StandardScaler3D()
-        self.yScaler = SigmoidScaler2D()
+        self.yScaler = StandardScaler2D()
 
 
         training = (CTX["EPOCHS"] and path != "")
@@ -247,14 +247,16 @@ class DataLoader(AbstractDataLoader):
             np.float64_2d[ax.sample, ax.feature],
             bool,
             tuple[float, float, float]]""":
+
         icao24 = message["icao24"]
         tag = message.get("tag", "0")
 
-        df = streamer.get(icao24, tag)
-        if (df is None):
+        traj = streamer.get(icao24, tag)
+        if (traj is None):
             prntC(C.ERROR, "Cannot get stream of unknown trajectory")
 
-        df = df.until(message["timestamp"] + 1)
+        df = traj.data.until(message["timestamp"])
+
         if (len(df) <= 1):
             new_msg = U.df_to_feature_array(self.CTX, df.copy(), check_length=False)
             new_msg = fill_nan_2d(new_msg, self.PAD)
@@ -262,11 +264,16 @@ class DataLoader(AbstractDataLoader):
             new_msg = U.df_to_feature_array(self.CTX, df[-2:], check_length=False)
             new_msg = fill_nan_2d(new_msg, self.PAD)[1:]
 
-        win = self.win_cache.extend(icao24, tag, new_msg, [len(df)] * len(new_msg))
-        
+        win = self.win_cache.extend(icao24, tag, new_msg, [len(df)-1] * len(new_msg))
+
         x_batch, y_batch = SU.alloc_batch(self.CTX, 1)
+
+        t = len(win)-1-self.CTX["HORIZON"]
+        if (t >= 0):
+            while (t < len(win)-1 and FG.timestamp(win[t]) + self.CTX["HORIZON"] < message["timestamp"]):
+                t += 1
         x_batch[0], y, valid, origin = SU.gen_sample(
-            self.CTX, [win], self.PAD, 0, len(win)-1-self.CTX["HORIZON"], training=False)
+            self.CTX, [win], self.PAD, 0, t, len(win)-1, training=False)
         y_batch[0] = FG.lat_lon(y)
 
 

@@ -75,10 +75,11 @@ class Trainer(AbstractTrainer):
         self.CTX = CTX
         FG.init(CTX)
         self.model:_Model_ = Model(CTX)
-        self.__makes_artifacts__()
-        self.__init_GUI__()
-        self.viz_model(self.ARTIFACTS)
-        GUI.visualize("/Model/Achitecture", GUI.IMAGE, self.ARTIFACTS+f"/{self.model.name}.png")
+        if ("LIB" not in CTX):
+            self.__makes_artifacts__()
+            self.__init_GUI__()
+            self.viz_model(self.ARTIFACTS)
+            GUI.visualize("/Model/Achitecture", GUI.IMAGE, self.ARTIFACTS+f"/{self.model.name}.png")
 
         self.dl = DataLoader(CTX, TRAIN_FOLDER)
 
@@ -248,8 +249,8 @@ class Trainer(AbstractTrainer):
     def __plot_train_exemple__(self, y_train:np.float64_2d[ax.sample, ax.feature],
                                     _y_train:np.float64_2d[ax.sample, ax.feature]) -> None:
         NAME = "train_example"
-        y_sample  = self.dl.yScaler.inverse_transform([y_train[-1]])[0]
-        y_sample_ = self.dl.yScaler.inverse_transform([_y_train[-1]])[0]
+        y_sample  = self.dl.yScaler.inverse_transform(np.array([y_train[-1]]))[0]
+        y_sample_ = self.dl.yScaler.inverse_transform(np.array([_y_train[-1]]))[0]
 
         o_lat, o_lon, o_track = PLT.get_data(NAME+"Origin")
         y_sample  = U.denormalize_trajectory(self.CTX, [y_sample[0]], [y_sample[1]],
@@ -296,7 +297,8 @@ class Trainer(AbstractTrainer):
 
     def predict(self, x:"list[dict[str,object]]") -> """tuple[
             np.float64_2d[ax.sample, ax.feature],
-            np.float64_1d[ax.sample]]""":
+            np.float64_1d[ax.sample],
+            np.bool_1d[ax.sample]]""":
         if (len(x) == 0): return np.zeros((0, self.CTX["FEATURES_OUT"])), np.zeros((0, self.CTX["FEATURES_OUT"]))
 
         # allocate memory
@@ -306,11 +308,11 @@ class Trainer(AbstractTrainer):
         y_       = np.full((len(x), self.CTX["FEATURES_OUT"]), np.nan, dtype=np.float64)
         y        = np.full((len(x), self.CTX["FEATURES_OUT"]), np.nan, dtype=np.float64)
         is_interesting = np.zeros(len(x), dtype=bool)
+        is_flooding = np.zeros(len(x), dtype=bool)
         origin   = np.zeros((len(x), 3), dtype=np.float64)
 
         # stream message and build input batch
         for i in range(len(x)):
-
             x_sample, y_sample, valid, o = self.dl.process_stream_of(x[i])
             x_batch[i] = x_sample[0]
             if (valid): y_batch[i] = y_sample[0]
@@ -333,16 +335,17 @@ class Trainer(AbstractTrainer):
         y_batch = self.dl.yScaler.inverse_transform(y_batch)
 
 
-
         for i in range(len(x)):
             y_lat, y_lon = U.denormalize_trajectory(self.CTX, [y_batch_[i, 0]], [y_batch_[i, 1]],
                                                     origin[i, 0], origin[i, 1], origin[i, 2])
+            ylat, ylon   = U.denormalize_trajectory(self.CTX, [y_batch [i, 0]], [y_batch [i, 1]],
+                                                    origin[i, 0], origin[i, 1], origin[i, 2])
             y_[i] = [y_lat[0], y_lon[0]]
+            y[i]  = [ylat [0], ylon [0]]
 
 
-            ylat, ylon = U.denormalize_trajectory(self.CTX, [y_batch[i, 0]], [y_batch[i, 1]],
-                                                  origin[i, 0], origin[i, 1], origin[i, 2])
-            y[i] = [ylat[0], ylon[0]]
+
+
 
         # DEBUG (comment this line to remove debug plot)
         # self.__debug_plot_predictions__(x_batch, y_batch, y_batch_, y_, y, is_interesting, origin)
@@ -352,24 +355,53 @@ class Trainer(AbstractTrainer):
         loss = np.full(len(x), np.nan, dtype=np.float64)
         for i in range(len(x)):
             if (is_interesting[i]):
-                distance =  GEO.distance(y_[i][0], y_[i][1], y[i][0], y[i][1])
-                loss_win = self.dl.loss_cache.append(x[i]["icao24"], x[i]["tag"], distance)
+                message_distance = GEO.distance(origin[i, 0], origin[i, 1], y[i][0], y[i][1])
+                pred_distance =  GEO.distance(y_[i][0], y_[i][1], y[i][0], y[i][1])
+
+                l = pred_distance #/message_distance * 250
+
+
+                loss_win = self.dl.loss_cache.append(x[i]["icao24"], x[i]["tag"], l)
             else:
                 loss_win = self.dl.loss_cache.append(x[i]["icao24"], x[i]["tag"], 0)
 
             loss[i] = np.mean(loss_win[-self.CTX["LOSS_MOVING_AVERAGE"]:])
 
-        return y_, loss
+        # compute flooding
+        flooding:"dict[str, dict[str, [float, int]]]" = {}
+        for i in range(len(x)):
+            icao = x[i]["icao24"]
+            tag = x[i]["tag"]
+            traj = streamer.get(icao, tag)
+            if (streamer.ended_flooding(traj, x[i]["timestamp"], self.CTX["LOSS_MOVING_AVERAGE"])):
+                if (icao not in flooding):
+                    flooding[icao] = {}
+                flooding[icao][tag] = [loss[i], i]
+
+        for icao, tags in flooding.items():
+            min_tag = min(tags, key=lambda x: tags[x][0])
+            for tag in tags:
+                if (tag != min_tag):
+                    streamer.setAbnormal(icao, tag, x[tags[tag][1]]["timestamp"])
+
+        # set is_flooding to True if the message is flooded
+        for i in range(len(x)):
+            icao = x[i]["icao24"]
+            tag = x[i]["tag"]
+            timestamp = x[i]["timestamp"]
+            is_flooding[i] = streamer.isAbnormal(icao, tag, timestamp)
+
+        return y_, loss, is_flooding
 
 
 
-    def __debug_plot_predictions__(self, x_batch:np.float64_3d[ax.sample, ax.time, ax.feature],
-                                         y_batch:np.float64_2d[ax.sample, ax.feature],
+    def __debug_plot_predictions__(self, x_batch :np.float64_3d[ax.sample, ax.time, ax.feature],
+                                         y_batch :np.float64_2d[ax.sample, ax.feature],
                                          y_batch_:np.float64_2d[ax.sample, ax.feature],
-                                         y_:np.float64_2d[ax.sample, ax.feature],
-                                         y:np.float64_2d[ax.sample, ax.feature],
+                                         y_      :np.float64_2d[ax.sample, ax.feature],
+                                         y       :np.float64_2d[ax.sample, ax.feature],
                                          is_interesting:np.bool_1d,
-                                         origin:np.float64_2d[ax.sample, ax.feature]) -> None:
+                                         origin  :np.float64_2d[ax.sample, ax.feature]) -> None:
 
         interesting = np.arange(len(x_batch))[is_interesting]
         if (len(interesting) > 0):
@@ -450,6 +482,9 @@ class Trainer(AbstractTrainer):
         for f in to_remove:
             os.remove(self.ARTIFACTS+"/"+f)
 
+        # only keep folder named exp_solo
+        # self.__eval_files__ = [f for f in self.__eval_files__ if f[0].split("/")[-2] == "exp_solo"]
+
         mean_acc = np.zeros(3, dtype=np.float64)
         for folder in self.__eval_files__:
 
@@ -464,7 +499,7 @@ class Trainer(AbstractTrainer):
                 x, files = self.__next_msgs__(dfs, t)
                 for i in range(len(x)): streamer.add(x[i])
 
-                yt_, losst_ = self.predict(x)
+                yt_, losst_, _ = self.predict(x)
 
                 for i in range(len(files)):
                     y_[files[i]][t] = yt_[i]
@@ -505,21 +540,23 @@ class Trainer(AbstractTrainer):
 
         # plot mean loss (along flights), per timestamp
         mean_loss = np.zeros(max_len, dtype=np.float64)
+        mean_loss_ = np.zeros(max_len, dtype=np.float64)
         for t in range(max_len):
             files = [f for f in range(len(loss)) if t < len(loss[f])]
             mean_loss[t] = np.nanmean([loss[f][t] for f in files])
+            mean_loss_[t] = np.nanmean([loss_[f][t] for f in files])
 
 
-        return self.__plot_eval__(dfs, y_, y, loss, loss_, mean_loss, max_len, name)
+        return self.__plot_eval__(dfs, y_, y, loss, loss_, mean_loss, mean_loss_, max_len, name)
 
 
 
     def __plot_eval__(self, dfs:"list[pd.DataFrame]",
                       y_:"list[np.float64_2d[ax.time, ax.feature]]", y:"list[np.float64_2d[ax.time, ax.feature]]",
-                      loss:"list[np.float64_1d]", loss_:"list[np.float64_1d]", mean_loss:np.float64_1d,
+                      loss:"list[np.float64_1d]", loss_:"list[np.float64_1d]", mean_loss:np.float64_1d, mean_loss_:np.float64_1d,
                       max_len:int, name:str) -> float:
 
-        self.__plot_loss_curves__(loss, mean_loss, max_len, name)
+        self.__plot_loss_curves__(loss, loss_, mean_loss, mean_loss_, max_len, name)
         self.__plot_predictions_on_saturation__(dfs, y_, y, loss, max_len, name)
         self.__plot_prediction_on_error_spikes__(dfs, y_, y, loss, loss_, max_len, name)
         return self.__plot_safe_icao24__(dfs, loss, name)
@@ -530,12 +567,16 @@ class Trainer(AbstractTrainer):
 # |====================================================================================================================
 
 
-    def __plot_loss_curves__(self, loss:"list[np.float64_1d]", mean_loss:np.float64_1d, max_len:int, name:str) -> None:
-
+    def __plot_loss_curves__(self, loss:"list[np.float64_1d]", loss_:"list[np.float64_1d]",
+                             mean_loss:np.float64_1d, mean_loss_:np.float64_1d,
+                             max_len:int, name:str) -> None:
+        COLORS = ["tab:blue", "tab:orange", "tab:green", "tab:red", "tab:purple", "tab:brown", "tab:pink", "tab:gray", "tab:olive", "tab:cyan"]
         plt.figure(figsize=(24 * max_len / 500, 12))
         for f in range(len(loss)):
-            plt.plot(loss[f])
-        plt.plot(mean_loss, color="black", linestyle="--", linewidth=2)
+            plt.plot(loss[f], color=COLORS[f%len(COLORS)], linestyle="--")
+            plt.plot(loss_[f], color=COLORS[f%len(COLORS)])
+        plt.plot(mean_loss, color="black", linestyle="--", linewidth=1)
+        plt.plot(mean_loss_, color="black", linewidth=2)
         plt.plot([0, max_len], [self.CTX["THRESHOLD"]]*2, color="black", linestyle="--", linewidth=2)
         plt.title("Mean Loss along timestamps")
         plt.xlabel("Timestamp")

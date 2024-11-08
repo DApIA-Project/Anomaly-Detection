@@ -219,7 +219,7 @@ class FileMultiHashTable:
             return []
 
         return self.content.to_list(bucket)
-    
+
     # in operator
     def __contains__(self, key):
         return self.get(key) != None
@@ -240,12 +240,4 @@ class FileMultiHashTable:
 
 
 
-# 1.6 GB
-hashtable = FileMultiHashTable("test", dtype=str_, content_size=64)
-hashtable.clear()
-keys = []
-for i in range(64000):
-    k = r.randint(0, 2**32)
-    keys.append(k)
-    hashtable[k] = f"{i}th key is {k}"
 

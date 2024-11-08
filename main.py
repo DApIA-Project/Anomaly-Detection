@@ -17,11 +17,11 @@ np.set_printoptions(linewidth=200)
 # algo = "AircraftClassification"
 # model = "CNN2"
 
-# algo = "FloodingSolver"
-# model = "LSTM"
+algo = "FloodingSolver"
+model = "LSTM"
 
-algo = "ReplaySolver"
-model = "HASH"
+# algo = "ReplaySolver"
+# model = "HASH"
 
 # algo = "TrajectorySeparator"
 # model = "GEO"
@@ -91,10 +91,15 @@ elif (algo == "FloodingSolver"):
         import G_Main.FloodingSolver.exp_Reservoir as Reservoir
         Reservoir.__main__()
 
+
+
 elif (algo == "ReplaySolver"):
     if (model == "HASH"):
         import G_Main.ReplaySolver.exp_HASH as HASH
         HASH.__main__()
+
+
+
 
 elif (algo == "TrajectorySeparator"):
     if (model == "GEO"):
@@ -103,3 +108,5 @@ elif (algo == "TrajectorySeparator"):
     if (model == "DEV"):
         import G_Main.TrajectorySeparator.exp_DEV as DEV
         DEV.__main__()
+
+
