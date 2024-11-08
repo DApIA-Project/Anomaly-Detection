@@ -5,11 +5,10 @@ import sys
 
 print(f"VERSION : {VERSION}")
 DESCRIPTION = 'Low altitude aircraft anomaly detector'
-LONG_DESCRIPTION = """
-    This package contains a trained model to detect anomalies in low altitude traffic.
-    The model focus on spoofing attack, by recognizing the aircraft the type based on its ADS-B signal.
-    Hence, if the aircraft pretend to be a small aircraft, but the model recognize it as a plane, it is an anomaly.
-"""
+
+from pathlib import Path
+this_directory = Path(__file__).parent
+long_description = (this_directory / "README.md").read_text()
 
 # Setting up
 setup(
@@ -19,7 +18,8 @@ setup(
     author="Pirolley Melvyn",
     author_email="",
     description=DESCRIPTION,
-    long_description=LONG_DESCRIPTION,
+    long_description=long_description,
+    long_description_content_type='text/markdown',
     packages=find_packages(),
     install_requires=["tensorflow", "numpy", "pandas", "scikit-learn", "matplotlib", "pickle-mixin"], # add any additional packages that
     # needs to be installed along with your package. Eg: 'caer'
