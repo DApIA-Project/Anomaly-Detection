@@ -11,7 +11,7 @@ log.setLevel(logging.ERROR)
 import threading
 sem = threading.Semaphore()
 
-from AdsbAnomalyDetector import predict
+from AdsbAnomalyDetector import predict, clear_cache
 
 app = Flask(__name__)
 cors = CORS(app, resources={r"/foo": {"origins": "*"}})
@@ -23,7 +23,7 @@ def api():
     message:"list[dict[str, str]]" = request.get_json()
 
     sem.acquire()
-    out = predict(message)
+    out = predict(message, debug = True)
     sem.release()
 
     # convert out bool_ to boolean
@@ -38,6 +38,22 @@ def api():
 
     response = app.response_class(
         response=json.dumps(out),
+        status=200,
+        mimetype='application/json'
+    )
+    return response
+
+@app.route("/reset", methods=['POST'])
+@cross_origin(origin='*',headers=['Content-Type','Authorization'])
+def reset():
+    icaos:"list[str]" = request.get_json()
+    sem.acquire()
+    for icao in icaos:
+        clear_cache(icao)
+    sem.release()
+
+    response = app.response_class(
+        response=json.dumps({"status": "ok"}),
         status=200,
         mimetype='application/json'
     )

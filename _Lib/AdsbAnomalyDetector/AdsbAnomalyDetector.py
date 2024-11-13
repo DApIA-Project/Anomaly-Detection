@@ -237,6 +237,13 @@ def message_subset(messages: "list[dict[str, str]]") -> "tuple[list[dict[str, st
     return sub, indices
 
 
+def clear_cache(flight_icao:str) -> None:
+    traj = streamer.get(flight_icao, "0")
+    if (traj is None): return
+    prntC(C.INFO, "Cleaning ", C.CYAN, flight_icao, "...", flush=True)
+    streamer.__remove_trajectory__(traj)
+
+
 def predict(messages: "list[dict[str, str]]", compress:bool=True, debug:bool=False) -> "list[dict[str, str]]":
 
     # stream message

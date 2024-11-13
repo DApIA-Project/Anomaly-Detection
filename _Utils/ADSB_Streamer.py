@@ -5,6 +5,7 @@ from   _Utils.DataFrame import DataFrame
 from   _Utils.Color import prntC
 import _Utils.Color as C
 from   _Utils.utils import *
+import _Utils.geographic_maths as GEO
 
 
 # |====================================================================================================================
@@ -471,6 +472,19 @@ class Streamer:
 
             self.__remove_trajectory__(trajectory)
             trajectory, split = self.__create_trajectory__(icao, tag, start_time=actual_time)
+
+        # check if the message dosen't teleport
+        lats, lons, ts = trajectory.data["latitude"], trajectory.data["longitude"], trajectory.data["timestamp"]
+        if (len(ts) >= 2):
+            t = len(lats) - 1
+            while (t >= 1 and ((lats[t] == 0 and lons[t] == 0) or (lats[t-1] == lats[t] and lons[t-1] == lons[t]))):
+                t -= 1
+            llat, llon, lt = lats[t], lons[t], ts[t]
+            nlat, nlon, nt = x.get("latitude", np.nan), x.get("longitude", np.nan), x.get("timestamp", np.nan)
+            if (GEO.distance(llat, llon, nlat, nlon) / (nt - lt) > 686): # mach 2
+                prntC(C.WARNING, f"Teleportation detected for {i_tag} at timestamp {actual_time}")
+                self.__remove_trajectory__(trajectory)
+                trajectory, split = self.__create_trajectory__(icao, tag, start_time=actual_time)
 
         # append the message to the trajectory
         x = [x.get(col, np.nan) for col in __FEATURES__]

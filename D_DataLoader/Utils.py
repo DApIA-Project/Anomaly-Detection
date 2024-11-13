@@ -158,7 +158,7 @@ def get_aircraft_last_message(CTX:dict, flight:np.float64_2d[ax.time, ax.feature
     lat = flight[:, CTX["FEATURE_MAP"]["latitude"]]
     lon = flight[:, CTX["FEATURE_MAP"]["longitude"]]
     i = len(lat)-1
-    while (i >= 0 and (lat[i] == 0 and lon[i] == 0)):
+    while (i >= 1 and ((lat[i] == 0 and lon[i] == 0) or (lat[i] == lat[i-1] and lon[i] == lon[i-1]))):
         i -= 1
     if (i == -1):
         return None
