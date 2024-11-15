@@ -506,7 +506,7 @@ class Streamer:
         t = traj.data.get_relative_loc(timestamp)
         last_timestamp = traj.data["timestamp", t-1]
         for flood in traj.flooding:
-            if (last_timestamp <=flood.timestamp + delay and timestamp >= flood.timestamp + delay):
+            if (last_timestamp <=flood.timestamp + delay and timestamp > flood.timestamp + delay):
                 return True
         return False
 

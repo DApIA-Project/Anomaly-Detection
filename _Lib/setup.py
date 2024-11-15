@@ -1,4 +1,4 @@
-VERSION = "0.6.1"
+VERSION = "0.6.3"
 
 from setuptools import setup, find_packages
 import sys

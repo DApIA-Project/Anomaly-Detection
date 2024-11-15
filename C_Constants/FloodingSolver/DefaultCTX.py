@@ -15,4 +15,4 @@ BOX_CENTER = (
 INPUT_PADDING = "valid"
 
 THRESHOLD = 150
-LOSS_MOVING_AVERAGE = 5 # kernel size for moving average
+LOSS_MOVING_AVERAGE = 3 # kernel size for moving average

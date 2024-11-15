@@ -373,7 +373,7 @@ class Trainer(AbstractTrainer):
             icao = x[i]["icao24"]
             tag = x[i]["tag"]
             traj = streamer.get(icao, tag)
-            if (streamer.ended_flooding(traj, x[i]["timestamp"], self.CTX["LOSS_MOVING_AVERAGE"])):
+            if (streamer.ended_flooding(traj, x[i]["timestamp"], self.CTX["HORIZON"])):
                 if (icao not in flooding):
                     flooding[icao] = {}
                 flooding[icao][tag] = [loss[i], i]

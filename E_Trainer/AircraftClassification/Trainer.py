@@ -348,7 +348,7 @@ class Trainer(AbstractTrainer):
                 y_agg[i] = np.nanmean(all_y_, axis=0)
             else:
                 cache = self.dl.prediction_cache.get(x[i]["icao24"], x[i]["tag"])
-                if (len(cache) > 0):
+                if (cache is not None and len(cache) > 0):
                     y_agg[i] = cache[-1]
 
         return y_, y_agg
