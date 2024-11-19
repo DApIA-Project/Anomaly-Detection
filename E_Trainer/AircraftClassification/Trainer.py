@@ -335,12 +335,13 @@ class Trainer(AbstractTrainer):
 
         # TODO check that batch size < MAX_BATCH_SIZE -> if not : split !
         # add if interesting flag
+
         i_loc = np.arange(0, len(is_interesting), dtype=int)[is_interesting]
         x_batch =  [x_inputs[d][i_loc] for d in range(len(x_inputs))]
         y_ = np.full((len(x_inputs[0]), self.CTX["LABELS_OUT"]), np.nan, dtype=np.float64)
-        # exit(0)
-        y_[i_loc] = self.model.predict(x_batch)
         y_agg = np.zeros((len(y_), self.CTX["LABELS_OUT"]), dtype=np.float64)
+        if (len(i_loc) > 0):
+            y_[i_loc] = self.model.predict(x_batch)
         for i in range(len(y_)):
             if not(np.isnan(y_[i]).all()):
                 all_y_ = self.dl.prediction_cache.append(x[i]["icao24"], x[i]["tag"], y_[i])

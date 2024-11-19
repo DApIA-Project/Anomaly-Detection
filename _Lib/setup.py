@@ -1,4 +1,4 @@
-VERSION = "0.6.3"
+VERSION = "0.6.4"
 
 from setuptools import setup, find_packages
 import sys
@@ -21,7 +21,7 @@ setup(
     long_description=long_description,
     long_description_content_type='text/markdown',
     packages=find_packages(),
-    install_requires=["tensorflow", "numpy", "pandas", "scikit-learn", "matplotlib", "pickle-mixin"], # add any additional packages that
+    install_requires=["tensorflow", "numpy", "pandas", "scikit-learn", "matplotlib", "pickle-mixin", "cartopy", "numpy_typing"], # add any additional packages that
     # needs to be installed along with your package. Eg: 'caer'
     package_data={
         '': ['*.py', "map.png", "labels.csv", "./AircraftClassification/*", "./FloodingSolver/*"],

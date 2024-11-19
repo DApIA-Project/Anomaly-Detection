@@ -1,4 +1,5 @@
-VERSION = "0.6.3"
+VERSION = "0.6.4"
+HASH_TABLE_VERSION = "0.6.3"
 
 from ._Utils_os_wrapper import os
 from numpy_typing import np, ax
@@ -36,13 +37,11 @@ def download_hash_table():
     if not(os.path.exists(HERE+"/version")):
         if (os.path.exists(HERE+"/ReplaySolver/hashtable")):
             shutil.rmtree(HERE+"/ReplaySolver/hashtable/")
-
         update_version = True
-
     else:
         last_version = open(HERE+"/version", "r").read()
 
-        if (last_version != VERSION):
+        if (last_version != HASH_TABLE_VERSION):
             if (os.path.exists(HERE+"/ReplaySolver/hashtable")):
                 shutil.rmtree(HERE+"/ReplaySolver/hashtable/")
 
@@ -66,7 +65,7 @@ def download_hash_table():
 
     if (update_version):
         file = open(HERE+"/version", "w")
-        file.write(VERSION)
+        file.write(HASH_TABLE_VERSION)
         file.close()
 
 

@@ -14,11 +14,11 @@ np.set_printoptions(linewidth=200)
 # python main.py <model>         #
 # python main.py <algo> <model>  #
 ##################################
-# algo = "AircraftClassification"
-# model = "CNN2"
+algo = "AircraftClassification"
+model = "CNN2"
 
-algo = "FloodingSolver"
-model = "LSTM"
+# algo = "FloodingSolver"
+# model = "LSTM"
 
 # algo = "ReplaySolver"
 # model = "HASH"
