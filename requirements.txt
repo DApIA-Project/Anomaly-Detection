@@ -8,19 +8,17 @@ pip install torch==1.10
 # Data processing
 pip install pandas
 pip install scikit-learn
+pip install numpy-typing
+
 
 # Visualization
 pip install matplotlib
-
-
 pip install cartopy # needs sudo apt -y install libgeos-dev
 
 
-# cartopy
-sudo apt -y install libgeos-dev
-pip uninstall shapely
-pip install --no-binary :all: shapely
+# Unit test
+pip install pytest
 
-pip install numpy-typing
+
 
 

@@ -9,7 +9,40 @@ log = logging.getLogger('werkzeug')
 log.setLevel(logging.ERROR)
 
 import threading
-sem = threading.Semaphore()
+
+class SemaphoreQueue:
+    thread_update = None
+    queue = []
+    sem_storage = []
+    available = []
+   
+
+    def acquire(self):
+        sem_id = len(self.sem_storage)
+
+        if (len(self.available) == 0):
+            self.sem_storage.append(threading.Semaphore())
+        else:
+            sem_id = self.available.pop(0)
+
+        self.sem_storage[sem_id].acquire()
+        self.queue.append(sem_id)
+        
+        if (len(self.queue) >= 2):
+            sem_id_prev = self.queue[-2]
+            self.sem_storage[sem_id_prev].acquire()            
+            self.sem_storage[sem_id_prev].release()
+            self.available.append(sem_id_prev)
+
+            
+    def release(self):
+        sem_id = self.queue.pop(0)
+        self.sem_storage[sem_id].release()
+
+    def __len__(self):
+        return len(self.queue)
+
+sem = SemaphoreQueue()
 
 from AdsbAnomalyDetector import predict, clear_cache
 
@@ -21,6 +54,9 @@ app.config['CORS_HEADERS'] = 'Content-Type'
 @cross_origin(origin='*',headers=['Content-Type','Authorization'])
 def api():
     message:"list[dict[str, str]]" = request.get_json()
+    t = int(message[0]["timestamp"])%3600
+    print("Recieved msg time ", t//60, "m", t%60, "s")
+    # print("Call queue lenght :", len(sem), "msg time : ", t//60, "m", t%60, "s")
 
     sem.acquire()
     out = predict(message, debug = True)
