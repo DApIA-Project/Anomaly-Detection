@@ -40,6 +40,7 @@ _Lib/*
 _Lib/AdsbAnomalyDetector/*
 !_Lib/AdsbAnomalyDetector/__init__.py
 !_Lib/AdsbAnomalyDetector/AdsbAnomalyDetector.py
+!_Lib/AdsbAnomalyDetector/webserver.py
 _dist
 
 # remove artefacts from the dataset cleaning script

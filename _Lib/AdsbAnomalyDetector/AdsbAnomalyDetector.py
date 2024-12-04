@@ -1,4 +1,4 @@
-VERSION = "0.6.4"
+VERSION = "0.7.0"
 HASH_TABLE_VERSION = "0.6.3"
 
 from ._Utils_os_wrapper import os
