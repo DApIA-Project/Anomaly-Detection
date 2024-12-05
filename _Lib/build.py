@@ -2,7 +2,7 @@ import os
 import subprocess
 
 
-VERSION = "0.7.0"
+VERSION = "0.7.1"
 
 
 class MODELS:
@@ -159,7 +159,7 @@ for root, dirs, files in os.walk(f"./AdsbAnomalyDetector/"):
         continue
 
     for file in files:
-        if file != "AdsbAnomalyDetector.py" and file != "__init__.py" and file != "version":
+        if file != "AdsbAnomalyDetector.py" and file != "webserver.py" and file != "__init__.py" and file != "version":
             to_remove.append(os.path.join(root, file))
 
     for dir in dirs:
