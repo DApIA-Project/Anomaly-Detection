@@ -10,6 +10,7 @@ class MODELS:
     separator = "GEO"
     replay = "HASH"
     flooding = "LSTM"
+    interp = "LSTM"
 
 
 
@@ -179,6 +180,7 @@ files = [
     f"../G_Main/TrajectorySeparator/exp_{MODELS.separator}.py",
     f"../G_Main/ReplaySolver/exp_{MODELS.replay}.py",
     f"../G_Main/FloodingSolver/exp_{MODELS.flooding}.py",
+    f"../G_Main/InterpolationDetector/exp_{MODELS.interp}.py",
 ]
 
 
@@ -371,6 +373,31 @@ if len(constants) > 1:
 
 os.system(f"mv ./AdsbAnomalyDetector/{model[0]} ./AdsbAnomalyDetector/B_Model_TrajectorySeparator.py")
 os.system(f"mv ./AdsbAnomalyDetector/{constants[0]} ./AdsbAnomalyDetector/C_Constants_TrajectorySeparator.py")
+
+
+# |====================================================================================================================
+# | INTERPOLATION DETECTOR
+# |====================================================================================================================
+# FloodingSolver
+# # copy weights
+os.system(f"mkdir ./AdsbAnomalyDetector/InterpolationDetector")
+os.system(f"cp ../_Artifacts/InterpolationDetector/{MODELS.flooding}/w ./AdsbAnomalyDetector/InterpolationDetector/w")
+os.system(f"cp ../_Artifacts/InterpolationDetector/{MODELS.flooding}/xs ./AdsbAnomalyDetector/InterpolationDetector/xs")
+os.system(f"cp ../_Artifacts/InterpolationDetector/{MODELS.flooding}/pad ./AdsbAnomalyDetector/InterpolationDetector/pad")
+
+# rename model and constant file to be generic
+model = find_files_and_filter("B_Model_InterpolationDetector_")
+if len(model) > 1:
+    raise RuntimeError("Multiple B_Model_InterpolationDetector files found")
+constants = find_files_and_filter("C_Constants_InterpolationDetector_", [
+    "C_Constants_InterpolationDetector_DefaultCTX.py"
+])
+if len(constants) > 1:
+    raise RuntimeError("Multiple C_Constants_InterpolationDetector files found")
+
+os.system(f"mv ./AdsbAnomalyDetector/{model[0]} ./AdsbAnomalyDetector/B_Model_InterpolationDetector.py")
+os.system(f"mv ./AdsbAnomalyDetector/{constants[0]} ./AdsbAnomalyDetector/C_Constants_InterpolationDetector.py")
+
 
 # |====================================================================================================================
 # | DISABLE TRAINING FOR ALL MODELS

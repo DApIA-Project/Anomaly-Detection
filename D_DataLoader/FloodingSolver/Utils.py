@@ -2,15 +2,9 @@
 from _Utils.FeatureGetter import FG_flooding as FG
 import _Utils.geographic_maths as GEO
 import _Utils.plotADSB         as PLT
-from numpy_typing import np, ax, ax
+from numpy_typing import np, ax
 
 import D_DataLoader.Utils      as U
-
-
-# |====================================================================================================================
-# | CACHE
-# |====================================================================================================================
-
 
 
 
@@ -78,33 +72,6 @@ def get_t_(CTX:dict, x:"list[np.float64_2d[ax.time, ax.feature]]", i:int, t:int)
 
 
 
-def eval_curvature(CTX:dict, x:"list[np.float64_2d[ax.time, ax.feature]]", i:int, t:int, t_:int) -> float:
-    """
-    Evaluate the curvature degree of the trajectory.
-
-    Used in order to filter straight trajectories that are too easy for training the model.
-    """
-    start = max(0, t-CTX["HISTORY"])
-
-    end = t_
-    lat = FG.lat(x[i][start:end])
-    lon = FG.lon(x[i][start:end])
-    a_lat, a_lon = lat[0], lon[0]
-    b_lat, b_lon = lat[-1], lon[-1]
-    m1_lat, m1_lon = lat[len(lat)//3], lon[len(lat)//3]
-    m2_lat, m2_lon = lat[2*len(lat)//3], lon[2*len(lat)//3]
-
-
-    b_a_m1 = GEO.bearing(a_lat, a_lon, m1_lat, m1_lon)
-    b_m1_m2 = GEO.bearing(m1_lat, m1_lon, m2_lat, m2_lon)
-    b_m2b = GEO.bearing(m2_lat, m2_lon, b_lat, b_lon)
-
-    d1 = abs(U.angle_diff(b_a_m1, b_m1_m2))
-    d2 = abs(U.angle_diff(b_m1_m2, b_m2b))
-
-    return d1+d2
-
-
 # |====================================================================================================================
 # | RANDOM FLIGHT PICKING
 # |====================================================================================================================
@@ -117,7 +84,7 @@ def pick_random_loc(CTX:dict, x:"list[np.float64_2d[ax.time, ax.feature]]") -> "
     t, t_ = -1, -1
 
 
-    while t < 0 or not(check_sample(CTX, x, flight_i, t, t_)) or eval_curvature(CTX, x, flight_i, t, t_) < 20:
+    while t < 0 or not(check_sample(CTX, x, flight_i, t, t_)) or U.eval_curvature(CTX, x, flight_i, t-CTX["HISTORY"]+1, t_+1) < 20:
         flight_i = np.random.randint(0, len(x))
         if (negative):
             t = np.random.randint(CTX["HISTORY"]//2, CTX["HISTORY"])
@@ -180,9 +147,9 @@ def gen_sample(CTX:dict,
 
     y_sample = x[i][t_]
 
-    if ("distance_var" in CTX["USED_FEATURES"]):
+    if ("pred_distance" in CTX["USED_FEATURES"]):
         distance = GEO.distance(lat, lon, FG.lat(x[i][t_]), FG.lon(x[i][t_]))
-        x_sample[:, CTX["FEATURE_MAP"]["distance_var"]] = distance
+        x_sample[:, CTX["FEATURE_MAP"]["pred_distance"]] = distance
 
 
 

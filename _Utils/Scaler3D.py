@@ -1,4 +1,4 @@
-from numpy_typing import np, ax, ax
+from numpy_typing import np, ax
 from typing_extensions import Self
 
 IRREGULAR_DIMENSION = "The last dimension is not always the same size"

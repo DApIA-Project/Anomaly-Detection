@@ -156,6 +156,25 @@ aircraftClassification.load(HERE+"/AircraftClassification")
 
 prntC("\r",C.INFO, "LOADING SPOOFING MODEL", C.CYAN, " [DONE]")
 
+# |====================================================================================================================
+# | INTERPOLATION DETECTION
+# |====================================================================================================================
+
+prntC(C.INFO, "LOADING INTERPOLATION MODEL ", end="...", flush=True)
+
+from .E_Trainer_InterpolationDetector_Trainer import Trainer as InterpolationDetector
+from .B_Model_InterpolationDetector import Model as MODEL_INTERP
+from . import C_Constants_InterpolationDetector as CTX_INTERP
+from . import C_Constants_InterpolationDetector_DefaultCTX as DefaultCTX_INTERP
+
+CTX_ID = buildCTX(CTX_INTERP, DefaultCTX_INTERP)
+CTX_ID["LIB"] = True
+interpolationDetector = InterpolationDetector(CTX_ID, MODEL_INTERP)
+interpolationDetector.load(HERE+"/InterpolationDetector")
+
+prntC("\r",C.INFO, "LOADING INTERPOLATION MODEL", C.CYAN, " [DONE]")
+
+
 
 # |====================================================================================================================
 # | ANOMALY DETECTION
@@ -166,7 +185,8 @@ class AnomalyType:
     VALID = 0
     SPOOFING = 1
     FLOODING = 2
-    REPLAY = 3
+    REPLAY = 3,
+    INTERP = 4,
     __INVALID__ = 1000
 
 
@@ -236,8 +256,8 @@ def message_subset(messages: "list[dict[str, str]]") -> "tuple[list[dict[str, st
     return sub, indices
 
 
-def clear_cache(flight_icao:str) -> None:
-    traj = streamer.get(flight_icao, "0")
+def clear_cache(flight_icao:str, tag="0") -> None:
+    traj = streamer.get(flight_icao, tag)
     if (traj is None): return
     prntC(C.INFO, "Cleaning ", C.CYAN, flight_icao, "...", flush=True)
     streamer.__remove_trajectory__(traj)
@@ -298,14 +318,21 @@ def __predict__(messages: "list[dict[str, str]]", compress:bool=True, debug:bool
     #     messages[indices[i]]["tag"] = sub_icaos[i]
 
 
-    # # check for replay anomalies
+    # check for replay anomalies
     sub_msg, indices = message_subset(messages)
     matches = replaySolver.predict(sub_msg)
     for i in range(len(indices)):
         if (matches[i] != "unknown"):
             messages[indices[i]]["anomaly"] = AnomalyType.REPLAY
+            
+    # check for interpolation anomalies
+    sub_msg, indices = message_subset(messages)
+    _, _, anomaly = interpolationDetector.predict(sub_msg)
+    for i in range(len(indices)):
+        if (anomaly[i]):
+            messages[indices[i]]["anomaly"] = AnomalyType.INTERP
 
-
+    
     # check for flooding anomalies
     sub_msg, indices = message_subset(messages)
     y_, loss, anomaly = floodingSolver.predict(sub_msg)

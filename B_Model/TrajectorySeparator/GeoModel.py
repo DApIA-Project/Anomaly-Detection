@@ -5,7 +5,7 @@ from _Utils.FeatureGetter import FG_separator as FG
 import _Utils.geographic_maths as GEO
 import D_DataLoader.Utils as U
 
-from numpy_typing import np, ax, ax
+from numpy_typing import np, ax
 
 def lerp(a:float, b:float, t:float) -> float:
     return a + (b-a)*t

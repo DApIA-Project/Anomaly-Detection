@@ -3,7 +3,7 @@ from catboost import CatBoostRegressor, train
 from B_Model.AbstractModel import Model as AbstactModel
 
 from _Utils.os_wrapper import os
-from numpy_typing import np, ax, ax
+from numpy_typing import np, ax
 
 
 def mse(y_true, y_pred):

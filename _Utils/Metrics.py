@@ -1,7 +1,7 @@
 from _Utils.os_wrapper import os
 from typing import TypeVar
 
-from numpy_typing import np, ax, ax
+from numpy_typing import np, ax
 from _Utils.plotADSB import Color
 
 
@@ -27,6 +27,15 @@ def accuracy(y:np.ndarray, y_:np.ndarray) -> float:
                 acc += 1
             nb += 1
     return acc / nb
+
+def binary_accuracy(y:np.float64_2d[ax.sample, ax.feature], y_:np.float64_2d[ax.sample, ax.feature])-> np.float64_1d[ax.feature]:
+    acc = np.zeros(y.shape[1], dtype=np.float64)
+    for i in range(len(y)):
+        for f in range(len(y[i])):
+            if ((y[i][f] > 0.5) == (y_[i][f] > 0.5)):
+                acc[f] += 1
+    return acc / len(y)
+                
 
 def per_class_accuracy(y:np.ndarray, y_:np.ndarray) -> np.ndarray:
     mat = confusion_matrix(y, y_)

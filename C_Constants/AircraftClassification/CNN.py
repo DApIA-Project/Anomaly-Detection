@@ -42,7 +42,7 @@ USED_FEATURES = [
     "vertical_rate", "onground",
     # "alert", "spi", "squawk",
     "altitude", "geoaltitude",
-    "relative_track",
+    "track_diff",
     "timestamp",
     # "toulouse"
 ]

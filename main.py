@@ -14,8 +14,8 @@ np.set_printoptions(linewidth=200)
 # python main.py <model>         #
 # python main.py <algo> <model>  #
 ##################################
-algo = "AircraftClassification"
-model = "CNN2"
+# algo = "AircraftClassification"
+# model = "CNN2"
 
 # algo = "FloodingSolver"
 # model = "LSTM"
@@ -23,8 +23,12 @@ model = "CNN2"
 # algo = "ReplaySolver"
 # model = "HASH"
 
-# algo = "TrajectorySeparator"
+# algo = "TrajectorySeparator" # Deprecated
 # model = "GEO"
+
+algo = "InterpolationDetector"
+model = "LSTM"
+
 ###################################
 argv = sys.argv
 if ("-ui" in argv):
@@ -108,5 +112,13 @@ elif (algo == "TrajectorySeparator"):
     if (model == "DEV"):
         import G_Main.TrajectorySeparator.exp_DEV as DEV
         DEV.__main__()
+
+
+
+
+elif (algo == "InterpolationDetector"):
+    if (model == "LSTM"):
+        import G_Main.InterpolationDetector.exp_LSTM as LSTM
+        LSTM.__main__()
 
 

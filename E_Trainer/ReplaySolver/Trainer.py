@@ -142,7 +142,7 @@ class Trainer(AbstractTrainer):
     def predict(self, x:"list[dict[str,object]]") -> "list[str]":
         if(len(x) == 0): return []
 
-        x_batch:np.float32_3d[ax.sample, ax.time, ax.feature] = np.zeros(
+        x_batch:np.float64_3d[ax.sample, ax.time, ax.feature] = np.zeros(
             (len(x), self.CTX["INPUT_LEN"], self.CTX["FEATURES_IN"]), dtype=np.float64)
         is_interesting:"list[int]" = []
         y_:"list[list[str]]" = [["unknown"] for _ in range(len(x))]

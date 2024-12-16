@@ -1,12 +1,12 @@
 
 # import tensorflow as tf
-# from keras.layers import *
+# from keras.api.layers import *
 
 # from B_Model.AbstractModel import Model as AbstactModel
 # from B_Model.Utils.TF_Modules import *
 
 
-# from numpy_typing import np, ax, ax
+# from numpy_typing import np, ax
 
 # from _Utils.os_wrapper import os
 
@@ -134,7 +134,7 @@ def transformer_encoder(inputs, head_size, num_heads, ff_dim, dropout=0):
 
 
 import tensorflow as tf
-from keras.layers import *
+from keras.api.layers import *
 
 from B_Model.AbstractModel import Model as AbstactModel
 from B_Model.Utils.TF_Modules import *

@@ -1,4 +1,4 @@
-from numpy_typing import np, ax, ax
+from numpy_typing import np, ax
 
 
 np.set_printoptions(

@@ -9,7 +9,7 @@ import D_DataLoader.Utils as U
 import matplotlib.pyplot as plt
 from _Utils.plotADSB import Color
 
-from numpy_typing import np, ax, ax
+from numpy_typing import np, ax
 
 def lerp(a:float, b:float, t:float) -> float:
     return a + (b-a)*t

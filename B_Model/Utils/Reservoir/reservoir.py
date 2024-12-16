@@ -1,4 +1,4 @@
-from numpy_typing import np, ax, ax
+from numpy_typing import np, ax
 from scipy import sparse
 
 class Reservoir(object):

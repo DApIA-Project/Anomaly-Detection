@@ -10,7 +10,7 @@ The input dataset must be a 3-dimensional tensor with shapes
 
 """
 
-from numpy_typing import np, ax, ax
+from numpy_typing import np, ax
 import numpy.linalg as linalg
 
 class tensorPCA:

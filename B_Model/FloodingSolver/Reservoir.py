@@ -2,11 +2,11 @@
 from B_Model.AbstractModel import Model as AbstactModel
 
 import tensorflow as tf
-from keras.layers import *
+from keras.api.layers import *
 from reservoirpy.nodes import Reservoir
 
 
-from numpy_typing import np, ax, ax
+from numpy_typing import np, ax
 from _Utils.os_wrapper import os
 import _Utils.Color as C
 from   _Utils.Color import prntC

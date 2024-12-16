@@ -1,5 +1,5 @@
 # General imports
-from numpy_typing import np, ax, ax
+from numpy_typing import np, ax
 import time
 from sklearn.linear_model import Ridge
 from sklearn.metrics import accuracy_score, f1_score

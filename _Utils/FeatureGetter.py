@@ -1,4 +1,4 @@
-from numpy_typing import np, ax, ax
+from numpy_typing import np, ax
 import pandas as pd
 from typing import overload, TypeVar
 
@@ -105,6 +105,7 @@ class FeatureGetter:
 
     def track(self, slf:np.ndarray = None, axis:int=-1) -> np.ndarray:
         if not(isinstance(slf, np.ndarray)): return self.TRACK
+        if self.TRACK is None: return None
         return slf.take(self.TRACK, axis)
 
     # |====================================================================================================================
@@ -201,7 +202,7 @@ class FeatureGetter:
         return slf.take(self.FEATURE_MAP[feature], axis)
 
     def get(self, *args) -> np.ndarray:
-        if (isinstance(args, str)): return self.FEATURE_MAP[args]
+        if (isinstance(args[0], str)): return self.FEATURE_MAP[args[0]]
         return self.__get__(*args)
 
 
@@ -234,3 +235,4 @@ FG_spoofing = FeatureGetter()
 FG_flooding = FeatureGetter()
 FG_replay = FeatureGetter()
 FG_separator = FeatureGetter()
+FG_interp = FeatureGetter()

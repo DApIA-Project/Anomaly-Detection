@@ -9,6 +9,9 @@ import _Utils.Limits as Limits
 from numpy_typing import np, ax
 import _Utils.geographic_maths as GEO
 
+from _Utils.FeatureGetter import FeatureGetter
+
+
 from D_DataLoader.Airports import TOULOUSE
 
 # |====================================================================================================================
@@ -153,6 +156,17 @@ def window_slice(CTX:dict, t:int) -> "tuple[int, int, int, int, int]":
 # | GET LAST MESSAGE FROM TRAJECTORY WITH NANs
 # |--------------------------------------------------------------------------------------------------------------------
 
+
+def get_aircraft_last_message_t(CTX:dict, flight:np.float64_2d[ax.time, ax.feature], last_t = -1) -> np.float64_1d:
+    # get the aircraft last non zero latitudes and longitudes
+    lat = flight[:, CTX["FEATURE_MAP"]["latitude"]]
+    lon = flight[:, CTX["FEATURE_MAP"]["longitude"]]
+    if (last_t == -1): last_t = len(lat)-1
+    i = last_t
+    while (i >= 1 and ((lat[i] == 0 and lon[i] == 0) or (lat[i] == lat[i-1] and lon[i] == lon[i-1]))):
+        i -= 1
+    return i
+
 def get_aircraft_last_message(CTX:dict, flight:np.float64_2d[ax.time, ax.feature]) -> np.float64_1d:
     # get the aircraft last non zero latitudes and longitudes
     lat = flight[:, CTX["FEATURE_MAP"]["latitude"]]
@@ -206,16 +220,45 @@ def df_to_feature_array(CTX:dict, df:DataFrame, check_length:bool=True) -> np.fl
     df["geoaltitude"] = np.clip(df["geoaltitude"], 0, None)
 
     # SECONDARY FEATURES
-    if ("relative_track" in CTX["FEATURE_MAP"]):
+    if ("track_diff" in CTX["FEATURE_MAP"]):
         track = df["track"]
         relative_track = track.copy()
         for i in range(1, len(relative_track)):
             relative_track[i] = angle_diff(track[i-1], track[i])
         relative_track[0] = 0
-        df.add_column("relative_track", relative_track)
-        # TODO WTF is this line supposed to do?
-        # df.setColumValue("timestamp", slice(0, len(df)), df["timestamp"]) # 01/01/2015
-        # equivalent to df["timestamp", 0:len(df)] = df["timestamp"] wtf
+        df.add_column("track_diff", relative_track)
+        
+    if ("bearing" in CTX["FEATURE_MAP"]):
+        df.add_column("bearing", compute_bearing(df))
+        
+    if ("distance" in CTX["FEATURE_MAP"]):
+        df.add_column("distance", compute_distance(df))
+        
+    if ("bearing_diff" in CTX["FEATURE_MAP"]):
+        if ("bearing" in CTX["FEATURE_MAP"]):
+            bearing = df["bearing"]
+        else:
+            bearing = compute_bearing(df)
+        
+        
+        df.add_column("bearing_diff", compute_bearing_diff(bearing))
+        
+    if ("distance_diff" in CTX["FEATURE_MAP"]):
+        if ("distance" in CTX["FEATURE_MAP"]):
+            distance = df["distance"]
+        else:
+            distance = compute_distance(df)
+        df.add_column("distance_diff", compute_distance_diff(distance))
+
+    if ("random_angle_latitude" in CTX["FEATURE_MAP"]):
+        df.add_column("random_angle_latitude", np.zeros(len(df), dtype=np.float64))
+    if ("random_angle_longitude" in CTX["FEATURE_MAP"]):
+        df.add_column("random_angle_longitude", np.zeros(len(df), dtype=np.float64))
+    if ("random_angle_track" in CTX["FEATURE_MAP"]):
+        df.add_column("random_angle_track", np.zeros(len(df), dtype=np.float64))
+        
+        
+
 
 
     if ("toulouse_0" in CTX["FEATURE_MAP"]):
@@ -231,8 +274,8 @@ def df_to_feature_array(CTX:dict, df:DataFrame, check_length:bool=True) -> np.fl
         if (len(CTX["USED_FEATURES"]) == 1):
             df.cast(np.int8)
 
-    if ("distance_var" in CTX["FEATURE_MAP"]):
-        df.add_column("distance_var", np.zeros(len(df), dtype=np.float64))
+    if ("pred_distance" in CTX["FEATURE_MAP"]):
+        df.add_column("pred_distance", np.zeros(len(df), dtype=np.float64))
 
     # remove too short flights
     if (check_length and len(df) < CTX["HISTORY"]):
@@ -294,7 +337,7 @@ def toulouse_airport_distance(lats:"list[float]", lons:"list[float]") -> "np.flo
     dists = np.zeros((len(lats), len(TOULOUSE)), dtype=np.float64)
     for i in range(len(lats)):
         dists[i] = GEO.np.distance(lats[i], lons[i], TOULOUSE_LATS, TOULOUSE_LONS)
-
+  
 
     # cap distance to 50km max
     dists = dists / 1000
@@ -308,6 +351,35 @@ def toulouse_airport_distance(lats:"list[float]", lons:"list[float]") -> "np.flo
         return dists[0]
     return dists
 
+
+
+def compute_bearing(df:DataFrame):
+    lat = df["latitude"]
+    lon = df["longitude"]
+    bearing = np.zeros(len(lat))
+    for i in range(1, len(bearing)):
+        bearing[i] = GEO.bearing(lat[i-1], lon[i-1], lat[i], lon[i])
+    return bearing
+
+def compute_distance(df:DataFrame):
+    lat = df["latitude"]
+    lon = df["longitude"]
+    distance = np.zeros(len(lat))
+    for i in range(1, len(distance)):
+        distance[i] = GEO.distance(lat[i-1], lon[i-1], lat[i], lon[i])
+    return distance
+
+def compute_bearing_diff(bearing:np.float64_1d[ax.time]):
+    bearing_diff = np.zeros(len(bearing))
+    for i in range(2, len(bearing)):
+        bearing_diff[i] = GEO.bearing_diff(bearing[i-1], bearing[i])
+    return bearing_diff
+
+def compute_distance_diff(distance:np.float64_1d[ax.time]):
+    distance_diff = np.zeros(len(distance))
+    for i in range(2, len(distance)):
+        distance_diff[i] = distance[i] - distance[i-1]
+    return distance_diff
 
 
 
@@ -324,6 +396,33 @@ def analysis(CTX:dict, dataframe:"list[np.float64_2d[ax.time, ax.feature]]") -> 
         maxs = np.nanmax([maxs, np.nanmax(dataframe[i], axis=0)], axis=0)
 
     return mins, maxs
+
+def eval_curvature(CTX:dict, x:"list[np.float64_2d[ax.time, ax.feature]]", i:int, start:int, end:int) -> float:
+    """
+    Evaluate the curvature degree of the trajectory.
+
+    Used in order to filter straight trajectories that are too easy for training the model.
+    """
+    FG:FeatureGetter = CTX["FG"]
+    start = max(0, start)
+    end = end
+    
+    lat = FG.lat(x[i][start:end])
+    lon = FG.lon(x[i][start:end])
+    a_lat, a_lon = lat[0], lon[0]
+    b_lat, b_lon = lat[-1], lon[-1]
+    m1_lat, m1_lon = lat[len(lat)//3], lon[len(lat)//3]
+    m2_lat, m2_lon = lat[2*len(lat)//3], lon[2*len(lat)//3]
+
+
+    b_a_m1 = GEO.bearing(a_lat, a_lon, m1_lat, m1_lon)
+    b_m1_m2 = GEO.bearing(m1_lat, m1_lon, m2_lat, m2_lon)
+    b_m2b = GEO.bearing(m2_lat, m2_lon, b_lat, b_lon)
+
+    d1 = abs(angle_diff(b_a_m1, b_m1_m2))
+    d2 = abs(angle_diff(b_m1_m2, b_m2b))
+
+    return d1+d2
 
 def genPadValues(CTX:dict, flights:"list[np.float64_2d[ax.time, ax.feature]]") -> np.float64_1d:
     minValues = analysis(CTX, flights)[0]
@@ -342,7 +441,7 @@ def genPadValues(CTX:dict, flights:"list[np.float64_2d[ax.time, ax.feature]]") -
                 or feature == "vertical_rate"
                 or feature == "groundspeed"
                 or feature == "track"
-                or feature == "relative_track"
+                or feature == "track_diff"
                 or feature == "timestamp"):
 
             padValues[f] = 0
@@ -390,6 +489,7 @@ def normalize_trajectory(CTX:"dict[str, object]",
     else:
         LAT = -CTX["BOX_CENTER"][0]
         LON = -CTX["BOX_CENTER"][1]
+        
     if relative_track:
         ROT = -Otrack
     if random_track:
@@ -405,7 +505,8 @@ def normalize_trajectory(CTX:"dict[str, object]",
         x, y, z = x_rotation(x, y, z, np.radians(ROT))
 
     lat, lon = cartesian_to_spherical(x, y, z)
-    track = np.remainder(track + ROT, 360)
+    if (track is not None):
+        track = np.remainder(track + ROT, 360)
 
     return lat, lon, track
 
@@ -445,6 +546,7 @@ def denormalize_trajectory(CTX:dict, lat:"np.float64_1d[ax.time]", lon:"np.float
 def batch_preprocess(CTX:dict, flight:"np.float64_2d[ax.time, ax.feature]",
                           PAD:"np.float64_1d[ax.feature]",
                           relative_position:bool=None, relative_track:bool=None, random_track:bool=None,
+                          rotate:float = None,
                           post_flight:"np.float64_2d[ax.time, ax.feature]"=None)\
         -> """np.float64_2d[ax.time, ax.feature]
             | tuple[np.float64_2d[ax.time, ax.feature], np.float64_2d[ax.time, ax.feature]]""":
@@ -455,25 +557,35 @@ def batch_preprocess(CTX:dict, flight:"np.float64_2d[ax.time, ax.feature]",
         relative_track = CTX["RELATIVE_TRACK"]
     if (random_track is None):
         random_track = CTX["RANDOM_TRACK"]
-
-    # calculate normalized trajectory
+    
+    # compute the origin of the transformation
     pos = get_aircraft_last_message(CTX, flight)
+    FG:FeatureGetter = CTX["FG"]
+    
+    # include post flight in the transform
     x = flight
     if (post_flight is not None):
         x = np.concatenate([flight, post_flight], axis=0)
-
-    FG = CTX["FG"]
+        
+    # if rotate parameter set, apply the desired rotation
+    if (not(relative_track) and not(random_track) and rotate is not None):
+        rotation = rotate
+        relative_track = True
+    else:
+        rotation = FG.track(pos)
+    
 
     nan_value = np.logical_and(FG.lat(x) == FG.lat(PAD), FG.lon(x) == FG.lon(PAD))
     lat, lon, track = normalize_trajectory(CTX,
                                              FG.lat(x), FG.lon(x), FG.track(x),
-                                             FG.lat(pos), FG.lon(pos), FG.track(pos),
+                                             FG.lat(pos), FG.lon(pos), rotation,
                                              relative_position, relative_track, random_track)
 
     # only apply normalization on non zero lat/lon
     x[~nan_value, FG.lat()] = lat[~nan_value]
     x[~nan_value, FG.lon()] = lon[~nan_value]
-    x[~nan_value, FG.track()] = track[~nan_value]
+    if (FG.track() is not None):
+        x[~nan_value, FG.track()] = track[~nan_value]
 
     # fill nan lat/lon with the first non zero lat lon
     first_non_zero_ts = np.argmax(~nan_value)

@@ -2,7 +2,7 @@
 
 # Convert CTX to dict for logging hyperparameters
 from _Utils.module import buildCTX
-from numpy_typing import np, ax, ax
+from numpy_typing import np, ax
 from   _Utils.Color import prntC
 import _Utils.Color as C
 

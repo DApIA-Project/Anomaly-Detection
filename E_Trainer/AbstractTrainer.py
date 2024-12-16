@@ -2,7 +2,7 @@
 
 
 import pandas as pd
-from numpy_typing import np, ax, ax
+from numpy_typing import np, ax
 import matplotlib.pyplot as plt
 
 from B_Model.AbstractModel import Model
