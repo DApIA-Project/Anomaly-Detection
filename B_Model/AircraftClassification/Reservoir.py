@@ -1,6 +1,6 @@
 
 import tensorflow as tf
-from keras.api.layers import *
+from keras.layers import *
 
 from B_Model.AbstractModel import Model as AbstactModel
 from B_Model.Utils.TF_Modules import *
@@ -28,71 +28,10 @@ class Model(AbstactModel):
     name = "Reservoir"
 
     def __init__(self, CTX:dict):
-        """
-        Generate model architecture
-        Define loss function
-        Define optimizer
-        """
 
         self.CTX = CTX
 
-        self.reservoir = Reservoir(1000,
-            lr=0.5, sr=0.9
-        )
-        if (CTX["ADD_TAKE_OFF_CONTEXT"]):
-            self.take_off_reservoir = Reservoir(1000,
-                lr=0.5, sr=0.9
-            )
-
-
-
-        # prepare input shapes
-        x_input_shape = (self.CTX["INPUT_LEN"], self.CTX["RESERVOIR_UNITS"])
-        if (CTX["ADD_TAKE_OFF_CONTEXT"]): takeoff_input_shape = (self.CTX["INPUT_LEN"], self.CTX["RESERVOIR_UNITS"])
-        if (CTX["ADD_MAP_CONTEXT"]): map_input_shape = (self.CTX["IMG_SIZE"], self.CTX["IMG_SIZE"], 3)
-
-        # generate layers
-        x = tf.keras.Input(shape=x_input_shape, name='input')
-        inputs = [x]
-        outputs = []
-
-        adsb_module_inputs = [x]
-        if (CTX["ADD_TAKE_OFF_CONTEXT"]):
-            takeoff = tf.keras.Input(shape=takeoff_input_shape, name='takeoff')
-            inputs.append(takeoff)
-
-            self.takeoff_module = TakeOffModule(self.CTX)
-            takeoff_ctx = self.takeoff_module(takeoff)
-            adsb_module_inputs.append(takeoff_ctx)
-            self.TAKEOFF = len(outputs)
-
-
-        if (CTX["ADD_MAP_CONTEXT"]):
-            map = tf.keras.Input(shape=map_input_shape, name='map')
-            inputs.append(map)
-
-            self.map_module = MapModule(self.CTX)
-            map_ctx = self.map_module(map)
-            adsb_module_inputs.append(map_ctx)
-            self.MAP = len(outputs)
-
-        if (CTX["ADD_AIRPORT_CONTEXT"]):
-            airport = tf.keras.Input(shape=(self.CTX["AIRPORT_CONTEXT_IN"],), name='airport')
-            inputs.append(airport)
-
-            self.airport_module = AirportModule(self.CTX)
-            airport_ctx = self.airport_module(airport)
-            adsb_module_inputs.append(airport_ctx)
-            self.AIRPORT = len(outputs)
-
-
-        self.ads_b_module = ADS_B_Module(self.CTX)
-        proba = self.ads_b_module(adsb_module_inputs)
-        outputs.insert(0, proba)
-
-
-        # generate model
-        self.model = tf.keras.Model(inputs, outputs)
+        self.model = Module(CTX)
 
         # define loss and optimizer
         self.loss = tf.keras.losses.MeanSquaredError()
@@ -103,39 +42,18 @@ class Model(AbstactModel):
 
 
     def predict(self, x):
-        """
-        Make prediction for x
-        """
-        adsb = x.pop(0)
-        if (self.CTX["ADD_TAKE_OFF_CONTEXT"]): takeoff = x.pop(0)
-        if (self.CTX["ADD_MAP_CONTEXT"]): map = x.pop(0)
-        if (self.CTX["ADD_AIRPORT_CONTEXT"]): airport = x.pop(0)
+        return self.model.predict(x)
+    
 
-        adsb =__predict_reservoir__(self.CTX, self.reservoir, adsb)
-        if (self.CTX["ADD_TAKE_OFF_CONTEXT"]): takeoff=__predict_reservoir__(self.CTX, self.take_off_reservoir, takeoff)
-
-        x = [adsb]
-
-        if (self.CTX["ADD_TAKE_OFF_CONTEXT"]): x.append(takeoff)
-        if (self.CTX["ADD_MAP_CONTEXT"]): x.append(map)
-        if (self.CTX["ADD_AIRPORT_CONTEXT"]): x.append(airport)
-
-        return self.model(x)
 
     def compute_loss(self, x, y):
-        """
-        Make a prediction and compute the loss
-        that will be used for training
-        """
         y_ = self.predict(x)
         loss = self.loss(y_, y)
         return loss, y_
+    
+    
 
     def training_step(self, x, y):
-        """
-        Do one forward pass and gradient descent
-        for the given batch
-        """
         with tf.GradientTape(watch_accessed_variables=True) as tape:
 
             y_ = self.predict(x)
@@ -146,183 +64,116 @@ class Model(AbstactModel):
 
         self.nb_train += 1
         return loss, y_
-
+    
 
 
     def visualize(self, filename="./_Artifacts/"):
-        """
-        Generate a visualization of the model's architecture
-        """
-
         filename = os.path.join(filename, self.name+".png")
         tf.keras.utils.plot_model(self.model, to_file=filename, show_shapes=True)
 
 
 
     def get_variables(self):
-        """
-        Return the variables of the model
-        """
-        reservoirs = [self.reservoir]
-        if (self.CTX["ADD_TAKE_OFF_CONTEXT"]): reservoirs.append(self.take_off_reservoir)
+        return self.model.get_variables()
+    
+    
+    
+    def set_variables(self, variables):
+        self.model.set_variables(variables)
 
-        return self.model.trainable_variables, reservoirs
+
+
+
+class Module(tf.Module):
+    
+    def __init__(self, CTX:dict):
+
+        self.CTX = CTX
+
+        self.reservoir = Reservoir(self.CTX["R_UNITS"],
+            lr=self.CTX["LR"],
+            sr=self.CTX["SR"],
+            input_connectivity=self.CTX["INPUT_CONNECTIVITY"],
+            rc_connectivity=self.CTX["RC_CONNECTIVITY"],
+        )
+
+        self.map_model = None
+        
+        if (CTX["ADD_MAP_CONTEXT"]): 
+            map_input_shape = (self.CTX["IMG_SIZE"], self.CTX["IMG_SIZE"], 3)
+            x_map = Input(shape=map_input_shape, name='map')
+            y_map = map_module(CTX, x_map)
+            self.map_model = tf.keras.Model(x_map, y_map)
+            
+        readout_input_shape = (self.CTX["INPUT_LEN"], self.CTX["R_UNITS"])
+        map_input_shape = (self.CTX["INPUT_LEN"], self.CTX["UNITS"])
+        
+        x_readout = Input(shape=readout_input_shape, name='readout')
+        x_map = Input(shape=map_input_shape, name='map')
+        y_readout = output_module(CTX, x_readout, x_map)
+        self.readout_model = tf.keras.Model([x_readout, x_map], y_readout)
+
+
+    def predict(self, x_):
+        x = x_.pop(0)
+        if (self.CTX["ADD_TAKE_OFF_CONTEXT"]): 
+            takeoff = x_.pop(0)
+            x = np.concatenate([x, takeoff], axis=2)
+            
+        if (self.CTX["ADD_MAP_CONTEXT"]): 
+            map = x_.pop(0)
+            map = self.map_model(map)
+            x = np.concatenate([x, map], axis=2)
+            
+        if (self.CTX["ADD_AIRPORT_CONTEXT"]): 
+            airport = x_.pop(0)
+            airport = np.repeat(airport[:, None], self.CTX["INPUT_LEN"], axis=1)
+            x = np.concatenate([x, airport], axis=2)
+
+        z =__predict_reservoir__(self.CTX, self.reservoir, x)
+        
+        y = self.readout_model([z, map])
+
+        return y
+    
+    def get_variables(self):
+        return self.trainable_variables, self.reservoir
+
+
 
     def set_variables(self, variables):
-        """
-        Set the variables of the model
-        """
-        model_vars, reservoirs = variables
+        model_vars, reservoir = variables
+        print(variables)
         for i in range(len(variables)):
-            self.model.trainable_variables[i].assign(model_vars[i])
+            self.trainable_variables[i].assign(model_vars[i])
 
-        self.reservoir = reservoirs[0]
-        if (self.CTX["ADD_TAKE_OFF_CONTEXT"]): self.take_off_reservoir = reservoirs[1]
+        self.reservoir = reservoir
+        
+        
+    
 
+def map_module(CTX, x):
+    for _ in range(CTX["MAP_LAYERS"]):
+        x = Conv2DModule(16, 3, padding=CTX["MODEL_PADDING"], 
+                         batch_norm=not(CTX["USE_DYT"]), dyt=CTX["USE_DYT"])(x)
+    x = MaxPooling2D()(x)
+    for _ in range(CTX["MAP_LAYERS"]):
+        x = Conv2DModule(32, 3, padding=CTX["MODEL_PADDING"], 
+                         batch_norm=not(CTX["USE_DYT"]), dyt=CTX["USE_DYT"])(x)
+    x = MaxPooling2D()(x)
+    x = Flatten()(x)
+    x = DenseModule(CTX["UNITS"], CTX["DROPOUT"])(x)
+    x = RepeatVector(CTX["INPUT_LEN"])(x)
+    return x
 
-
-
-
-
-
-class TakeOffModule(tf.Module):
-
-    def __init__(self, CTX):
-        self.CTX = CTX
-        self.layers = self.CTX["LAYERS"]
-        self.dropout = self.CTX["DROPOUT"]
-        self.outs = self.CTX["LABELS_OUT"]
-
-
-        self.flatten = Flatten()
-        self.dense = DenseModule(self.CTX["RESERVOIR_UNITS"], dropout=self.dropout)
-
-
-    def __call__(self, x):
-        x = self.flatten(x)
-        x = self.dense(x)
-        return x
-
-class MapModule(tf.Module):
-
-
-    def __init__(self, CTX):
-        self.CTX = CTX
-        self.layers = 1
-        self.dropout = self.CTX["DROPOUT"]
-        self.outs = self.CTX["LABELS_OUT"]
+    
+    
+def output_module(CTX, x, x_map):
+    x = Concatenate()([x, x_map])
+    x = TimeDistributed(Dense(CTX["UNITS"], activation="linear"))(x)
+    x = Flatten()(x)
+    x = Dense(CTX["LABELS_OUT"], activation="linear", name="prediction")(x)
+    x = Activation(CTX["ACTIVATION"], name=CTX["ACTIVATION"])(x)
+    return x
 
 
-        convNN = []
-        for _ in range(self.layers):
-            convNN.append(Conv2DModule(16, 3, padding=self.CTX["MODEL_PADDING"]))
-        convNN.append(MaxPooling2D())
-        for _ in range(self.layers):
-            convNN.append(Conv2DModule(32, 3, padding=self.CTX["MODEL_PADDING"]))
-        convNN.append(MaxPooling2D())
-        for _ in range(self.layers):
-            convNN.append(Conv2DModule(64, 3, padding=self.CTX["MODEL_PADDING"]))
-
-        # convNN.append(GlobalMaxPooling2D())
-
-        convNN.append(Conv2D(32, (2, 2), (2, 2)))
-        convNN.append(BatchNormalization())
-        convNN.append(Flatten())
-        convNN.append(DenseModule(256, dropout=self.dropout))
-
-        self.convNN = convNN
-
-
-    def __call__(self, x):
-        for layer in self.convNN:
-            x = layer(x)
-        return x
-
-
-class AirportModule(tf.Module):
-    """ very simple only a (dense module 64) * nb layers"""
-
-    def __init__(self, CTX):
-        self.CTX = CTX
-        self.layers = self.CTX["LAYERS"]
-        self.dropout = self.CTX["DROPOUT"]
-        self.outs = self.CTX["LABELS_OUT"]
-
-        denseNN = []
-        for _ in range(self.layers):
-            denseNN.append(DenseModule(64, dropout=self.dropout))
-        self.denseNN = denseNN
-
-    def __call__(self, x):
-        for layer in self.denseNN:
-            x = layer(x)
-        return x
-
-
-class ADS_B_Module(tf.Module):
-
-    def __init__(self, CTX):
-        self.CTX = CTX
-        self.layers = self.CTX["LAYERS"]
-        self.dropout = self.CTX["DROPOUT"]
-        self.outs = self.CTX["LABELS_OUT"]
-
-        self.flatten = Flatten()
-        self.dense = DenseModule(self.CTX["RESERVOIR_UNITS"], dropout=self.dropout)
-
-
-        self.cat = Concatenate()
-
-        denseNN = []
-        denseNN.append(Dense(self.outs, activation="linear", name="prediction"))
-
-        self.denseNN = denseNN
-        self.probability = Activation(CTX["ACTIVATION"], name=CTX["ACTIVATION"])
-
-    def __call__(self, x):
-
-        adsb = x.pop(0)
-        if (self.CTX["ADD_TAKE_OFF_CONTEXT"]):
-            takeoff = x.pop(0)
-        if (self.CTX["ADD_MAP_CONTEXT"]):
-            map = x.pop(0)
-        if (self.CTX["ADD_AIRPORT_CONTEXT"]):
-            airport = x.pop(0)
-
-
-
-
-        # preprocess
-        x = adsb
-        x = self.flatten(x)
-        x = self.dense(x)
-
-        # concat takeoff and map
-        cat = [x]
-        if (self.CTX["ADD_MAP_CONTEXT"]):
-            cat.append(map)
-        if (self.CTX["ADD_TAKE_OFF_CONTEXT"]):
-            cat.append(takeoff)
-        if (self.CTX["ADD_AIRPORT_CONTEXT"]):
-            cat.append(airport)
-
-        x = self.cat(cat)
-
-        # get prediction
-        for layer in self.denseNN:
-            x = layer(x)
-        x = self.probability(x)
-        return x
-
-
-
-# # Nathan Trouvain, Nicolas P. Rougier, Xavier Hinaut. Create Efficient and Complex Reservoir Computing Architectures with ReservoirPy. SAB 2022 - FROM ANIMALS TO ANIMATS 16: The 16th International Conference on the Simulation of Adaptive Behavior, Sep 2022, Cergy-Pontoise / Hybrid, France. ⟨hal-03761440⟩
-
-# @article{reservoir,
-#     title={Create Efficient and Complex Reservoir Computing Architectures with ReservoirPy},
-#     author={Nathan Trouvain, Nicolas P. Rougier, Xavier Hinaut},
-#     journal={SAB 2022 - FROM ANIMALS TO ANIMATS 16: The 16th International Conference on the Simulation of Adaptive Behavior},
-#     month={Sep},
-#     year={2022},
-#     address={Cergy-Pontoise / Hybrid, France}
-# }

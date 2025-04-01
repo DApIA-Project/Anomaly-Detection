@@ -16,7 +16,6 @@ def sec_to_time(sec:float)->str:
     h = sec // 3600
     return str(h).rjust(2, "0")+"h "+str(m).rjust(2, "0")+"m "+str(s).rjust(2, "0")+"s"
 
-
 # |====================================================================================================================
 # | Genrate pleasant display of a progress bar with easy parameters
 # |====================================================================================================================
@@ -29,6 +28,9 @@ class ProgressBar:
         self._progress = 0
         self._startup = time.time()
         self._reprint = True
+        
+        self.window = 512
+        self.last_updates = []
 
     def reset(self, min:float=None, max:float=None, width:int=None) -> None:
         if min is not None:self.min = min
@@ -42,6 +44,7 @@ class ProgressBar:
 
         self._progress = 0
         self._startup = time.time()
+        self.last_updates.clear()
 
     def disable_reprint(self) -> None:
         self._reprint = False
@@ -58,12 +61,24 @@ class ProgressBar:
         if (value == self.min):
             self._startup = time.time()
         elapsed = time.time() - self._startup
+        
 
         self._progress = value
         percent = 100 * (value - self.min) / (self.max - self.min)
+        
 
+        self.last_updates.append([elapsed, percent])
+        if (len(self.last_updates) > self.window):
+            self.last_updates.pop(0)
+            
+        time_per_purcent = 0
+        if (len(self.last_updates) > 1):
+            time_per_purcent = (self.last_updates[-1][0] - self.last_updates[0][0]) / (self.last_updates[-1][1] - self.last_updates[0][1])
+        else:
+            time_per_purcent = elapsed / percent
+            
         remaining_percent = 100 - percent
-        remaining_time = (elapsed * remaining_percent / percent) if percent > 0 else 0
+        remaining_time = time_per_purcent * remaining_percent if percent > 0 else 0
 
 
         if(self._reprint):

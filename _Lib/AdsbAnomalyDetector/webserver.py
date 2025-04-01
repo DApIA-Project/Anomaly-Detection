@@ -175,7 +175,7 @@ def reset():
 class webserver:
     def run(port=3033):
         print("Startup AdsbAnomalyDetector webserver at http://localhost:"+str(port)+"/")
-        app.run(debug=True, port=port, use_reloader=False)
+        app.run(debug=True, port=port, use_reloader=False, load_dotenv=False)
         
         
 if (__name__ == "__main__"):

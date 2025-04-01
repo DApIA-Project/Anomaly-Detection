@@ -1,6 +1,7 @@
+import matplotlib
+matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_pdf import PdfPages
-import math
 
 import _Utils.geographic_maths as GEO
 

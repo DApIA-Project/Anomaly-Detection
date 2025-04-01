@@ -36,24 +36,18 @@ class Model(AbstactModel):
         
         z = x
 
-        z = Conv1DModule(128, 1)(z)
-        z = MaxPool1D(2)(z)
-        z = Conv1DModule(64, 1)(z)
-        z = MaxPool1D(2)(z)
-        z = Conv1DModule(32, 1)(z)
-        z = Flatten()(z)
+        z = Conv1DModule(self.CTX["UNITS"], 1)(z)
+        for i in range(CTX["LAYERS"] - 1):
+            if (self.CTX["RESIDUAL"] > 0):
+                res = z * self.CTX["RESUDUAL"]
+                
+            z = LSTM(CTX["UNITS"], return_sequences=True, dropout=self.dropout)(z)
+            
+            if (self.CTX["RESIDUAL"] > 0):
+                z = Add()([z, res])
+                
+        z = LSTM(CTX["UNITS"], return_sequences=False)(z)
         
-        # n = self.CTX["LAYERS"]
-        # for _ in range(n-1):
-            # res = z * self.CTX["RESUDUAL"]
-            # z = LSTM(128, return_sequences=True, dropout=self.dropout)(z)
-
-            # z = Add()([z, res])
-        # z = LSTM(128, return_sequences=False)(z)
-
-        z = DenseModule(128, self.dropout)(z)
-        # z = DenseModule(64, self.dropout)(z)
-        # z = DenseModule(32, self.dropout)(z)
         z = Dense(1, activation="sigmoid")(z)
         y = z
 

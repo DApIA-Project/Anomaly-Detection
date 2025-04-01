@@ -73,7 +73,7 @@ class DataLoader(AbstractDataLoader):
 
         filenames = []
         filenames += U.list_flights(path+"base/", limit=1000)#Limits.INT_MAX)
-        filenames += U.list_flights(path+"interp_0/", limit=1000)#Limits.INT_MAX)
+        filenames += U.list_flights(path+"interp_0-0.00015/", limit=1000)#Limits.INT_MAX)
         # filenames += U.list_flights(path+"interp_0.0001/", limit=1000)#Limits.INT_MAX)
         # filenames += U.list_flights(path+"interp_3e-05/", limit=1000)#Limits.INT_MAX)
         BAR.reset(max=len(filenames))

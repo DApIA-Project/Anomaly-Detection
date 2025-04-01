@@ -20,18 +20,16 @@ MODEL_PADDING = "same"
 # "valid" do not pad
 # "last" duplicate the last row
 # "nan" fill with nan (as the model "know" what is a nan value)
-INPUT_PADDING = "nan"
+INPUT_PADDING = "valid"
 
 USE_DYT = False
 DYNAMIC_LABEL_RATIO = True
 
 
-LAYERS = 2
 DROPOUT = 0.1
 UNITS = 128
-RESIDUAL = 1
 
-ACTIVATION = "sigmoid"
+ACTIVATION = "softmax"
 
 
 

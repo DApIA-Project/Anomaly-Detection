@@ -1,10 +1,10 @@
 
 
 # Import the model
-from B_Model.AircraftClassification.CNN2 import Model
+from B_Model.AircraftClassification.TLeNet import Model
 
 # Import the context (hyperparameters, constants, etc...)
-import C_Constants.AircraftClassification.CNN as CTX
+import C_Constants.AircraftClassification.TLeNet as CTX
 import C_Constants.AircraftClassification.DefaultCTX as DefaultCTX
 
 # Import the training loop adapted to the model

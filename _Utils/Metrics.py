@@ -7,6 +7,8 @@ from _Utils.plotADSB import Color
 
 T = TypeVar("T")
 
+
+
 # |====================================================================================================================
 # | Accuracy
 # |====================================================================================================================
@@ -37,7 +39,7 @@ def binary_accuracy(y:np.float64_2d[ax.sample, ax.feature], y_:np.float64_2d[ax.
     return acc / len(y)
                 
 
-def per_class_accuracy(y:np.ndarray, y_:np.ndarray) -> np.ndarray:
+def accuracy_per_class(y:np.ndarray, y_:np.ndarray) -> np.ndarray:
     mat = confusion_matrix(y, y_)
     # get diagonal
     diag = np.diag(mat)

@@ -2,7 +2,7 @@ import os
 import subprocess
 
 
-VERSION = "0.7.1"
+VERSION = "0.8.2"
 
 
 class MODELS:
@@ -10,7 +10,7 @@ class MODELS:
     separator = "GEO"
     replay = "HASH"
     flooding = "LSTM"
-    interp = "LSTM"
+    interp = "CNN"
 
 
 
@@ -381,9 +381,9 @@ os.system(f"mv ./AdsbAnomalyDetector/{constants[0]} ./AdsbAnomalyDetector/C_Cons
 # FloodingSolver
 # # copy weights
 os.system(f"mkdir ./AdsbAnomalyDetector/InterpolationDetector")
-os.system(f"cp ../_Artifacts/InterpolationDetector/{MODELS.flooding}/w ./AdsbAnomalyDetector/InterpolationDetector/w")
-os.system(f"cp ../_Artifacts/InterpolationDetector/{MODELS.flooding}/xs ./AdsbAnomalyDetector/InterpolationDetector/xs")
-os.system(f"cp ../_Artifacts/InterpolationDetector/{MODELS.flooding}/pad ./AdsbAnomalyDetector/InterpolationDetector/pad")
+os.system(f"cp ../_Artifacts/InterpolationDetector/{MODELS.interp}/w ./AdsbAnomalyDetector/InterpolationDetector/w")
+os.system(f"cp ../_Artifacts/InterpolationDetector/{MODELS.interp}/xs ./AdsbAnomalyDetector/InterpolationDetector/xs")
+os.system(f"cp ../_Artifacts/InterpolationDetector/{MODELS.interp}/pad ./AdsbAnomalyDetector/InterpolationDetector/pad")
 
 # rename model and constant file to be generic
 model = find_files_and_filter("B_Model_InterpolationDetector_")

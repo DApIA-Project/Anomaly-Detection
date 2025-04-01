@@ -237,18 +237,39 @@ class DataLoader(AbstractDataLoader):
 # |    GENERATE A TRAINING SET
 # |====================================================================================================================
 
-    def get_train(self)\
+    def get_label_ratio(acc_per_class:"list[float]") -> "list[float]":
+        # compute the new ratio according to the accuracy
+        # eg. 100, 90, 90 -> 0, 0.5, 0.5
+        # eg. 90, 80, 80 -> 10, 20, 20 -> 0.2, 0.4, 0.4
+        DEV = 0.5
+        res = [0] * len(acc_per_class)
+        for i in range(len(acc_per_class)):
+            res[i] = (100 - acc_per_class[i]) / (100.0)
+            res[i] = (1.0-DEV + res[i] * DEV) / (1.0 + DEV)
+        tot = sum(res)
+        for i in range(len(res)):
+            res[i] = res[i] / tot
+            
+            
+        return res
+    
+
+    def get_train(self, acc_per_class:"list[float]")\
             ->"tuple[list[np.ndarray], np.ndarray]":
 
         CTX = self.CTX
         x_batch, y_batch, x_batch_takeoff, x_batch_map, x_batch_airport =\
             SU.alloc_batch(self.CTX, CTX["NB_BATCH"] * CTX["BATCH_SIZE"])
         filenames = []
+        
+        label_ratio = None
+        if (CTX["DYNAMIC_LABEL_RATIO"]):
+            label_ratio = DataLoader.get_label_ratio(acc_per_class)
 
         for s in range(0, len(x_batch)):
 
             x_sample, y_sample, x_sample_takeoff, x_sample_map, x_sample_airport, filename =\
-                SU.gen_random_sample(CTX, self.x_train, self.y_train, self.PAD, filenames=self.filenames)
+                SU.gen_random_sample(CTX, self.x_train, self.y_train, self.PAD, label_ratio=label_ratio, filenames=self.filenames)
             x_batch[s] = x_sample
             y_batch[s] = y_sample
             filenames += filename
@@ -308,6 +329,8 @@ class DataLoader(AbstractDataLoader):
                     x_batch, x_batch_takeoff, x_batch_map, x_batch_airport,
                     y_batch,
                     nb_batches, batch_size)
+
+
 
     def process_stream_of(self, message:"dict[str, object]") -> """tuple[
              tuple[

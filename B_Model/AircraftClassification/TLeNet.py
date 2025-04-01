@@ -7,12 +7,13 @@ from B_Model.AircraftClassification.Utils import *
 
 class Model(TensorflowModel):
 
-    name = "LSTM"
+    name = "TLeNet"
 
     def __init__(self, CTX:dict):
         super().__init__(CTX, ads_b_module)
 
 
+    
 
 def ads_b_module(CTX, x, x_takeoff, airport, x_map):
     
@@ -27,20 +28,23 @@ def ads_b_module(CTX, x, x_takeoff, airport, x_map):
     if (x_map is not None):
         x_map = RepeatVector(CTX["INPUT_LEN"])(x_map)
         cat.append(x_map)
+
         
     if (len(cat) > 1):
         x = Concatenate()(cat)
         
+    conv_1 = Conv1D(filters=5,kernel_size=5,activation='relu', padding='same')(x)
+    conv_1 = MlaxPool1D(pool_size=2)(conv_1)
     
-    x = TimeDistributed(Dense(CTX["UNITS"], activation="linear"))(x)
-    x_skip = x
-    for _ in range(CTX["LAYERS"]):
-        x = LSTM(CTX["UNITS"], return_sequences=True)(x)
-        if (CTX["RESIDUAL"] > 0):
-            x_skip = x_skip * CTX["RESIDUAL"]
-            x = Add()([x, x_skip])
-            
-    x = LSTM(CTX["UNITS"], return_sequences=False)(x)
+    conv_2 = Conv1D(filters=20, kernel_size=5, activation='relu', padding='same')(conv_1)
+    conv_2 = MaxPool1D(pool_size=4)(conv_2)
     
-    return x
+    # they did not mention the number of hidden units in the fully-connected layer
+    # so we took the lenet they referenced 
+    
+    flatten_layer = Flatten()(conv_2)
+    fully_connected_layer = Dense(500,activation='relu')(flatten_layer)
+    
+    
+    return fully_connected_layer
     

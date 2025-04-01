@@ -210,6 +210,8 @@ class Trainer(AbstractTrainer):
         self.__history__[:, ep-1] = [train_loss, test_loss, train_dist, test_dist]
         for i in range(4):
             self.__history_mov_avg__[i, ep-1] = Metrics.moving_average_at(self.__history__[i], ep-1, w=5)
+        
+        # save model weights
         write(self.ARTIFACTS+"/weights/"+str(ep)+".w", self.model.get_variables())
 
         # Display statistics !
@@ -485,12 +487,17 @@ class Trainer(AbstractTrainer):
         # only keep folder named exp_solo
         # self.__eval_files__ = [f for f in self.__eval_files__ if f[0].split("/")[-2] == "exp_solo"]
 
-        mean_acc = np.zeros(3, dtype=np.float64)
-        for folder in self.__eval_files__:
+        mean_accs = np.zeros(3, dtype=np.float64)
+        mean_loss = []
+        bests_accs = []
+        BAR.reset(min=0, max=100)
+        CHRONO.start()
+        for fi in range(len(self.__eval_files__)):
+            folder = self.__eval_files__[fi]
 
             dfs, max_len, y, y_, loss, loss_ = self.__gen_eval_batch__(folder)
 
-            BAR.reset(max=max_len)
+            
             prntC(C.INFO, "Evaluating model on : ", C.BLUE, folder[0].split("/")[-2])
 
             first = True
@@ -506,22 +513,36 @@ class Trainer(AbstractTrainer):
                     y [files[i]][t] = [x[i]["latitude"], x[i]["longitude"]]
                     loss_[files[i]][t] = losst_[i]
                     loss [files[i]][t] = GEO.distance(x[i]["latitude"], x[i]["longitude"], yt_[i][0], yt_[i][1])
-                BAR.update()
+                BAR.update((float(fi) + float(t+1)/max_len)/len(self.__eval_files__)*100, f"{fi}/{len(self.__eval_files__)}")
 
             name = folder[0].split("/")[-2]
-            best, acc = self.__eval_stats__(loss, loss_, y_, y, dfs, max_len, name=name)
-            mean_acc += acc
-            prntC(C.INFO, "Accuracy for ", C.BLUE, name, C.RESET, " : ", C.BLUE, round(best*100, 2), "% (", acc,")" )
+            best, accs, loss = self.__eval_stats__(loss, loss_, y_, y, dfs, max_len, name=name)
+            mean_accs += accs
+            mean_loss.append(loss)
+            bests_accs.append(best)
+        CHRONO.stop()
+        
 
-        mean_acc /= len(self.__eval_files__)
+        
+        for f in range(len(self.__eval_files__)):
+            if (len(self.__eval_files__[f]) >= 1):
+                prntC(f"- flight {self.__eval_files__[f][0]} -> acc : {round(bests_accs[f]*100, 2)}% - loss : {round(mean_loss[f], 2)}m")
+            else:
+                prntC("WTF")
+                
 
-        prntC(C.INFO, "accuracy by mean loss : ", C.BLUE, round(mean_acc[0]*100, 2), "%")
-        prntC(C.INFO, "accuracy by loss at attack : ", C.BLUE, round(mean_acc[1]*100, 2), "%")
-        prntC(C.INFO, "accuracy by loss around attack : ", C.BLUE, round(mean_acc[2]*100, 2), "%")
+        mean_accs /= len(self.__eval_files__)
+        mean_loss = np.mean(mean_loss)
 
-        prntC(C.INFO, "best accuracy : ", C.BLUE, round(mean_acc.max()*100, 2), "%")
+        prntC(C.INFO, "accuracy by mean loss : ", C.BLUE, round(mean_accs[0]*100, 2), "%")
+        prntC(C.INFO, "accuracy by loss at attack : ", C.BLUE, round(mean_accs[1]*100, 2), "%")
+        prntC(C.INFO, "accuracy by loss around attack : ", C.BLUE, round(mean_accs[2]*100, 2), "%")
 
-        return {"mean_acc": mean_acc}
+        prntC(C.INFO, "best accuracy : ", C.BLUE, round(mean_accs.max()*100, 2), "%")
+
+        return {"ACCURACY": round(mean_accs.max()*100, 2),
+                "ERROR": round(mean_loss, 2), 
+                "TIME": round(CHRONO.get_time_s(),1)}
 
 
 
@@ -536,7 +557,7 @@ class Trainer(AbstractTrainer):
                        y_:"list[np.float64_2d[ax.time, ax.feature]]",
                        y:"list[np.float64_2d[ax.time, ax.feature]]",
                        dfs:"list[pd.DataFrame]",
-                       max_len:int, name:str) -> float:
+                       max_len:int, name:str) -> "tuple[float, list[float], float]":
 
         # plot mean loss (along flights), per timestamp
         mean_loss = np.zeros(max_len, dtype=np.float64)
@@ -547,18 +568,18 @@ class Trainer(AbstractTrainer):
             mean_loss_[t] = np.nanmean([loss_[f][t] for f in files])
 
 
-        return self.__plot_eval__(dfs, y_, y, loss, loss_, mean_loss, mean_loss_, max_len, name)
+        return self.__plot_eval__(dfs, y_, y, loss, loss_, mean_loss, mean_loss_, max_len, name) + (self.__eval_pred_error_m__(dfs, loss),)
 
 
 
     def __plot_eval__(self, dfs:"list[pd.DataFrame]",
                       y_:"list[np.float64_2d[ax.time, ax.feature]]", y:"list[np.float64_2d[ax.time, ax.feature]]",
                       loss:"list[np.float64_1d]", loss_:"list[np.float64_1d]", mean_loss:np.float64_1d, mean_loss_:np.float64_1d,
-                      max_len:int, name:str) -> float:
+                      max_len:int, name:str) -> "tuple[float, list[float]]":
 
         self.__plot_loss_curves__(loss, loss_, mean_loss, mean_loss_, max_len, name)
         self.__plot_predictions_on_saturation__(dfs, y_, y, loss, max_len, name)
-        self.__plot_prediction_on_error_spikes__(dfs, y_, y, loss, loss_, max_len, name)
+        # self.__plot_prediction_on_error_spikes__(dfs, y_, y, loss, loss_, max_len, name)
         return self.__plot_safe_icao24__(dfs, loss, name)
 
 
@@ -744,8 +765,14 @@ class Trainer(AbstractTrainer):
             PLT.show(name, pdf=pdf)
         pdf.close()
 
+    def __eval_pred_error_m__(self, dfs:"list[pd.DataFrame]",
+                                    loss:"list[np.float64_1d]") -> float:
+        
+        true_icao_i = np.argmax([len(dfs[i]) for i in range(len(dfs))])
+        return np.nanmean(loss[true_icao_i])
 
-    def __plot_safe_icao24__(self, dfs:"list[pd.DataFrame]", loss:"list[np.float64_1d]", name:str) -> float:
+
+    def __plot_safe_icao24__(self, dfs:"list[pd.DataFrame]", loss:"list[np.float64_1d]", name:str) -> "tuple[float, list[float]]":
         if (len(dfs) == 1): return 1,  [1, 1, 1]
         icaos24 = [df["icao24"].iloc[0] for df in dfs]
 
@@ -767,8 +794,8 @@ class Trainer(AbstractTrainer):
         fig, ax = plt.subplots(1, len(LABELS), figsize=(15 * len(dfs) / 10.0, 5))
 
         colors = ["tab:blue", "tab:green", "tab:purple", "tab:red", "tab:orange", "tab:brown", "tab:pink", "tab:gray", "tab:olive", "tab:cyan"]
-        best_acc = 0
-        acc = [0, 0, 0]
+        best_acc = 0.0
+        acc = [0.0, 0.0, 0.0]
         for i, loss in enumerate([mean_loss_per_flights, mean_loss_at_attack, mean_loss_around_attack]):
 
             order = np.argsort(loss)
@@ -792,6 +819,7 @@ class Trainer(AbstractTrainer):
             ax[i].grid()
         fig.tight_layout()
         plt.savefig(self.ARTIFACTS+f"/safe_icao24_{name}.png")
+    
 
         return best_acc, acc
 

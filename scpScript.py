@@ -10,7 +10,7 @@ import os
 # remove empty folder
 "find . -type d -empty -delete"
 
-os.system('ssh ml "cd WORK/DAPIA/ && find . -type f -name \'*.py[co]\' -delete -o -type d -name __pycache__ -delete && find . -type f -iname \*.py -delete && find . -type d -empty -delete"')
+os.system('ssh ovh2 "cd dapia/ && find . -type f -name \'*.py[co]\' -delete -o -type d -name __pycache__ -delete && find . -type f -iname \*.py -delete && find . -type d -empty -delete"')
 
 
 
@@ -39,9 +39,10 @@ for file in f:
         os.system("mkdir -p ../tmp/" + folder)
         os.system('cp ' + folder+'/'+file + ' ../tmp/'+folder+'/'+file)
 
-os.system('scp -r ../tmp/* ml:WORK/DAPIA/')
+# os.system('scp -r ../tmp/* ml:WORK/DAPIA/')
+os.system('scp -r ../tmp/* ovh2:dapia/')
 
 
-# connect shh to the server and execute cd WORK/DAPIA/ && ./main.sh
-os.system('ssh ml "cd WORK/DAPIA/ && ./main.sh"')
+# # connect shh to the server and execute cd WORK/DAPIA/ && ./main.sh
+# os.system('ssh ml "cd WORK/DAPIA/ && ./main.sh"')
 

@@ -11,6 +11,9 @@ pip install pandas
 pip install scikit-learn
 pip install numpy-typing
 
+# webserver for live anomaly detection
+pip install flask
+
 
 # Visualization (chart + maps)
 pip install matplotlib

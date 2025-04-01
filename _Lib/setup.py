@@ -1,4 +1,4 @@
-VERSION = "0.7.1"
+VERSION = "0.8.2"
 
 from setuptools import setup, find_packages
 import sys
@@ -24,7 +24,7 @@ setup(
     install_requires=["tensorflow", "numpy", "pandas", "scikit-learn", "matplotlib", "pickle-mixin", "cartopy", "numpy_typing", "flask", "flask-cors"], # add any additional packages that
     # needs to be installed along with your package. Eg: 'caer'
     package_data={
-        '': ['*.py', "map.png", "labels.csv", "./AircraftClassification/*", "./FloodingSolver/*"],
+        '': ['*.py', "map.png", "labels.csv", "./AircraftClassification/*", "./FloodingSolver/*", "./InterpolationDetector/*"],
     },
     keywords=['python', 'deep learning', 'tensorflow', 'aircraft', 'classification', 'ADS-B'],
     classifiers= [

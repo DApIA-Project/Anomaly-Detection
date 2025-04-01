@@ -5,55 +5,69 @@ from keras.layers import *
 from B_Model.AbstractModel import Model as AbstactModel
 from B_Model.Utils.TF_Modules import *
 
+from numpy_typing import np, ax
 
 from _Utils.os_wrapper import os
 
+import _Utils.Color as C
+from   _Utils.Color import prntC
 
 class Model(AbstactModel):
 
     name = "CNN"
 
     def __init__(self, CTX:dict):
+        """
+        Generate model architecture
+        Define loss function
+        Define optimizer
+        """
+
 
         # load context
         self.CTX = CTX
         self.dropout = CTX["DROPOUT"]
-        self.outs = CTX["FEATURES_OUT"]
 
         # save the number of training steps
         self.nb_train = 0
 
         x_input_shape = (self.CTX["INPUT_LEN"], self.CTX["FEATURES_IN"])
-        x = tf.keras.Input(shape=x_input_shape, name='input')
-
+        x = Input(shape=x_input_shape, name='input')
+        
         z = x
-        n = self.CTX["LAYERS"]
-        for i in range(n):
-            z = Conv1D(128, 3, padding="same")(z)
-            z = BatchNormalization()(z)
-            z = LeakyReLU()(z)
 
-        z = Flatten()(z)
-        z = Dense(self.outs, activation="sigmoid")(z)
+        for i in range(self.CTX["LAYERS"]):
+            z = Conv1DModule(self.CTX["UNITS"])(z)
+       
+        z = GlobalAveragePooling1D()(z)
+
+        z = Dense(1, activation="sigmoid")(z)
         y = z
 
-
         self.model = tf.keras.Model(x, y)
-        self.loss = tf.keras.losses.MeanSquaredError()
-        self.opt = tf.keras.optimizers.Adam(learning_rate=CTX["LEARNING_RATE"])
 
+
+        # define loss function
+        self.loss = tf.keras.losses.MeanSquaredError()
+
+        # define optimizer
+        self.opt = tf.keras.optimizers.Adam(learning_rate=CTX["LEARNING_RATE"])
+        # self.opt = tf.keras.optimizers.SGD(learning_rate=CTX["LEARNING_RATE"])
 
 
     def predict(self, x):
+        """
+        Make prediction for x
+        """
         return self.model(x)
-    
-
 
     def compute_loss(self, x, y):
+        """
+        Make a prediction and compute the loss
+        that will be used for training
+        """
         y_ = self.model(x)
         return self.loss(y_, y), y_
-    
-    
 
     def training_step(self, x, y):
         """
@@ -75,6 +89,11 @@ class Model(AbstactModel):
         """
         Generate a visualization of the model's architecture
         """
+
+        params = 0
+        for i in range(len(self.model.trainable_variables)):
+            params += np.prod(self.model.trainable_variables[i].shape)
+
         filename = os.path.join(save_path, self.name+".png")
         tf.keras.utils.plot_model(self.model, to_file=filename, show_shapes=True)
 

@@ -37,6 +37,19 @@ def check_sample(CTX:"dict[str, object]", x:"np.float64_2d[ax.time, ax.feature]"
     ts_pred = FG.timestamp(x[i][t_])
     if (ts_actu + HORIZON != ts_pred):
         return False
+    
+    start = t - HORIZON
+    for m in range(start, t + 1):
+        
+        if (lats[m] == 0 and lons[m] == 0):
+            return False
+        
+        if (m > start):
+            d = GEO.distance(lats[m-1], lons[m-1], lats[m], lons[m])
+            if (d < 1):
+                return False
+            if (d > 400):
+                return False
 
     # # Check there is no abnormal distance between two consecutive points (only at the end of the trajectory)
     # dist_values, i = np.zeros((HORIZON + HORIZON)), 0

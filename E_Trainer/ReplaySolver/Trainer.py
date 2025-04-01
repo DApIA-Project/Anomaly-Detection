@@ -92,6 +92,7 @@ class Trainer(AbstractTrainer):
 
     def train(self) -> None:
         CTX = self.CTX
+        
 
         for ep in range(1, CTX["EPOCHS"] + 1):
 
@@ -117,6 +118,8 @@ class Trainer(AbstractTrainer):
             accuracy /= len(x_test)
 
             self.__epoch_stats__(ep, accuracy)
+            
+
 
 
 

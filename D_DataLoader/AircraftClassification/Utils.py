@@ -213,15 +213,18 @@ def alloc_batch(CTX:dict, size:int)\
 
 def gen_random_sample(CTX:dict, x:"list[np.float64_2d[ax.time, ax.feature]]",
                                 y:np.float64_2d[ax.sample, ax.label],
-                                PAD:np.float64_1d[ax.feature], filenames:"list[str]"=[]) -> """tuple[
+                                PAD:np.float64_1d[ax.feature], label_ratio=None, filenames:"list[str]"=[]) -> """tuple[
         np.float64_2d[ax.time, ax.feature],
         np.float64_2d[ax.label],
         np.float64_2d[ax.time, ax.feature] | None,
         np.float64_3d[ax.x, ax.y, ax.rgb] | None,
         np.float64_1d[ax.feature] | None,
         str]""":
+            
+    if (label_ratio is None):
+        label_ratio = np.ones(CTX["LABELS_OUT"]) / CTX["LABELS_OUT"]
 
-    i, t = pick_random_loc(CTX, x, y, filenames)
+    i, t = pick_random_loc(CTX, x, y, label_ratio, filenames)
     x_batch, x_batch_takeoff, x_batch_map, x_batch_airport, _ = gen_sample(CTX, x, PAD, i, t, valid=True)
     return x_batch, y[i], x_batch_takeoff, x_batch_map, x_batch_airport, filenames[i]
 
@@ -229,11 +232,12 @@ def gen_random_sample(CTX:dict, x:"list[np.float64_2d[ax.time, ax.feature]]",
 def pick_random_loc(CTX:"dict[str, object]",
                     x:"list[np.float64_2d[ax.time, ax.feature]]",
                     y:np.float64_2d[ax.sample, ax.label],
+                    label_ratio:np.float64_1d[ax.label],
                     filenames:"list[str]"=[]) -> "tuple[int, int]":
 
     ON_TAKE_OFF = 5.0/100.0#%
     # pick a label
-    label = np.random.randint(0, CTX["LABELS_OUT"])
+    label = np.random.choice(CTX["LABELS_OUT"], p=label_ratio)
 
     # pick a flight
     i = -1

@@ -61,56 +61,66 @@ def rotate_sphe(lats, lons, Olat:float, Olon:float, angle:float):
 
     return lats, lons,
 
+def lat_lon_dist_m(lat1, lon1, lat2, lon2):
+    R = 6371000
+    phi1 = np.radians(lat1)
+    phi2 = np.radians(lat2)
+    delta_phi = np.radians(lat2 - lat1)
+    delta_lambda = np.radians(lon2 - lon1)
+
+    a = np.sin(delta_phi / 2) * np.sin(delta_phi / 2) + np.cos(phi1) * np.cos(phi2) * np.sin(delta_lambda / 2) * np.sin(delta_lambda / 2)
+    c = 2 * np.arctan2(np.sqrt(a), np.sqrt(1 - a))
+
+    return R * c
 
 
-df = pd.read_csv('./2022-01-11_19-43-26_SAMU31_39ac45.csv',  dtype={"icao24":str, "callsign":str})
+def can_flood(df:pd.DataFrame, at:int):
+    lat = df['latitude'].values
+    lon = df['longitude'].values
+    
+    for t in range(at - 8, at + 8):
+        if t < 0 or t >= len(df):
+            return False
+        
+        if (t > at - 8):
+            d = lat_lon_dist_m(lat[t-1], lon[t-1], lat[t], lon[t])
+            if (d < 1):
+                return False
+            if (d > 400):
+                return False
+            
+    return True
+            
+    
 
-FLOOD_AFTER = 60
-# "rdm" | "geo" | "sphe"
-MODE = "geo"
-OUT = "./Eval/exp"
+def flood(df, after=60):
+    
+    
+    # find i value
+    i = 0
+    while df["timestamp"].values[i] - df["timestamp"].values[0] <= after:
+        i += 1
+        
+    # check that the condition are good
+    while i < len(df) and not(can_flood(df, i)):
+        i += 1
+        
+    if i == len(df):
+        return {}
+    
 
-if not(os.path.exists(f'{OUT}_{MODE}')):
-    os.makedirs(f'{OUT}_{MODE}')
-else:
-    os.system(f'rm -rf {OUT}_{MODE}/*')
+    O_lat = df['latitude'].values[i]
+    O_long = df['longitude'].values[i]
 
-
-
-# find i value
-i = 0
-while df["timestamp"].values[i] - df["timestamp"].values[0] <= FLOOD_AFTER:
-    i += 1
-
-O_lat = df['latitude'].values[i]
-O_long = df['longitude'].values[i]
-
-concat = pd.DataFrame()
-
-if (MODE == "rdm"):
-
-    for random in [0, 1, 2, 3, 5, 10, 20, 40, 80]:
-
-        lats = df['latitude'].values[i:].copy()
-        lats = lats + np.random.uniform(-random/10000, random/10000, lats.shape)
-        lons = df['longitude'].values[i:].copy()
-        lons = lons + np.random.uniform(-random/10000, random/10000, lons.shape)
-
-        sub_df = df.copy()
-        sub_df['latitude'][i:] = lats
-        sub_df['longitude'][i:] = lons
-        if (random != 0):
-            sub_df["icao24"] = str(random)
-        sub_df.to_csv(f'{OUT}_{MODE}/rdm{random}.csv', index=False)
-else:
-
-    # for deriv in [-90, -65, -45, -30, -15, -10, -7, -5, -3, -2, -1, 0, 1, 2, 3, 5, 7, 10, 15, 30, 45, 65, 90]:
-    for deriv in [-90, -65, -45, -30, -15, -10, -6, -3, 0, 3, 6, 10, 15, 30, 45, 65, 90]:
-
-        if (MODE == "geo"):
-            lats, lons = rotate_geo (df['latitude'].values[i:].copy(), df['longitude'].values[i:].copy(), O_lat, O_long, deriv)
-        elif (MODE == "sphe"):
-            lats, lons = rotate_sphe(df['latitude'].values[i:].copy(), df['longitude'].values[i:].copy(), O_lat, O_long, deriv)
+    # concat = pd.DataFrame()
+    
+    res = {}
+    
+    for deriv in [-25, -16, -11, -7, -4, -2, -1, 0, 1, 2, 4, 7, 11, 16, 25]:
+        # if (geo):
+        #     lats, lons = rotate_geo (df['latitude'].values[i:].copy(), df['longitude'].values[i:].copy(), O_lat, O_long, deriv)
+        # else:
+        lats, lons = rotate_sphe(df['latitude'].values[i:].copy(), df['longitude'].values[i:].copy(), O_lat, O_long, deriv)
 
         sub_df = df.copy()
         sub_df['latitude'][i:] = lats
@@ -124,11 +134,93 @@ else:
         if (deriv != 0):
             sub_df["icao24"] = str(deriv)
 
-        sub_df.to_csv(f'{OUT}_{MODE}/rot{deriv}.csv', index=False)
+        # sub_df.to_csv(f'{OUT}_{MODE}/rot{deriv}.csv', index=False)
+        res["rot"+str(deriv)] = sub_df
 
-        sub_df['icao24'] = df["icao24"]
-        concat = pd.concat([concat, sub_df])
+    #     sub_df['icao24'] = df["icao24"]
+    #     concat = pd.concat([concat, sub_df])
+    
+    # concat = concat.sort_values(by='timestamp')
+
+    return res
+
+
+files = os.listdir("../AircraftClassification/Eval")
+
+# delete every directory starting with EVAL
+os.system("rm -rf ./Eval/EVAL*")
+
+OUT = "./Eval"
+i = 0
+f = 0
+while i < 30:
+    df = pd.read_csv(f'../AircraftClassification/Eval/{files[f]}',  dtype={"icao24":str, "callsign":str})
+    res = flood(df, after=60)
+    if (len(res) == 0):
+        print(f"Could not flood {files[f]}")
+        f += 1
+    else:
+        name = files[f].split(".")[0]
+        os.makedirs(f'{OUT}/EVAL_{name}', exist_ok=True)
+        for key in res:
+            res[key].to_csv(f'{OUT}/EVAL_{name}/{key}.csv', index=False)
+            
+        f += 1
+        i += 1
+
+# df = pd.read_csv('./2022-01-11_19-43-26_SAMU31_39ac45.csv',  dtype={"icao24":str, "callsign":str})
+
+# # "rdm" | "geo" | "sphe"
+# MODE = "geo"
+# OUT = "./Eval/exp"
+
+# if not(os.path.exists(f'{OUT}_{MODE}')):
+#     os.makedirs(f'{OUT}_{MODE}')
+# else:
+#     os.system(f'rm -rf {OUT}_{MODE}/*')
+
+
+
+
+# if (MODE == "rdm"):
+
+#     for random in [0, 1, 2, 3, 5, 10, 20, 40, 80]:
+
+#         lats = df['latitude'].values[i:].copy()
+#         lats = lats + np.random.uniform(-random/10000, random/10000, lats.shape)
+#         lons = df['longitude'].values[i:].copy()
+#         lons = lons + np.random.uniform(-random/10000, random/10000, lons.shape)
+
+#         sub_df = df.copy()
+#         sub_df['latitude'][i:] = lats
+#         sub_df['longitude'][i:] = lons
+#         if (random != 0):
+#             sub_df["icao24"] = str(random)
+#         sub_df.to_csv(f'{OUT}_{MODE}/rdm{random}.csv', index=False)
+# else:
+
+    # for deriv in [-90, -65, -45, -30, -15, -10, -7, -5, -3, -2, -1, 0, 1, 2, 3, 5, 7, 10, 15, 30, 45, 65, 90]:
+    #     if (MODE == "geo"):
+    #         lats, lons = rotate_geo (df['latitude'].values[i:].copy(), df['longitude'].values[i:].copy(), O_lat, O_long, deriv)
+    #     elif (MODE == "sphe"):
+    #         lats, lons = rotate_sphe(df['latitude'].values[i:].copy(), df['longitude'].values[i:].copy(), O_lat, O_long, deriv)
+
+    #     sub_df = df.copy()
+    #     sub_df['latitude'][i:] = lats
+    #     sub_df['longitude'][i:] = lons
+    #     sub_df['track'][i:] += deriv
+
+    #     while sub_df['track'][i] < 0:
+    #         sub_df['track'][i:] += 360
+    #     while sub_df['track'][i] >= 360:
+    #         sub_df['track'][i:] -= 360
+    #     if (deriv != 0):
+    #         sub_df["icao24"] = str(deriv)
+
+    #     sub_df.to_csv(f'{OUT}_{MODE}/rot{deriv}.csv', index=False)
+
+    #     sub_df['icao24'] = df["icao24"]
+    #     concat = pd.concat([concat, sub_df])
 
 # order by timestamp
-concat = concat.sort_values(by='timestamp')
-concat.to_csv(f'./{OUT}_{MODE}/concat.csv', index=False)
+# concat.to_csv(f'./{OUT}_{MODE}/concat.csv', index=False)

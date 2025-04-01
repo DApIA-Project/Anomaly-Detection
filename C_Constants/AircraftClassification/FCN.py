@@ -1,5 +1,5 @@
 
-LEARNING_RATE = 0.00015
+LEARNING_RATE = 0.0002
 EPOCHS = 80
 BATCH_SIZE = 64
 NB_BATCH = 32
@@ -20,18 +20,12 @@ MODEL_PADDING = "same"
 # "valid" do not pad
 # "last" duplicate the last row
 # "nan" fill with nan (as the model "know" what is a nan value)
-INPUT_PADDING = "nan"
-
-USE_DYT = False
-DYNAMIC_LABEL_RATIO = True
+INPUT_PADDING = "valid"
 
 
-LAYERS = 2
 DROPOUT = 0.1
-UNITS = 128
-RESIDUAL = 1
 
-ACTIVATION = "sigmoid"
+ACTIVATION = "softmax"
 
 
 

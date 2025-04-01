@@ -7,12 +7,11 @@ from B_Model.AircraftClassification.Utils import *
 
 class Model(TensorflowModel):
 
-    name = "LSTM"
+    name = "MLP"
 
     def __init__(self, CTX:dict):
         super().__init__(CTX, ads_b_module)
-
-
+        
 
 def ads_b_module(CTX, x, x_takeoff, airport, x_map):
     
@@ -27,20 +26,17 @@ def ads_b_module(CTX, x, x_takeoff, airport, x_map):
     if (x_map is not None):
         x_map = RepeatVector(CTX["INPUT_LEN"])(x_map)
         cat.append(x_map)
+
         
     if (len(cat) > 1):
         x = Concatenate()(cat)
         
-    
-    x = TimeDistributed(Dense(CTX["UNITS"], activation="linear"))(x)
-    x_skip = x
-    for _ in range(CTX["LAYERS"]):
-        x = LSTM(CTX["UNITS"], return_sequences=True)(x)
-        if (CTX["RESIDUAL"] > 0):
-            x_skip = x_skip * CTX["RESIDUAL"]
-            x = Add()([x, x_skip])
-            
-    x = LSTM(CTX["UNITS"], return_sequences=False)(x)
-    
+    x = Flatten()(x)
+		
+    for i in range(CTX["LAYERS"]):
+        x = Dropout(CTX["DROPOUT"])(x)
+        x = Dense(CTX["UNITS"], activation='relu')(x)
+
     return x
+    
     

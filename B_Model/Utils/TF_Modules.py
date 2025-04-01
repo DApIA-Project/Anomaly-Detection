@@ -2,42 +2,53 @@
 
 import tensorflow as tf
 from keras.layers import *
+from B_Model.Utils.DyT import DyT
 
 ACTIVATION = LeakyReLU
 
 class Conv1DModule(tf.Module):
 
-    def __init__(self, units, kernel_size = 3, strides=1, padding="same", batch_norm=True, name="Conv1DModule"):
+    def __init__(self, units, kernel_size = 3, strides=1, padding="same", batch_norm=True, dyt=False, name="Conv1DModule"):
         super(Conv1DModule, self).__init__(name=name)
 
         self.conv = Conv1D(units, kernel_size, strides=strides, padding=padding)
-        self.bn = None
+        self.norm = None
+        if (batch_norm and dyt):
+            raise ValueError("Batch norm and DyT can't be used together")
         if (batch_norm):
-            self.bn = BatchNormalization()
+            self.norm = BatchNormalization()
+        if (dyt):
+            self.norm = DyT()
         self.act = ACTIVATION()
 
     def __call__(self, x):
         x = self.conv(x)
-        if (self.bn is not None):
-            x = self.bn(x)
+        if (self.norm is not None):
+            x = self.norm(x)
         x = self.act(x)
         return x
 
 class Conv2DModule(tf.Module):
 
-    def __init__(self, units, kernel_size = 3, strides=(1, 1), padding="same", batch_norm=True, name="Conv1DModule"):
+    def __init__(self, units, kernel_size = 3, strides=(1, 1), padding="same", batch_norm=True, dyt=False, name="Conv1DModule"):
         super(Conv2DModule, self).__init__(name=name)
 
         self.conv = Conv2D(units, kernel_size, strides=strides, padding=padding)
-        self.bn = None
+        if (batch_norm and dyt):
+            raise ValueError("Batch norm and DyT can't be used together")
+        self.norm = None
+        if (batch_norm and dyt):
+            raise ValueError("Batch norm and DyT can't be used together")
         if (batch_norm):
-            self.bn = BatchNormalization()
+            self.norm = BatchNormalization()
+        if (dyt):
+            self.norm = DyT()
         self.act = ACTIVATION()
 
     def __call__(self, x):
         x = self.conv(x)
-        if (self.bn is not None):
-            x = self.bn(x)
+        if (self.norm is not None):
+            x = self.norm(x)
         x = self.act(x)
         return x
 

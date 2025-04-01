@@ -243,9 +243,6 @@ class Trainer(AbstractTrainer):
 
 
 
-# |--------------------------------------------------------------------------------------------------------------------
-# |     FIND AND LOAD BEST MODEL WHEN TRAINING IS DONE
-# |--------------------------------------------------------------------------------------------------------------------
 
     def __load_best_model__(self) -> None:
 
@@ -361,7 +358,6 @@ class Trainer(AbstractTrainer):
             self.__eval_files__ = U.list_flights(EVAL_FOLDER)
 
 
-        mean_acc = np.zeros(3, dtype=np.float64)
 
         dfs, max_len, y, y_, loss_, acc = self.__gen_eval_batch__(self.__eval_files__)
 
@@ -383,12 +379,17 @@ class Trainer(AbstractTrainer):
                 
             BAR.update()
 
+        mean_acc = 0
+        
         for i in range(len(dfs)):
             name = self.__eval_files__[i].split("/")[-1]
             prntC(C.INFO, "Accuracy for ", C.BLUE, name, C.RESET, " : ", C.BLUE, round(acc[i]/len(dfs[i])*100, 2))
+            mean_acc += acc[i]/len(dfs[i])
+            
+        mean_acc /= len(dfs)
 
 
-        return {"mean_acc": mean_acc}
+        return {"ACCURACY": round(mean_acc*100, 2)}
 
 
 

@@ -5,8 +5,8 @@ BATCH_SIZE = 64
 NB_BATCH = 32
 
 
-HISTORY = 128
-DILATION_RATE = 2
+HISTORY = 64
+DILATION_RATE = 1
 INPUT_LEN = HISTORY // DILATION_RATE
 
 RELATIVE_POSITION = True
@@ -22,13 +22,10 @@ MODEL_PADDING = "same"
 # "nan" fill with nan (as the model "know" what is a nan value)
 INPUT_PADDING = "nan"
 
-USE_DYT = False
-DYNAMIC_LABEL_RATIO = True
-
 
 LAYERS = 2
 DROPOUT = 0.1
-UNITS = 128
+UNITS = 8
 RESIDUAL = 1
 
 ACTIVATION = "sigmoid"
