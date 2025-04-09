@@ -102,6 +102,10 @@ class Trainer(AbstractTrainer):
             os.makedirs(self.ARTIFACTS)
         if not os.path.exists(self.ARTIFACTS+"/weights"):
             os.makedirs(self.ARTIFACTS+"/weights")
+            
+        
+        os.system("rm "+self.ARTIFACTS+"/*.png")
+        os.system("rm "+self.ARTIFACTS+"/*.pdf")
 
 
     def __init_GUI__(self) -> None:
@@ -138,6 +142,7 @@ class Trainer(AbstractTrainer):
 # |====================================================================================================================
 
     def train(self) -> None:
+        os.system("rm "+self.ARTIFACTS+"/weights/*")
         CTX = self.CTX
         prntC(C.INFO, "Training model : ", C.BLUE, self.model.name,
               C.RESET, " for ", C.BLUE, CTX["EPOCHS"], C.RESET, " epochs")
@@ -290,6 +295,7 @@ class Trainer(AbstractTrainer):
 
         self.model.set_variables(load(self.ARTIFACTS+"/weights/"+str(best_i)+".w"))
         self.save()
+        return self.__history__[H_TEST_DIST][best_i-1]
 
 
 # |====================================================================================================================
@@ -519,7 +525,7 @@ class Trainer(AbstractTrainer):
             best, accs, loss = self.__eval_stats__(loss, loss_, y_, y, dfs, max_len, name=name)
             mean_accs += accs
             mean_loss.append(loss)
-            bests_accs.append(best)
+            bests_accs.append(accs[1])
         CHRONO.stop()
         
 
@@ -576,11 +582,15 @@ class Trainer(AbstractTrainer):
                       y_:"list[np.float64_2d[ax.time, ax.feature]]", y:"list[np.float64_2d[ax.time, ax.feature]]",
                       loss:"list[np.float64_1d]", loss_:"list[np.float64_1d]", mean_loss:np.float64_1d, mean_loss_:np.float64_1d,
                       max_len:int, name:str) -> "tuple[float, list[float]]":
-
+        
+        
         self.__plot_loss_curves__(loss, loss_, mean_loss, mean_loss_, max_len, name)
-        self.__plot_predictions_on_saturation__(dfs, y_, y, loss, max_len, name)
+        true_icao_i, best_per_flight, best_at_attack, best_around_attack, acc, accs, flights_losses = self.__get_safe_icao24__(dfs, loss)
+
+        self.__plot_predictions_on_saturation__(dfs, y, y_, true_icao_i, best_at_attack, loss, max_len, name)
         # self.__plot_prediction_on_error_spikes__(dfs, y_, y, loss, loss_, max_len, name)
-        return self.__plot_safe_icao24__(dfs, loss, name)
+        self.__plot_safe_icao24__(dfs, loss, name, flights_losses, accs)
+        return acc, accs
 
 
 # |====================================================================================================================
@@ -606,12 +616,50 @@ class Trainer(AbstractTrainer):
         plt.savefig(self.ARTIFACTS+f"/eval_loss_{name}.png")
 
 
+    def __get_safe_icao24__(self, dfs:"list[pd.DataFrame]", loss:"list[np.float64_1d]") -> "tuple[float, list[float]]":
+        true_icao_i = np.argmax([len(dfs[i]["icao24"][0]) for i in range(len(dfs))])
+
+        # find when the saturation is reached
+        attack_t = 0
+        while(loss[0][attack_t] == loss[1][attack_t] or np.isnan(loss[0][attack_t]) or np.isnan(loss[1][attack_t])):
+            attack_t += 1
+
+        short_slice = slice(attack_t, attack_t+self.CTX["LOSS_MOVING_AVERAGE"])
+        long_slice = slice(attack_t, attack_t+self.CTX["HISTORY"]//2)
+
+
+        mean_loss_per_flights =   [np.nanmean(loss[f])              for f in range(len(loss))]
+        mean_loss_at_attack =     [np.nanmean(loss[f][short_slice]) for f in range(len(loss))]
+        mean_loss_around_attack = [np.nanmean(loss[f][long_slice])  for f in range(len(loss))]
+        
+        order_loss_per_flights =   np.argsort(mean_loss_per_flights)
+        order_loss_at_attack =     np.argsort(mean_loss_at_attack)
+        order_loss_around_attack = np.argsort(mean_loss_around_attack)
+        
+        best_per_flight = order_loss_per_flights[0]
+        best_at_attack = order_loss_at_attack[0]
+        best_around_attack = order_loss_around_attack[0]
+        
+        accs = [0.0, 0.0, 0.0]
+        for i, loss in enumerate([mean_loss_per_flights, mean_loss_at_attack, mean_loss_around_attack]):
+
+            order = [order_loss_per_flights, order_loss_at_attack, order_loss_around_attack][i]
+
+            sorted_icaos24 = [dfs[order[j]]["icao24"][0] for j in range(len(order))]
+            # true icao i is the index of the longuest icaco24
+            y_i = np.argmax([len(sorted_icaos24[j]) for j in range(len(sorted_icaos24))])
+            accs[i] = 1-y_i/(len(sorted_icaos24)-1)
+
+        return true_icao_i, best_per_flight, best_at_attack, best_around_attack, accs[1], accs, [mean_loss_per_flights, mean_loss_at_attack, mean_loss_around_attack]
+
 
 
 
     def __plot_predictions_on_saturation__(self, dfs:"list[pd.DataFrame]",
-                                            y_:"list[np.float64_2d[ax.time, ax.feature]]",
                                             y:"list[np.float64_2d[ax.time, ax.feature]]",
+                                            y_:"list[np.float64_2d[ax.time, ax.feature]]",
+                                            true_icao_i:int,
+                                            pred_icao_i:int,
                                             loss:"list[np.float64_1d]", max_len:int, name:str) -> None:
 
         if (len(dfs) == 1): return
@@ -619,8 +667,8 @@ class Trainer(AbstractTrainer):
         attack_t = 0
         while(loss[0][attack_t] == loss[1][attack_t] or np.isnan(loss[0][attack_t]) or np.isnan(loss[1][attack_t])):
             attack_t += 1
-        s = slice(max(0, attack_t-20), min(max_len, attack_t+20))
-
+        s = slice(max(0, attack_t-3), min(max_len, attack_t+self.CTX["LOSS_MOVING_AVERAGE"]))
+        
         # plot the trajectory and the prediction in a map
         min_lat, min_lon = np.inf, np.inf
         max_lat, max_lon = -np.inf, -np.inf
@@ -633,18 +681,11 @@ class Trainer(AbstractTrainer):
             max_lon = max(max_lon, lon.max())
 
 
-        nb_flight = min(9, len(dfs))
-        side = int(np.ceil(np.sqrt(nb_flight)))
-        col = side
-        row = int(np.ceil(nb_flight / side))
-
-
         box = [min_lat, min_lon, max_lat, max_lon]
-        PLT.figure (name, box[0], box[1], box[2], box[3], figsize=(15*row, 15*col), sub_plots=(row, col))
+        PLT.figure (name, box[0], box[1], box[2], box[3], figsize=(30, 30))
 
 
-        for i in range(nb_flight):
-            r, c = i // col, i % col
+        for i in range(len(dfs)):
 
             lat = dfs[i]["latitude"].to_numpy()
             lon = dfs[i]["longitude"].to_numpy()
@@ -653,16 +694,30 @@ class Trainer(AbstractTrainer):
             lony_ = y_[i][:, 1]
             laty  = y [i][:, 0]
             lony  = y [i][:, 1]
+            
+            traj_color = "tab:blue"
+            if (i == true_icao_i):
+                traj_color = "tab:green"
+            if (i == pred_icao_i):
+                traj_color = "tab:purple"
 
-            PLT.subplot(name, r, c).plot   (lon[s],  lat[s],  color="tab:blue")
-            PLT.subplot(name, r, c).scatter(lon[s],  lat[s],  color="tab:blue", marker="x")
-            PLT.subplot(name, r, c).scatter(lon[attack_t],  lat[attack_t],  color="tab:red", marker="x")
-            PLT.subplot(name, r, c).scatter(lony_[s], laty_[s], color="tab:purple", marker="x")
-            PLT.subplot(name, r, c).scatter(lony[s], laty[s], color="tab:green", marker="+")
+            PLT.plot   (name, lon[s],  lat[s],  color=traj_color)
+            PLT.scatter(name, lon[s],  lat[s],  color="tab:blue", marker="x")
+            
+            preds_color = "tab:gray"
+            if (i == true_icao_i):
+                preds_color = "black"
+            if (i == pred_icao_i):
+                preds_color = "tab:purple"
+            
+            PLT.scatter(name, lony_[s], laty_[s], color=preds_color, marker="x")
+            PLT.scatter(name, lony[s], laty[s], color="tab:blue", marker="+")
 
             for t in range(s.start, s.stop):
-                PLT.subplot(name, r, c).plot([lon[t], lony_[t]], [lat[t], laty_[t]], color="black", linestyle="--")
-                PLT.subplot(name, r, c).plot([lony[t], lony_[t]], [laty[t], laty_[t]], color="black", linestyle="--")
+                PLT.plot(name, [lon[t], lony_[t]], [lat[t], laty_[t]], color=preds_color, linestyle="--")
+                
+            
+            PLT.scatter(name, lon[attack_t],  lat[attack_t],  color="tab:red", marker="o")
 
         PLT.show(name, self.ARTIFACTS+f"/predictions_{name}.png")
 
@@ -772,55 +827,34 @@ class Trainer(AbstractTrainer):
         return np.nanmean(loss[true_icao_i])
 
 
-    def __plot_safe_icao24__(self, dfs:"list[pd.DataFrame]", loss:"list[np.float64_1d]", name:str) -> "tuple[float, list[float]]":
-        if (len(dfs) == 1): return 1,  [1, 1, 1]
-        icaos24 = [df["icao24"].iloc[0] for df in dfs]
-
-        # find when the saturation is reached
-        attack_t = 0
-        while(loss[0][attack_t] == loss[1][attack_t] or np.isnan(loss[0][attack_t]) or np.isnan(loss[1][attack_t])):
-            attack_t += 1
-
-        short_slice = slice(attack_t, attack_t+self.CTX["LOSS_MOVING_AVERAGE"])
-        long_slice = slice(attack_t, attack_t+self.CTX["HISTORY"]//2)
-
-
-        mean_loss_per_flights =   [np.nanmean(loss[f])              for f in range(len(loss))]
-        mean_loss_at_attack =     [np.nanmean(loss[f][short_slice]) for f in range(len(loss))]
-        mean_loss_around_attack = [np.nanmean(loss[f][long_slice])  for f in range(len(loss))]
+    def __plot_safe_icao24__(self, dfs:"list[pd.DataFrame]", loss:"list[np.float64_1d]", name:str, flights_losses, accs):
+        if (len(dfs) == 1): return
 
         LABELS = ["Mean Loss", "Mean Loss at Attack", "Mean Loss around Attack"]
+        COLORS = ["tab:blue", "tab:green", "tab:purple", "tab:red", "tab:orange", "tab:brown", "tab:pink", "tab:gray", "tab:olive", "tab:cyan"]
 
         fig, ax = plt.subplots(1, len(LABELS), figsize=(15 * len(dfs) / 10.0, 5))
 
-        colors = ["tab:blue", "tab:green", "tab:purple", "tab:red", "tab:orange", "tab:brown", "tab:pink", "tab:gray", "tab:olive", "tab:cyan"]
-        best_acc = 0.0
-        acc = [0.0, 0.0, 0.0]
-        for i, loss in enumerate([mean_loss_per_flights, mean_loss_at_attack, mean_loss_around_attack]):
+
+        for i, loss in enumerate(flights_losses):
 
             order = np.argsort(loss)
+            sorted_icaos24 = [dfs[j]["icao24"][0] for j in order]
+            sorted_loss = [loss[j] for j in order]
 
-            sorted_icaos24 = [icaos24[i] for i in order]
-            sorted_loss = [loss[i] for i in order]
-
-            # true icao i is the index of the longuest icaco24
-            true_icao_i = np.argmax([len(sorted_icaos24[i]) for i in range(len(sorted_icaos24))])
-            acc[i] = 1-true_icao_i/(len(sorted_icaos24)-1)
-            if (acc[i] > best_acc):
-                best_acc = acc[i]
 
             for j in range(len(sorted_loss)):
-                col = colors[order[j] % len(colors)]
+                col = COLORS[order[j] % len(COLORS)]
                 ax[i].bar(j, sorted_loss[j], color=col, label=sorted_icaos24[j])
 
-            ax[i].set_xticks(range(len(icaos24)))
+            ax[i].set_xticks(range(len(sorted_icaos24)))
             ax[i].set_xticklabels(sorted_icaos24, rotation=70)
-            ax[i].set_title(LABELS[i])
+            ax[i].set_title(LABELS[i] + " " + str(round(accs[i]*100, 2)) + "%")
             ax[i].grid()
+            
         fig.tight_layout()
         plt.savefig(self.ARTIFACTS+f"/safe_icao24_{name}.png")
     
 
-        return best_acc, acc
 
 

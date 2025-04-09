@@ -2,9 +2,9 @@
 from B_Model.AbstractModel import Model as AbstactModel
 
 import tensorflow as tf
-from keras.api.layers import *
+from keras.layers import *
 from reservoirpy.nodes import Reservoir
-
+from B_Model.Utils.MulAttention import MulAttention
 
 from numpy_typing import np, ax
 from _Utils.os_wrapper import os
@@ -38,12 +38,14 @@ class Model(AbstactModel):
         x = tf.keras.Input(shape=x_input_shape, name='input')
         z= x
         z = Flatten()(z)
-        z = Dense(self.CTX["FEATURES_OUT"], activation="sigmoid")(z)
-        # z = LSTM(128, return_sequences=True, dropout=self.CTX["DROPOUT"])(z)
-        # z = Flatten()(z)
-        # z = Dense(self.CTX["FEATURES_OUT"], activation="sigmoid")(z)
+        z = Dense(CTX["FEATURES_OUT"], activation="linear")(z)
+        z = Activation(CTX["ACTIVATION"])(z)
+        z = Dropout(CTX["DROPOUT"])(z)
+        z = MulAttention()(z)
+        y = z
+        
 
-        self.readout = tf.keras.Model(x, z)
+        self.readout = tf.keras.Model(x, y)
         self.loss = tf.keras.losses.MeanSquaredError()
         self.opt = tf.keras.optimizers.Adam(learning_rate=CTX["LEARNING_RATE"])
 

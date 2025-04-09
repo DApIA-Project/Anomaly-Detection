@@ -1,5 +1,5 @@
 LEARNING_RATE = 0.0001
-EPOCHS = 0
+EPOCHS = 60
 BATCH_SIZE = 64
 NB_BATCH = 32
 
@@ -16,7 +16,8 @@ HORIZON = 3
 
 THRESHOLD = 14.8
 
-DROPOUT = 0.3
+DROPOUT = 0.1
+ACTIVATION = "sigmoid"
 
 USED_FEATURES = [
     "latitude", "longitude",

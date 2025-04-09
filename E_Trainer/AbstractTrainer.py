@@ -74,11 +74,18 @@ class Trainer:
             The metrics dictionary representing model's performance
         """
         if (self.CTX["EPOCHS"] > 0):
-            self.train()
+            stats_t = self.train()
         else:
             self.load()
 
-        return self.eval()
+        stats = self.eval()
+        if (stats_t is None):
+            return stats
+        
+        for key, value in stats_t.items():
+            if (key not in stats):
+                stats[key] = value
+        return stats
 
 
     ###################################################
@@ -99,7 +106,7 @@ class Trainer:
 
 
 
-    def train(self):
+    def train(self) -> dict:
         """
         Manage the training loop.
         Testing is also done here.
@@ -111,7 +118,7 @@ class Trainer:
     # Evaluation
     ###################################################
 
-    def eval(self):
+    def eval(self) -> dict:
         """
         Evaluate the model and return metrics
 

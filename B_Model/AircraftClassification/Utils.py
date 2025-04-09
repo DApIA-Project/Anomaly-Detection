@@ -92,29 +92,19 @@ class TensorflowModel(AbstactModel):
         self.nb_train = 0
 
 
-    def predict(self, x):
-        """
-        Make prediction for x
-        """
-        return self.model(x)
+    def predict(self, x, training=False):
+        return self.model(x, training=training)
 
-    def compute_loss(self, x, y):
-        """
-        Make a prediction and compute the loss
-        that will be used for training
-        """
-        y_ = self.model(x)
-        loss = self.loss(y_, y)
-        return loss, y_
+
+    def compute_loss(self, x, y, taining=False):
+        y_ = self.model(x, training=taining)
+        return self.loss(y_, y), y_
+
 
     def training_step(self, x, y):
-        """
-        Do one forward pass and gradient descent
-        for the given batch
-        """
         with tf.GradientTape(watch_accessed_variables=True) as tape:
 
-            y_ = self.model(x)
+            y_ = self.model(x, training=True)
             loss = self.loss(y_, y)
 
             gradients = tape.gradient(loss, self.model.trainable_variables)

@@ -445,8 +445,11 @@ class Trainer(AbstractTrainer):
 
 
         CHRONO.start()
+        NB_MESSAGE = 0
         for t in range(max_len):
             x, files = self.__next_msgs__(dfs, y, t)
+            NB_MESSAGE += len(x)
+
             for i in range(len(x)): streamer.add(x[i])
             yt_, _ = self.predict(x)
             for i in range(len(files)):
@@ -456,6 +459,8 @@ class Trainer(AbstractTrainer):
             BAR.update((t+1) / max_len * len(self.__eval_files__), f"remaining files: {len(files)}")
         
         CHRONO.stop()
+        
+        print("TOTAL NUM OF MESSAGES : ", NB_MESSAGE)
 
         acc = self.__eval_stats__(y, y_)
         return {"ACCURACY": round(acc*100, 2), "TIME": round(CHRONO.get_time_s(),1)}

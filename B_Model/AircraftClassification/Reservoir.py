@@ -41,13 +41,13 @@ class Model(AbstactModel):
 
 
 
-    def predict(self, x):
-        return self.model.predict(x)
+    def predict(self, x, training=False):
+        return self.model.predict(x, training=training)
     
 
 
-    def compute_loss(self, x, y):
-        y_ = self.predict(x)
+    def compute_loss(self, x, y, training=False):
+        y_ = self.predict(x, training=training)
         loss = self.loss(y_, y)
         return loss, y_
     
@@ -56,7 +56,7 @@ class Model(AbstactModel):
     def training_step(self, x, y):
         with tf.GradientTape(watch_accessed_variables=True) as tape:
 
-            y_ = self.predict(x)
+            y_ = self.predict(x, training=True)
             loss = self.loss(y_, y)
 
             gradients = tape.gradient(loss, self.model.trainable_variables)
@@ -114,7 +114,7 @@ class Module(tf.Module):
         self.readout_model = tf.keras.Model([x_readout, x_map], y_readout)
 
 
-    def predict(self, x_):
+    def predict(self, x_, training=False):
         x = x_.pop(0)
         if (self.CTX["ADD_TAKE_OFF_CONTEXT"]): 
             takeoff = x_.pop(0)
@@ -122,7 +122,7 @@ class Module(tf.Module):
             
         if (self.CTX["ADD_MAP_CONTEXT"]): 
             map = x_.pop(0)
-            map = self.map_model(map)
+            map = self.map_model(map, training=training)
             x = np.concatenate([x, map], axis=2)
             
         if (self.CTX["ADD_AIRPORT_CONTEXT"]): 
@@ -132,7 +132,7 @@ class Module(tf.Module):
 
         z =__predict_reservoir__(self.CTX, self.reservoir, x)
         
-        y = self.readout_model([z, map])
+        y = self.readout_model([z, map], training=training)
 
         return y
     

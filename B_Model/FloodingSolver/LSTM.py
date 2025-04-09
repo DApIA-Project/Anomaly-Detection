@@ -4,6 +4,7 @@ from keras.layers import *
 
 from B_Model.AbstractModel import Model as AbstactModel
 from B_Model.Utils.TF_Modules import *
+from B_Model.Utils.MulAttention import MulAttention
 
 from numpy_typing import np, ax
 
@@ -27,7 +28,6 @@ class Model(AbstactModel):
         # load context
         self.CTX = CTX
         self.dropout = CTX["DROPOUT"]
-        self.outs = CTX["FEATURES_OUT"]
 
         # save the number of training steps
         self.nb_train = 0
@@ -37,17 +37,29 @@ class Model(AbstactModel):
 
         z = x
 
-        z = Conv1DModule(128, 1)(z)
+        # z = TimeDistributed(Dense(CTX["UNITS"], activation="elu"))(z)
         
-        n = self.CTX["LAYERS"]
-        for _ in range(n-1):
+        z = Conv1DModule(CTX["UNITS"])(z)
+        
+        for b in range(CTX["BLOCKS"]):
             res = z * self.CTX["RESUDUAL"]
-            z = LSTM(128, return_sequences=True, dropout=self.dropout)(z)
-
+            n = CTX["LAYERS"]
+            if (b == CTX["BLOCKS"]-1):
+                n = CTX["LAYERS"] - 1
+                
+            for _ in range(n):
+                z = LSTM(CTX["UNITS"], return_sequences=True)(z)
             z = Add()([z, res])
-        z = LSTM(128, return_sequences=False)(z)
-
-        z = Dense(self.outs, activation="linear")(z)
+            
+        z = LSTM(CTX["UNITS"], return_sequences=False)(z)
+        
+        # z = Dropout(self.dropout)(z)
+        z = DenseModule(CTX["UNITS"], dropout=self.dropout)(z)
+        z = Dense(CTX["FEATURES_OUT"], activation="linear")(z)
+        
+        if (CTX["ACTIVATION"] != "linear"):
+            z = Activation(CTX["ACTIVATION"])(z)
+            z = MulAttention()(z)
         y = z
 
         self.model = tf.keras.Model(x, y)
@@ -60,27 +72,18 @@ class Model(AbstactModel):
         self.opt = tf.keras.optimizers.Adam(learning_rate=CTX["LEARNING_RATE"])
 
 
-    def predict(self, x):
-        """
-        Make prediction for x
-        """
-        return self.model(x)
+    def predict(self, x, training=False):
+        return self.model(x, training=training)
 
-    def compute_loss(self, x, y):
-        """
-        Make a prediction and compute the loss
-        that will be used for training
-        """
-        y_ = self.model(x)
+
+    def compute_loss(self, x, y, taining=False):
+        y_ = self.model(x, training=taining)
         return self.loss(y_, y), y_
+    
 
     def training_step(self, x, y):
-        """
-        Do one forward pass and gradient descent
-        for the given batch
-        """
         with tf.GradientTape(watch_accessed_variables=True) as tape:
-            loss, output = self.compute_loss(x, y)
+            loss, output = self.compute_loss(x, y, taining=True)
 
             gradients = tape.gradient(loss, self.model.trainable_variables)
             self.opt.apply_gradients(zip(gradients, self.model.trainable_variables))

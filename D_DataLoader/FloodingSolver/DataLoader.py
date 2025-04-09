@@ -9,7 +9,7 @@ from  _Utils.FeatureGetter import FG_flooding as FG
 import _Utils.Color as C
 from   _Utils.Color import prntC
 import _Utils.Limits as Limits
-from   _Utils.Scaler3D import  StandardScaler3D, StandardScaler2D, fill_nan_3d, fill_nan_2d
+from   _Utils.Scaler3D import  StandardScaler3D, StandardScaler2D, MinMaxScaler2D, fill_nan_3d, fill_nan_2d
 from   _Utils.ProgressBar import ProgressBar
 from   _Utils.plotADSB import PLT
 from numpy_typing import np, ax

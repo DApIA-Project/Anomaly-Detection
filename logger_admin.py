@@ -4,6 +4,8 @@ from _Utils.RunLogger import RunLogger
 
 
 logger = RunLogger("./_Artifacts/logs.pkl")
-logger.remove_run(37)
+logger.remove_run(64)
+logger.remove_run(65)
+logger.remove_run(66)
 
 print(logger)

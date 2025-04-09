@@ -17,7 +17,6 @@ class Model(AbstactModel):
 
         # load context
         self.CTX = CTX
-        self.dropout = CTX["DROPOUT"]
         self.outs = CTX["FEATURES_OUT"]
 
         # save the number of training steps
@@ -29,12 +28,12 @@ class Model(AbstactModel):
         z = x
         n = self.CTX["LAYERS"]
         for i in range(n):
-            z = Conv1D(128, 3, padding="same")(z)
-            z = BatchNormalization()(z)
-            z = LeakyReLU()(z)
+            z = Conv1DModule(CTX["UNITS"], 3, padding=CTX["MODEL_PADDING"],
+                    batch_norm=not(CTX["USE_DYT"]), dyt=CTX["USE_DYT"])(z)
 
         z = Flatten()(z)
-        z = Dense(self.outs, activation="sigmoid")(z)
+        z = Dense(self.outs, activation="linear")(z)
+        z = Activation(CTX["ACTIVATION"])(z)
         y = z
 
 

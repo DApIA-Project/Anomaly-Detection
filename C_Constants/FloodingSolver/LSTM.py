@@ -1,6 +1,6 @@
 
 LEARNING_RATE = 0.0003
-EPOCHS = 0
+EPOCHS = 60
 BATCH_SIZE = 64
 NB_BATCH = 32
 
@@ -18,8 +18,14 @@ HORIZON = 3
 
 THRESHOLD = 25.0
 
-LAYERS = 3
-DROPOUT = 0.3
+BLOCKS = 2
+LAYERS = 1
+RESUDUAL = 1
+
+UNITS = 128
+DROPOUT = 0.2
+ACTIVATION = "linear"
+
 
 
 USED_FEATURES = [
@@ -30,6 +36,7 @@ USED_FEATURES = [
     "altitude", "geoaltitude",
     "timestamp", "pred_distance"
 ]
+
 FEATURES_IN = len(USED_FEATURES)
 FEATURE_MAP = dict([[USED_FEATURES[i], i] for i in range(FEATURES_IN)])
 
@@ -39,7 +46,6 @@ PRED_FEATURES = [
 FEATURES_OUT = len(PRED_FEATURES)
 PRED_FEATURE_MAP = dict([[PRED_FEATURES[i], i] for i in range(FEATURES_OUT)])
 
-RESUDUAL = 1.0
 
 # possibilities "valid", "last", "nan"
 INPUT_PADDING = "nan"

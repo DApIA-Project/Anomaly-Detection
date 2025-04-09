@@ -1,4 +1,4 @@
-LEARNING_RATE = 0.0003
+LEARNING_RATE = 0.0001
 EPOCHS = 80
 BATCH_SIZE = 64
 NB_BATCH = 32
@@ -17,20 +17,22 @@ HORIZON = 3
 
 THRESHOLD = 14.8
 
-
-
 LAYERS = 3
-DROPOUT = 0.3
+UNITS = 128
+USE_DYT = False
+MODEL_PADDING = "same"
+ACTIVATION = "sigmoid"
 
 
 USED_FEATURES = [
     "latitude", "longitude",
     "groundspeed", "track",
-    "vertical_rate", "onground",
+    "vertical_rate",
     # "alert", "spi", "squawk",
     "altitude", "geoaltitude",
-    "timestamp","pad"
+    "timestamp", "pad" #"pred_distance"
 ]
+
 FEATURES_IN = len(USED_FEATURES)
 FEATURE_MAP = dict([[USED_FEATURES[i], i] for i in range(FEATURES_IN)])
 
