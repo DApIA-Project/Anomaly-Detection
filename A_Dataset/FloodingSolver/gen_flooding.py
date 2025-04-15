@@ -84,7 +84,7 @@ def can_flood(df:pd.DataFrame, at:int):
         
         if (t > at - 8):
             d = lat_lon_dist_m(lat[t-1], lon[t-1], lat[t], lon[t])
-            if (d < 1):
+            if (d < 4):
                 return False
             if (d > 400):
                 return False
@@ -146,6 +146,8 @@ def flood(df, after=60):
 
 
 files = os.listdir("../AircraftClassification/Eval")
+# shuffle the files
+np.random.shuffle(files)
 
 # delete every directory starting with EVAL
 os.system("rm -rf ./Eval/EVAL*")
@@ -155,7 +157,7 @@ i = 0
 f = 0
 while i < 30:
     df = pd.read_csv(f'../AircraftClassification/Eval/{files[f]}',  dtype={"icao24":str, "callsign":str})
-    res = flood(df, after=60)
+    res = flood(df, after=120)
     if (len(res) == 0):
         print(f"Could not flood {files[f]}")
         f += 1

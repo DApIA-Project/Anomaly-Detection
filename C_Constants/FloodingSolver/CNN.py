@@ -30,7 +30,7 @@ USED_FEATURES = [
     "vertical_rate",
     # "alert", "spi", "squawk",
     "altitude", "geoaltitude",
-    "timestamp", "pad" #"pred_distance"
+    "timestamp", "pad", "pred_distance"
 ]
 
 FEATURES_IN = len(USED_FEATURES)

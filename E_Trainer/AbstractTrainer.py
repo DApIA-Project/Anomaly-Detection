@@ -73,6 +73,7 @@ class Trainer:
         metrics : dict
             The metrics dictionary representing model's performance
         """
+        stats_t = None
         if (self.CTX["EPOCHS"] > 0):
             stats_t = self.train()
         else:

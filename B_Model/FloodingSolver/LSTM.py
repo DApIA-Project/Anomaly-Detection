@@ -18,12 +18,6 @@ class Model(AbstactModel):
     name = "LSTM"
 
     def __init__(self, CTX:dict):
-        """
-        Generate model architecture
-        Define loss function
-        Define optimizer
-        """
-
 
         # load context
         self.CTX = CTX
@@ -51,15 +45,15 @@ class Model(AbstactModel):
                 z = LSTM(CTX["UNITS"], return_sequences=True)(z)
             z = Add()([z, res])
             
-        z = LSTM(CTX["UNITS"], return_sequences=False)(z)
+        z = LSTM(CTX["FEATURES_OUT"], return_sequences=False)(z)
         
         # z = Dropout(self.dropout)(z)
-        z = DenseModule(CTX["UNITS"], dropout=self.dropout)(z)
+        # z = DenseModule(CTX["UNITS"], dropout=self.dropout)(z)
         z = Dense(CTX["FEATURES_OUT"], activation="linear")(z)
         
         if (CTX["ACTIVATION"] != "linear"):
             z = Activation(CTX["ACTIVATION"])(z)
-            z = MulAttention()(z)
+        #     z = MulAttention()(z)
         y = z
 
         self.model = tf.keras.Model(x, y)

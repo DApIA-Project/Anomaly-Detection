@@ -496,6 +496,7 @@ class Trainer(AbstractTrainer):
         mean_accs = np.zeros(3, dtype=np.float64)
         mean_loss = []
         bests_accs = []
+        nb_100 = 0
         BAR.reset(min=0, max=100)
         CHRONO.start()
         for fi in range(len(self.__eval_files__)):
@@ -524,6 +525,8 @@ class Trainer(AbstractTrainer):
             name = folder[0].split("/")[-2]
             best, accs, loss = self.__eval_stats__(loss, loss_, y_, y, dfs, max_len, name=name)
             mean_accs += accs
+            if (accs[1] > 0.999):
+                nb_100 += 1
             mean_loss.append(loss)
             bests_accs.append(accs[1])
         CHRONO.stop()
@@ -545,9 +548,11 @@ class Trainer(AbstractTrainer):
         prntC(C.INFO, "accuracy by loss around attack : ", C.BLUE, round(mean_accs[2]*100, 2), "%")
 
         prntC(C.INFO, "best accuracy : ", C.BLUE, round(mean_accs.max()*100, 2), "%")
+        prntC(C.INFO, "nb of 100% : ", C.BLUE, nb_100, C.RESET, "/", len(self.__eval_files__))
 
         return {"ACCURACY": round(mean_accs.max()*100, 2),
                 "ERROR": round(mean_loss, 2), 
+                "PERFECT": round(nb_100*100/len(self.__eval_files__), 2),
                 "TIME": round(CHRONO.get_time_s(),1)}
 
 
@@ -855,6 +860,5 @@ class Trainer(AbstractTrainer):
         fig.tight_layout()
         plt.savefig(self.ARTIFACTS+f"/safe_icao24_{name}.png")
     
-
 
 

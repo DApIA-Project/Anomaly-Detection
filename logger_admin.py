@@ -4,8 +4,10 @@ from _Utils.RunLogger import RunLogger
 
 
 logger = RunLogger("./_Artifacts/logs.pkl")
-logger.remove_run(64)
-logger.remove_run(65)
-logger.remove_run(66)
 
+l = logger.where("PROBLEM", eq="FloodingSolver", inplace=False)
+
+for i in range(len(l)):
+    logger.remove_run(l.get("i", i))
+    
 print(logger)

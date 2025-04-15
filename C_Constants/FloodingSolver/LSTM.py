@@ -1,6 +1,6 @@
 
 LEARNING_RATE = 0.0003
-EPOCHS = 60
+EPOCHS = 80
 BATCH_SIZE = 64
 NB_BATCH = 32
 
@@ -34,8 +34,9 @@ USED_FEATURES = [
     "vertical_rate",
     # "alert", "spi", "squawk",
     "altitude", "geoaltitude",
-    "timestamp", "pred_distance"
+    "timestamp", "pad", "pred_distance"
 ]
+
 
 FEATURES_IN = len(USED_FEATURES)
 FEATURE_MAP = dict([[USED_FEATURES[i], i] for i in range(FEATURES_IN)])
