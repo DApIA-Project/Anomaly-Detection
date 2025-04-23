@@ -21,18 +21,19 @@ LAYERS = 3
 UNITS = 128
 USE_DYT = False
 MODEL_PADDING = "same"
-ACTIVATION = "sigmoid"
+ACTIVATION = "linear"
 
 
 USED_FEATURES = [
     "latitude", "longitude",
     "groundspeed", "track",
     "vertical_rate",
+    "distance", "bearing",
+    "distance_diff", "bearing_diff",
     # "alert", "spi", "squawk",
     "altitude", "geoaltitude",
     "timestamp", "pad", "pred_distance"
 ]
-
 FEATURES_IN = len(USED_FEATURES)
 FEATURE_MAP = dict([[USED_FEATURES[i], i] for i in range(FEATURES_IN)])
 

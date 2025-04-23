@@ -626,10 +626,10 @@ class Trainer(AbstractTrainer):
 
         # find when the saturation is reached
         attack_t = 0
-        while(loss[0][attack_t] == loss[1][attack_t] or np.isnan(loss[0][attack_t]) or np.isnan(loss[1][attack_t])):
+        while(dfs[0]["latitude"].iloc[attack_t] == dfs[1]["latitude"].iloc[attack_t] or np.isnan(loss[0][attack_t]) or np.isnan(loss[1][attack_t])):
             attack_t += 1
-
-        short_slice = slice(attack_t, attack_t+self.CTX["LOSS_MOVING_AVERAGE"])
+            
+        short_slice = slice(attack_t, attack_t+self.CTX["HORIZON"]+1)
         long_slice = slice(attack_t, attack_t+self.CTX["HISTORY"]//2)
 
 

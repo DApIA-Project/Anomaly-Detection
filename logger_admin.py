@@ -7,7 +7,5 @@ logger = RunLogger("./_Artifacts/logs.pkl")
 
 l = logger.where("PROBLEM", eq="FloodingSolver", inplace=False)
 
-for i in range(len(l)):
-    logger.remove_run(l.get("i", i))
     
 print(logger)

@@ -39,10 +39,10 @@ for file in f:
         os.system("mkdir -p ../tmp/" + folder)
         os.system('cp ' + folder+'/'+file + ' ../tmp/'+folder+'/'+file)
 
-# os.system('scp -r ../tmp/* ml:WORK/DAPIA/')
-os.system('scp -r ../tmp/* ovh2:dapia/')
+os.system('scp -r ../tmp/* ml:WORK/DAPIA/')
+# os.system('scp -r ../tmp/* ovh2:dapia/')
 
 
 # # connect shh to the server and execute cd WORK/DAPIA/ && ./main.sh
-# os.system('ssh ml "cd WORK/DAPIA/ && ./main.sh"')
+os.system('ssh ml "cd WORK/DAPIA/ && ./main.sh"')
 

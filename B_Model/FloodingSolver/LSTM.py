@@ -31,22 +31,19 @@ class Model(AbstactModel):
 
         z = x
 
-        # z = TimeDistributed(Dense(CTX["UNITS"], activation="elu"))(z)
+        z = TimeDistributed(Dense(CTX["UNITS"], activation="relu"))(z)
         
-        z = Conv1DModule(CTX["UNITS"])(z)
+        # z = Conv1DModule(CTX["UNITS"])(z)
         
         for b in range(CTX["BLOCKS"]):
             res = z * self.CTX["RESUDUAL"]
-            n = CTX["LAYERS"]
-            if (b == CTX["BLOCKS"]-1):
-                n = CTX["LAYERS"] - 1
-                
-            for _ in range(n):
-                z = LSTM(CTX["UNITS"], return_sequences=True)(z)
+           
+            for _ in range(CTX["LAYERS"]):
+                z = LSTM(CTX["UNITS"], dropout=self.dropout, return_sequences=True)(z)
             z = Add()([z, res])
             
-        z = LSTM(CTX["FEATURES_OUT"], return_sequences=False)(z)
-        
+        z = z[:, -1, :]
+                    
         # z = Dropout(self.dropout)(z)
         # z = DenseModule(CTX["UNITS"], dropout=self.dropout)(z)
         z = Dense(CTX["FEATURES_OUT"], activation="linear")(z)

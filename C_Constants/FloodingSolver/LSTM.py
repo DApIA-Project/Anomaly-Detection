@@ -14,11 +14,11 @@ RELATIVE_POSITION = True
 RELATIVE_TRACK = True
 RANDOM_TRACK = False
 
-HORIZON = 3
+HORIZON = 15
 
 THRESHOLD = 25.0
 
-BLOCKS = 2
+BLOCKS = 3
 LAYERS = 1
 RESUDUAL = 1
 
@@ -32,6 +32,8 @@ USED_FEATURES = [
     "latitude", "longitude",
     "groundspeed", "track",
     "vertical_rate",
+    "distance", "bearing",
+    "distance_diff", "bearing_diff",
     # "alert", "spi", "squawk",
     "altitude", "geoaltitude",
     "timestamp", "pad", "pred_distance"

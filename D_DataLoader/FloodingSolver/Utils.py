@@ -45,6 +45,12 @@ def check_sample(CTX:"dict[str, object]", x:"np.float64_2d[ax.time, ax.feature]"
     nb = 3
     start, end, _, pad_lenght, shift = U.window_slice(CTX, t)
     start = end - nb * DILATION_RATE + shift
+    
+    if (training):
+        end = end + nb * DILATION_RATE
+        if (end >= len(x[i])):
+            return False
+        
     for m in range(start, end, DILATION_RATE):
         
         if (lats[m] == 0 and lons[m] == 0):
@@ -103,7 +109,7 @@ def pick_random_loc(CTX:dict, x:"list[np.float64_2d[ax.time, ax.feature]]") -> "
     t, t_ = -1, -1
 
 
-    while t < 0 or not(check_sample(CTX, x, flight_i, t, t_)) or U.eval_curvature(CTX, x, flight_i, t-CTX["HISTORY"]+1, t_+1) < 20:
+    while t < 0 or not(check_sample(CTX, x, flight_i, t, t_)) or U.eval_curvature(CTX, x, flight_i, t-CTX["HISTORY"]+1, t_+1) < 5:
         flight_i = np.random.randint(0, len(x))
         if (negative):
             t = np.random.randint(CTX["HISTORY"]//2, CTX["HISTORY"])

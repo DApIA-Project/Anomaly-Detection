@@ -5,6 +5,7 @@ from datetime  import datetime
 import sys
 import requests
 import json
+import traceback
 from base64 import b85encode, b85decode
 
 def str_(x:float):
@@ -56,6 +57,39 @@ def h_line(col_widths):
         if (width == 0): continue
         str_array += "-" * (width + 2) + "+"
     return str_array
+
+class DTYPE:
+    STR = 0
+    FLOAT = 1
+    
+
+def dtype_to_int(dtypes:"dict[str, object]") -> "dict[str, int]":
+    if (dtypes is None):
+        return {}
+    
+    int_dtypes = {}
+    for k, dtype in dtypes.items():
+        if (dtype == str or dtype == "U64"):
+            int_dtypes[k] = DTYPE.STR
+        elif (dtype == float or dtype == np.float64 or dtype == int):
+            int_dtypes[k] = DTYPE.FLOAT
+        else:
+            raise ValueError(f"Unknown dtype {dtype}")
+    return int_dtypes
+
+def int_to_dtype(int_dtypes:"dict[str, int]") -> "dict[str, object]":
+    if (int_dtypes is None):
+        return {}
+    
+    dtypes = {}
+    for k, dtype in int_dtypes.items():
+        if (dtype == DTYPE.STR):
+            dtypes[k] = "U64"
+        elif (dtype == DTYPE.FLOAT):
+            dtypes[k] = np.float64
+        else:
+            raise ValueError(f"Unknown dtype {dtype}")
+    return dtypes
 
 class Group:
     name:str
@@ -128,6 +162,8 @@ class RunLogger:
         self.host = host
         self.port = port
         self.is_client = False
+        self.is_server = False
+        self.last_update = datetime.now()
         
         if (file is not None):
             self.__load__(file)
@@ -143,81 +179,153 @@ class RunLogger:
     # str : 1
     
     def serve(self, port:int):
+        self.is_server = True
         import flask
         app = flask.Flask(__name__)
-        
-        
+    
+
         @app.route("/", methods=["GET"])
         def home():
             return "ping"
         
-        @app.route("/log", methods=["POST"])
-        def log():
+        @app.route("/add", methods=["POST"])
+        def add():
             body = flask.request.data
             body = json.loads(body)
             run = body["run"]
             group_name = body["group_name"]
-            int_dtypes = body["dtypes"]
-            dtypes = {}
-            for k, dtype in int_dtypes.items():
-                if (dtype == 0):
-                    dtypes[k] = np.float64
-                elif (dtype == 1):
-                    dtypes[k] = "U64"
-                else:
-                    print(f"Warning: unknown dtype {dtype} for group {k}")
-                    
-            run_id = self.add_run(run, group_name, dtypes)
-            return json.dumps(int(run_id))
+                
+            res = {}
+            try:     
+                dtypes = int_to_dtype(body["dtypes"])
+                
+                run_id = self.add_run(run, group_name, dtypes)
+                res["status"] = "ok"
+                res["run_id"] = int(run_id)
+            except Exception as e:
+                res["status"] = "error"
+                res["message"] = traceback.format_exc()
+                
+            return json.dumps(res)
+        
+        @app.route("/remove", methods=["POST"])
+        def remove():
+            body = flask.request.data
+            body = json.loads(body)
+            i = body["i"]
+            
+            res = {}
+            try:
+                self.remove_run(i)
+                res["status"] = "ok"
+            except Exception as e:
+                res["status"] = "error"
+                res["message"] = traceback.format_exc()
+                
+            return json.dumps(res)
+        
+        @app.route("/remove_column", methods=["POST"])
+        def remove_column():
+            body = flask.request.data
+            body = json.loads(body)
+            column = body["column"]
+            
+            res = {}
+            try:
+                self.remove_column(column)
+                res["status"] = "ok"
+            except Exception as e:
+                res["status"] = "error"
+                res["message"] = traceback.format_exc()
+                
+            return json.dumps(res)
             
         @app.route("/get", methods=["GET"])
         def get():
+            timestamp = flask.request.args.get("last_update", None)
+            if timestamp is None:
+                timestamp = 0
+            date = datetime.fromtimestamp(float(timestamp))
+            if (date > self.last_update):
+                return ""
+            
             bytecode = self.__save__()
             return b85encode(bytecode)
         
         
-        app.run(port=port)
+        app.run(host='0.0.0.0', port=port)
         
     
     def __check_host__(self, host:str, port:int):
-        try:
-            r = requests.get(f"http://{host}:{port}/")
-            if (r.status_code == 200 and r.text == "ping"):
-                self.is_client = True
-        except Exception as e:
-            print(e)
-            self.is_client = False
+        
+        r = requests.get(f"http://{host}:{port}/")
+        if (r.status_code == 200 and r.text == "ping"):
+            self.is_client = True
+            
+        self.last_update = datetime.fromtimestamp(0)
         
         return self.is_client
     
-    def __log_to_server__(self, run:"dict[str, float]", group_name:"str|dict[str, str]"=None, dtypes:"dict[str, object]"=None):
-        int_dtypes = {}
-        for k, dtype in dtypes.items():
-            if (dtype == str or dtype == "U64"):
-                int_dtypes[k] = 0
-            elif (dtype == float or dtype == np.float64 or dtype == int):
-                int_dtypes[k] = 1
-            else:
-                raise ValueError(f"Unknown dtype {dtype}")
-            
-        body = {"run": run, "group_name": group_name, "dtypes": int_dtypes}
-        body = json.dumps(body)
-        r = requests.post(f"http://{self.host}:{self.port}/log", data=body)
+    def __http_add_run__(self, run:"dict[str, float]", group_name:"str|dict[str, str]"=None, dtypes:"dict[str, object]"=None):
+        body = json.dumps({
+            "run": run, 
+            "group_name": group_name, 
+            "dtypes": dtype_to_int(dtypes)
+        })
+        r = requests.post(f"http://{self.host}:{self.port}/add", data=body)
+        
         if (r.status_code == 200):
-            return r.json()
+            res = json.loads(r.text)
+            if (res["status"] == "ok"):
+                return res["run_id"]
+            else:
+                raise Exception("Server error: " + res["message"])
         else:
-            raise ValueError(f"Error {r.status_code} : {r.text}")
+            raise Exception(f"Http error {r.status_code} : {r.text}")
+        
+    def __http_remove_run__(self, i:int):
+        body = json.dumps({
+            "i": i
+        })
+        r = requests.post(f"http://{self.host}:{self.port}/remove", data=body)
+        
+        if (r.status_code == 200):
+            res = json.loads(r.text)
+            if (res["status"] == "ok"):
+                return
+            else:
+                raise Exception("Server error: " + res["message"])
+        else:
+            raise Exception(f"Http error {r.status_code} : {r.text}")
+        
+    def __http_remove_column__(self, column:str):
+        body = json.dumps({
+            "column": column
+        })
+        r = requests.post(f"http://{self.host}:{self.port}/remove_column", data=body)
+        
+        if (r.status_code == 200):
+            res = json.loads(r.text)
+            if (res["status"] == "ok"):
+                return
+            else:
+                raise Exception("Server error: " + res["message"])
+        else:
+            raise Exception(f"Http error {r.status_code} : {r.text}")
         
     def __flush__(self):
+        if not self.is_client:
+            raise ValueError("Cannot flush when not connected to a server")
+        
         # download the data
-        r = requests.get(f"http://{self.host}:{self.port}/get")
+        r = requests.get(f"http://{self.host}:{self.port}/get?last_update={datetime.timestamp(self.last_update)}")
         if (r.status_code == 200):
-            print(r.text)
+            if (len(r.text) == 0):
+                return
+            
             bytecode = b85decode(r.text)
             self.__load__(bytecode=bytecode)
-            print(self.data)
-            print(self.groups)
-            print(self.columns_group)
+            self.last_update = datetime.now()
             
         
 # |====================================================================================================================
@@ -498,6 +606,11 @@ class RunLogger:
         # | 0 | 0.1   | 0.2           | 10000000 |
         # | 1 | 0.5   | 0.3           | 10000000 |
         # ...
+        if (self.is_client):
+            self.__flush__()
+        
+        if (len(self) == 0):
+            return """+----------------------+\n| EMPTY RUN LOGGER     |\n+----------------------+"""
         
 
         str_array, col_index, col_widths, header_widths, data_widths, data_largest_widths = self.__to_str_array__()
@@ -648,6 +761,9 @@ class RunLogger:
         return run, group_name
         
     def add_run(self, run:"dict[str, float]", group_name:"str|dict[str, str]"=None, dtypes:"dict[str, object]"=None):
+        if (self.is_client):
+            return self.__http_add_run__(run, group_name, dtypes)
+        
         if (group_name is None):
             group_name = {col: self.DEFAULT_GROUP for col in run.keys()}
         elif isinstance(group_name, str):
@@ -667,14 +783,11 @@ class RunLogger:
                 if group not in dtypes:
                     dtypes[group] = np.float64
         # remplace each dtype str by U64
-        dtypes = {group: "U64" if dtype == str else dtype for group, dtype in dtypes.items()}
+        dtypes = {group: ("U64" if dtype == str else dtype) for group, dtype in dtypes.items()}
         
             
         if "model" not in run:
             raise ValueError("The run must have a 'model' key")
-        
-        if (self.host is not None):
-            return self.__log_to_server__(run, group_name, dtypes)
         
         self.__load__(self.file)
         run, group_name = self.__add_metadata__(run, group_name)
@@ -696,9 +809,14 @@ class RunLogger:
         
         self.__save__(self.file)
         
+        if (self.is_server):
+            self.last_update = datetime.now()
+        
         return self.last_run_id
         
     def remove_run(self, i:int):
+        if (self.is_client):
+            return self.__http_remove_run__(i)
         self.__load__(self.file)
         
         i = str(i)
@@ -729,31 +847,68 @@ class RunLogger:
 
             for col in to_remove:
                 self.__remove_column__(col)
+                
+        if (self.is_server):
+            self.last_update = datetime.now()
         
         self.__save__(self.file)
         
     def remove_column(self, column:str):
+        if (self.is_client):
+            return self.__http_remove_column__(column)
         self.__load__(self.file)
         self.__remove_column__(column)
+        
+        if (self.is_server):
+            self.last_update = datetime.now()
+            
         self.__save__(self.file)
             
     def flush(self):
         self.__flush__()
 
     def render(self, file:TextIO, title=""):
+        if (self.is_client):
+            self.__flush__()
         file.write(self.__str__(title))
         
     
     def get_columns(self) -> list:
+        if self.is_client:
+            self.__flush__()
         return list(self.columns_group.keys())
         
-    def get(self, column:str, i:int)->"float|str":
+    def loc(self, column:str, i_loc:int)->"float|str":
+        if self.is_client:
+            self.__flush__()
         group_name = self.columns_group.get(column, None)
         if (group_name is None):
             raise ValueError(f"The column {column} does not exist")
         group = self.groups[group_name]
         col_i = group.columns_indices[column]
-        return self.data[group.i][i, col_i]
+        return self.data[group.i][i_loc, col_i]
+    
+    def get(self, column:str, i:int)->"float|str":
+        if (self.is_client):
+            self.__flush__()
+        group_name = self.columns_group.get(column, None)
+        if (group_name is None):
+            raise ValueError(f"The column {column} does not exist")
+        group = self.groups[group_name]
+        col_i = group.columns_indices[column]
+        
+        entree_group = self.groups[self.ENTREE_GROUP]
+        col_i_i = entree_group.columns.index("i")
+        find = False
+        i = str(i)
+        for row_i in range(len(self.data[entree_group.i])):
+            if self.data[entree_group.i][row_i, col_i_i] == i:
+                find = True
+                break
+        if (not find):
+            raise ValueError(f"The run {i} does not exist")
+        
+        return self.data[group.i][row_i, col_i]
         
         
         
@@ -763,6 +918,10 @@ class RunLogger:
 
         
     def group_by(self, column:str, inplace=True, reverse=False) -> Self:
+        if (self.is_client):
+            if (inplace):
+                raise ValueError("Cannot use inplace when connected to a server")
+            self.__flush__()
         
         res = self if inplace else self.copy()
         
@@ -802,6 +961,11 @@ class RunLogger:
              
              
     def filter(self, columns:"list[str]", inplace=True) -> Self:      
+        if (self.is_client):
+            if (inplace):
+                raise ValueError("Cannot use inplace when connected to a server")
+            self.__flush__()
+            
         res = self if inplace else self.copy()
         
         # only keep the columns in the list
@@ -813,6 +977,9 @@ class RunLogger:
         return res
     
     def split_by(self, column:str) -> "list[RunLogger]":
+        if (self.is_client):
+            self.__flush__()
+            
         res = []
         
         group_name = self.columns_group.get(column, None)
@@ -867,6 +1034,11 @@ class RunLogger:
         return res
     
     def get_best_groupes_by(self, column:str, group_by:str, maximize=False, inplace=True) -> "list[RunLogger]":
+        if (self.is_client):
+            if (inplace):
+                raise ValueError("Cannot use inplace when connected to a server")
+            self.__flush__()
+            
         groups = {}
         
         gb_group_name = self.columns_group.get(group_by, None)
@@ -912,6 +1084,11 @@ class RunLogger:
             return res
         
     def where(self, column:str, eq:object=None, gt:object=None, lt:object=None, inplace=True) -> Self:
+        if (self.is_client):
+            if (inplace):
+                raise ValueError("Cannot use inplace when connected to a server")
+            self.__flush__()
+            
         res = self if inplace else self.copy()
         
         group_name = res.columns_group.get(column, None)
@@ -940,24 +1117,6 @@ class RunLogger:
 
     
     def __save__(self, file = None):
-        
-        
-            
-        # f.write(np.int32(self.last_run_id).tobytes())
-        # f.write(np.int8(len(self.groups)).tobytes())
-        # for group in self.groups.values():
-        #     f.write(group.name.encode("utf-8").ljust(128))
-        #     dtype = int(self.data[group.i].dtype == np.float64)
-        #     f.write(np.int8(dtype).tobytes())
-        #     f.write(np.int16(len(group.columns)).tobytes())
-        #     for col in group.columns:
-        #         f.write(col.encode("utf-8").ljust(64))
-        #     f.write(np.int32(self.data[group.i].shape[0]).tobytes())
-        #     if dtype == 1:
-        #         f.write(self.data[group.i].tobytes())
-        #     else:
-        #         f.write(self.data[group.i].astype("S64").tobytes())
-        
         bytecode = b""
         bytecode += np.int32(self.last_run_id).tobytes()
         bytecode += np.int8(len(self.groups)).tobytes()
@@ -1000,37 +1159,15 @@ class RunLogger:
             ln += n
             return res
         
+        self.groups = {}
+        self.data = []
+        self.columns_group = {}
+        self.grouped_by = []
             
-        
-        # with open(file, "rb") as f:
-        #     self.last_run_id = np.frombuffer(f.read(4), dtype=np.int32)[0]
-        #     nb_groups = np.frombuffer(f.read(1), dtype=np.int8)[0]
-        #     self.groups = {}
-        #     self.data = []
-        #     for i in range(nb_groups):
-        #         group_name = f.read(128).decode("utf-8").strip()
-        #         dtype = np.frombuffer(f.read(1), dtype=np.int8)[0]
-        #         nb_columns = np.frombuffer(f.read(2), dtype=np.int16)[0]
-        #         columns = [f.read(64).decode("utf-8").strip() for _ in range(nb_columns)]
-        #         nb_rows = np.frombuffer(f.read(4), dtype=np.int32)[0]
-        #         if dtype == 1:
-        #             self.data.append(np.frombuffer(f.read(8 * nb_columns * nb_rows), dtype=np.float64).reshape((nb_rows, nb_columns)))
-        #         else:
-        #             self.data.append(np.frombuffer(f.read(64 * nb_columns * nb_rows), dtype="S64").reshape((nb_rows, nb_columns)))
-        #             # convert to simple string
-        #             self.data[-1] = self.data[-1].astype("U64")
-                
-        #         self.groups[group_name] = Group(group_name, i)
-        #         self.groups[group_name].columns = columns
-        #         self.groups[group_name].columns_indices = {col: i for i, col in enumerate(columns)}
-                
-        #         for col in columns:
-        #             self.columns_group[col] = group_name
         
         self.last_run_id = np.frombuffer(decode(bytecode, 4), dtype=np.int32)[0]
         nb_groups = np.frombuffer(decode(bytecode, 1), dtype=np.int8)[0]
-        self.groups = {}
-        self.data = []
+        
         for i in range(nb_groups):
             group_name = decode(bytecode, 128).decode("utf-8").strip()
             dtype = np.frombuffer(decode(bytecode, 1), dtype=np.int8)[0]
@@ -1057,34 +1194,29 @@ class RunLogger:
 if __name__ == "__main__":
     
     if (len(sys.argv) > 1 and sys.argv[1] == "serve"):
-        LOGGER = RunLogger("../_Artifacts/logs.pkl")
-        LOGGER.serve(5000)
         
-    else:
-        LOGGER = RunLogger(host="localhost", port=5000)
+        try:
+            import secrets_stuffs as S
+        except ImportError:
+            raise Exception("Impossible to run the server without the secrets_stuffs.py file")
         
-        LOGGER.flush()
-        file = open("log.txt", "w")
-        LOGGER.render(file, "Test")
-        file.close()
+        LOGGER = RunLogger("./logs.pkl")
+        LOGGER.serve(S.PORT)
         
+    elif (len(sys.argv) > 1 and sys.argv[1] == "client"):
+        try:
+            import secrets_stuffs as S
+        except ImportError:
+            raise Exception("Impossible to run the client without the secrets_stuffs.py file")
         
-        # LOGGER = RunLogger("../_Artifacts/logs.pkl")
-        # file = open("../_Artifacts/log.txt", "w")
-        
-        # loggers_ = LOGGER.split_by("EVAL")
-        # loggers:"list[RunLogger]" = []
-        # for i in range(len(loggers_)):
-        #     loggers.extend(loggers_[i].split_by("TRAIN"))
-        # for i in range(len(loggers)):
-        #     loggers[i].get_best_groupes_by("RMSE_24", "model", maximize=False)
-        # logger:RunLogger = RunLogger.join(loggers)    
-
-        # logger.group_by("TRAIN").group_by("EVAL")
-
-
-        # logger.render(file, "Best models by dataset")
-        # file.write("\n\n")
-        # LOGGER.render(file, "All models")
-        # file.close()
+        LOGGER = RunLogger(host=S.IP, port=S.PORT)
+        print(LOGGER)
     
+    else:
+        LOGGER = RunLogger("./logs.pkl")
+        print(LOGGER)
+        
+        
+        
+        
+        
