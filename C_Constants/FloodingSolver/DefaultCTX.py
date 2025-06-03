@@ -1,6 +1,7 @@
 
 TEST_RATIO = 1.0/8.0
 MAX_BATCH_SIZE = 1024
+MIN_BATCH_SIZE = 1
 
 
 BOUNDING_BOX = [
@@ -14,5 +15,11 @@ BOX_CENTER = (
 
 INPUT_PADDING = "valid"
 
-THRESHOLD = 150
+THRESHOLD = 25
 LOSS_MOVING_AVERAGE = 3 # kernel size for moving average
+
+GENERATE_ARTIFACTS = True
+
+SCALER = "standard"
+
+HAS_WEIGHT = True

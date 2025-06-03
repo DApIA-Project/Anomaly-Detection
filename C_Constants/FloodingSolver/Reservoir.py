@@ -12,21 +12,22 @@ RELATIVE_POSITION = True
 RELATIVE_TRACK = True
 RANDOM_TRACK = False
 
-HORIZON = 3
-
-THRESHOLD = 14.8
+HORIZON = 5
 
 DROPOUT = 0.1
-ACTIVATION = "sigmoid"
+ACTIVATION = "linear"
 
 USED_FEATURES = [
     "latitude", "longitude",
     "groundspeed", "track",
     "vertical_rate",
+    "distance", "bearing",
+    "distance_diff", "bearing_diff",
     # "alert", "spi", "squawk",
     "altitude", "geoaltitude",
-    "timestamp"
+    "timestamp", "pad", "pred_distance"
 ]
+
 FEATURES_IN = len(USED_FEATURES)
 FEATURE_MAP = dict([[USED_FEATURES[i], i] for i in range(FEATURES_IN)])
 

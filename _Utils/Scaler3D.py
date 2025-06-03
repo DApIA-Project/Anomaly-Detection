@@ -391,3 +391,41 @@ class SigmoidScaler2D():
         self.__is_fitted__ = True
         return self
 
+class DummyScaler3D():
+    """
+    Dummy scaler that does nothing
+    """
+
+    def __init__(self) -> None:
+        self.__is_fitted__ = False
+
+    def fit(self, X:np.float64_3d) -> "Self":
+        self.__is_fitted__ = True
+        return self
+    
+    def transform(self, X:np.float64_3d) -> np.float64_3d:
+        return X
+    
+    def fit_transform(self, X:np.float64_3d) -> np.float64_3d:
+        return self.fit(X).transform(X)
+    
+    def inverse_transform(self, X:np.float64_3d) -> np.float64_3d:
+        return X
+    
+    def is_fitted(self) -> bool:
+        return self.__is_fitted__
+    
+    def get_variables(self) -> "tuple":
+        return ()
+    
+    def set_variables(self, variables:"tuple") -> "Self":
+        self.__is_fitted__ = True
+        return self
+    
+class DummyScaler2D(DummyScaler3D):
+    """
+    Dummy scaler that does nothing
+    """
+    def __init__(self) -> None:
+        super().__init__()
+        

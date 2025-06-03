@@ -63,16 +63,6 @@ class Trainer:
     ###################################################
 
     def run(self):
-        """
-        Run the whole training pipeline
-        and return metrics about the model's performance
-
-        Returns:
-        --------
-
-        metrics : dict
-            The metrics dictionary representing model's performance
-        """
         stats_t = None
         if (self.CTX["EPOCHS"] > 0):
             stats_t = self.train()

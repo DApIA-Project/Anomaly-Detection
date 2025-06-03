@@ -127,14 +127,20 @@ class Trainer(AbstractTrainer):
     def load(self, path:str=None) -> None:
         if (path is None):
             path = self.ARTIFACTS
-
+            
+        self.dl.PAD = load(path+"/pad")
+        
+        if (not self.CTX["HAS_WEIGHT"]):
+            prntC(C.WARNING, "No weights to load")
+            return
+        
         if ("LOAD_EP" in self.CTX and self.CTX["LOAD_EP"] != -1):
             self.model.set_variables(load(path+"/weights/"+str(self.CTX["LOAD_EP"])+".w"))
         else:
             self.model.set_variables(load(path+"/w"))
+        
         self.dl.xScaler.set_variables(load(path+"/xs"))
         self.dl.yScaler.set_variables(load(path+"/ys"))
-        self.dl.PAD = load(path+"/pad")
 
 
 # |====================================================================================================================
@@ -255,6 +261,8 @@ class Trainer(AbstractTrainer):
 
     def __plot_train_exemple__(self, y_train:np.float64_2d[ax.sample, ax.feature],
                                     _y_train:np.float64_2d[ax.sample, ax.feature]) -> None:
+        if (not self.CTX["GENERATE_ARTIFACTS"]): return
+        
         NAME = "train_example"
         y_sample  = self.dl.yScaler.inverse_transform(np.array([y_train[-1]]))[0]
         y_sample_ = self.dl.yScaler.inverse_transform(np.array([_y_train[-1]]))[0]
@@ -331,10 +339,19 @@ class Trainer(AbstractTrainer):
 
         # predict only on interesting samples
         x_preds = x_batch[is_interesting]
-        y_preds_ = np.zeros((len(x_preds), self.CTX["FEATURES_OUT"]), dtype=np.float64)
-        for i in range(0, len(x_preds), self.CTX["MAX_BATCH_SIZE"]):
-            s = slice(i, i+self.CTX["MAX_BATCH_SIZE"])
-            y_preds_[s] = self.model.predict(x_preds[s])
+        y_preds_ = np.empty((len(x_preds), self.CTX["FEATURES_OUT"]), dtype=np.float64)
+        for s in range(0, len(x_preds), self.CTX["MAX_BATCH_SIZE"]):
+            start = s
+            end   = min(s + self.CTX["MAX_BATCH_SIZE"], len(x_preds))
+            pad = max(0, self.CTX["MIN_BATCH_SIZE"] - (end - start))
+            
+            x_batch_ = np.concatenate([x_preds[start:end], np.empty((pad, ) + x_preds.shape[1:])], axis=0)
+            # output = self.model.predict(x_batch)
+            # if (pad > 0):
+            #     output = output[0:-pad]
+            # y_preds_[start:end] = output
+            
+            
         y_batch_[is_interesting] = y_preds_
 
 
@@ -410,6 +427,7 @@ class Trainer(AbstractTrainer):
                                          y       :np.float64_2d[ax.sample, ax.feature],
                                          is_interesting:np.bool_1d,
                                          origin  :np.float64_2d[ax.sample, ax.feature]) -> None:
+        if (not self.CTX["GENERATE_ARTIFACTS"]): return
 
         interesting = np.arange(len(x_batch))[is_interesting]
         if (len(interesting) > 0):
@@ -482,6 +500,8 @@ class Trainer(AbstractTrainer):
 
 
     def eval(self) -> "dict[str, float]":
+        
+        streamer.reset()
 
         if (self.__eval_files__ is None):
             self.__eval_files__ = [U.list_flights(f"{EVAL_FOLDER}{f}") for f in os.listdir(EVAL_FOLDER)]
@@ -499,6 +519,8 @@ class Trainer(AbstractTrainer):
         nb_100 = 0
         BAR.reset(min=0, max=100)
         CHRONO.start()
+        
+        nb_msg = 0
         for fi in range(len(self.__eval_files__)):
             folder = self.__eval_files__[fi]
 
@@ -508,12 +530,14 @@ class Trainer(AbstractTrainer):
             prntC(C.INFO, "Evaluating model on : ", C.BLUE, folder[0].split("/")[-2])
 
             first = True
+            
 
             for t in range(max_len):
                 x, files = self.__next_msgs__(dfs, t)
                 for i in range(len(x)): streamer.add(x[i])
 
                 yt_, losst_, _ = self.predict(x)
+                nb_msg += len(x)
 
                 for i in range(len(files)):
                     y_[files[i]][t] = yt_[i]
@@ -549,6 +573,8 @@ class Trainer(AbstractTrainer):
 
         prntC(C.INFO, "best accuracy : ", C.BLUE, round(mean_accs.max()*100, 2), "%")
         prntC(C.INFO, "nb of 100% : ", C.BLUE, nb_100, C.RESET, "/", len(self.__eval_files__))
+        
+        prntC(C.INFO, "NB MSG : ", C.BLUE, nb_msg)
 
         return {"ACCURACY": round(mean_accs.max()*100, 2),
                 "ERROR": round(mean_loss, 2), 
@@ -606,6 +632,8 @@ class Trainer(AbstractTrainer):
     def __plot_loss_curves__(self, loss:"list[np.float64_1d]", loss_:"list[np.float64_1d]",
                              mean_loss:np.float64_1d, mean_loss_:np.float64_1d,
                              max_len:int, name:str) -> None:
+        if (not self.CTX["GENERATE_ARTIFACTS"]): return
+
         COLORS = ["tab:blue", "tab:orange", "tab:green", "tab:red", "tab:purple", "tab:brown", "tab:pink", "tab:gray", "tab:olive", "tab:cyan"]
         plt.figure(figsize=(24 * max_len / 500, 12))
         for f in range(len(loss)):
@@ -618,6 +646,7 @@ class Trainer(AbstractTrainer):
         plt.xlabel("Timestamp")
         plt.ylabel("Distance Loss (m)")
         plt.grid()
+        print("Saving loss curves to", self.ARTIFACTS+f"/eval_loss_{name}.png")
         plt.savefig(self.ARTIFACTS+f"/eval_loss_{name}.png")
 
 
@@ -666,12 +695,13 @@ class Trainer(AbstractTrainer):
                                             true_icao_i:int,
                                             pred_icao_i:int,
                                             loss:"list[np.float64_1d]", max_len:int, name:str) -> None:
-
+        if (not self.CTX["GENERATE_ARTIFACTS"]): return
         if (len(dfs) == 1): return
         # find when the saturation is reached
         attack_t = 0
-        while(loss[0][attack_t] == loss[1][attack_t] or np.isnan(loss[0][attack_t]) or np.isnan(loss[1][attack_t])):
+        while(dfs[0]["latitude"].iloc[attack_t] == dfs[1]["latitude"].iloc[attack_t] or np.isnan(loss[0][attack_t]) or np.isnan(loss[1][attack_t])):
             attack_t += 1
+            
         s = slice(max(0, attack_t-3), min(max_len, attack_t+self.CTX["LOSS_MOVING_AVERAGE"]))
         
         # plot the trajectory and the prediction in a map
@@ -833,6 +863,7 @@ class Trainer(AbstractTrainer):
 
 
     def __plot_safe_icao24__(self, dfs:"list[pd.DataFrame]", loss:"list[np.float64_1d]", name:str, flights_losses, accs):
+        if (not self.CTX["GENERATE_ARTIFACTS"]): return
         if (len(dfs) == 1): return
 
         LABELS = ["Mean Loss", "Mean Loss at Attack", "Mean Loss around Attack"]

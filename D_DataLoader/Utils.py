@@ -1,18 +1,19 @@
 import pandas as pd
 from _Utils.os_wrapper import os
 from typing import overload
+from numpy_typing import np, ax
 
 import _Utils.Color as C
 from   _Utils.Color import prntC
 from   _Utils.DataFrame import DataFrame
 import _Utils.Limits as Limits
-from numpy_typing import np, ax
 import _Utils.geographic_maths as GEO
-
-from _Utils.FeatureGetter import FeatureGetter
-
+from   _Utils.Scaler3D import *
+from   _Utils.FeatureGetter import FeatureGetter
 
 from D_DataLoader.Airports import TOULOUSE
+
+
 
 # |====================================================================================================================
 # | OVERLOADS
@@ -124,6 +125,24 @@ def angle_diff(a:float, b:float) -> float:
 # |====================================================================================================================
 # | TRAJECTORY PREPROCESSING
 # |====================================================================================================================
+
+
+# |--------------------------------------------------------------------------------------------------------------------
+# | SCALERS
+# |--------------------------------------------------------------------------------------------------------------------
+
+def getScaler(name:str, dims=2) -> "type":
+    if (dims == 2):
+        if (name == "standard") : return StandardScaler2D
+        if (name == "minmax") : return MinMaxScaler2D
+        if (name == "dummy") : return DummyScaler2D
+    
+    if (dims == 3):
+        if (name == "standard") : return StandardScaler3D
+        if (name == "minmax") : return MinMaxScaler3D
+        if (name == "dummy") : return DummyScaler3D
+    return None
+
 
 # |--------------------------------------------------------------------------------------------------------------------
 # | WINDOW SLICING
@@ -290,8 +309,6 @@ def df_to_feature_array(CTX:dict, df:DataFrame, check_length:bool=True) -> np.fl
     return array
 
 
-
-
 def __pad__(CTX:dict, df:DataFrame) -> DataFrame:
     """
     Pad a dataframe with the right padding method
@@ -319,7 +336,6 @@ def __pad__(CTX:dict, df:DataFrame) -> DataFrame:
 
     df.from_numpy(pad_df)
     return df
-
 
 
 TOULOUSE_LATS = np.array([TOULOUSE[i]['lat'] for i in range(len(TOULOUSE))], dtype=np.float64)
@@ -352,7 +368,6 @@ def toulouse_airport_distance(lats:"list[float]", lons:"list[float]") -> "np.flo
     return dists
 
 
-
 def compute_bearing(df:DataFrame):
     lat = df["latitude"]
     lon = df["longitude"]
@@ -360,6 +375,7 @@ def compute_bearing(df:DataFrame):
     for i in range(1, len(bearing)):
         bearing[i] = GEO.bearing(lat[i-1], lon[i-1], lat[i], lon[i])
     return bearing
+
 
 def compute_distance(df:DataFrame):
     lat = df["latitude"]
@@ -369,18 +385,19 @@ def compute_distance(df:DataFrame):
         distance[i] = GEO.distance(lat[i-1], lon[i-1], lat[i], lon[i])
     return distance
 
+
 def compute_bearing_diff(bearing:np.float64_1d[ax.time]):
     bearing_diff = np.zeros(len(bearing))
     for i in range(2, len(bearing)):
         bearing_diff[i] = GEO.bearing_diff(bearing[i-1], bearing[i])
     return bearing_diff
 
+
 def compute_distance_diff(distance:np.float64_1d[ax.time]):
     distance_diff = np.zeros(len(distance))
     for i in range(2, len(distance)):
         distance_diff[i] = distance[i] - distance[i-1]
     return distance_diff
-
 
 
 def analysis(CTX:dict, dataframe:"list[np.float64_2d[ax.time, ax.feature]]") -> """tuple[
@@ -397,12 +414,8 @@ def analysis(CTX:dict, dataframe:"list[np.float64_2d[ax.time, ax.feature]]") -> 
 
     return mins, maxs
 
-def eval_curvature(CTX:dict, x:"list[np.float64_2d[ax.time, ax.feature]]", i:int, start:int, end:int) -> float:
-    """
-    Evaluate the curvature degree of the trajectory.
 
-    Used in order to filter straight trajectories that are too easy for training the model.
-    """
+def eval_curvature(CTX:dict, x:"list[np.float64_2d[ax.time, ax.feature]]", i:int, start:int, end:int) -> float:
     FG:FeatureGetter = CTX["FG"]
     start = max(0, start)
     end = end

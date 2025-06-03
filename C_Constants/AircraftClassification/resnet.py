@@ -1,7 +1,7 @@
 
-LEARNING_RATE = 0.00015
-EPOCHS = 60 
-BATCH_SIZE = 64
+LEARNING_RATE = 0.0002
+EPOCHS = 80
+BATCH_SIZE = 128
 NB_BATCH = 32
 
 
@@ -15,25 +15,26 @@ RANDOM_TRACK = False
 
 # "valid" do not pad convolutions
 # "same" pad convolutions
-MODEL_PADDING = "valid"
+MODEL_PADDING = "same"
 
 # "valid" do not pad convolutions
 # "last" duplicate the last row
 # "nan" fill with nan (as the model "know" what is a nan value)
 INPUT_PADDING = "nan"
 
+DYNAMIC_LABEL_RATIO=True
 
 LAYERS = 2
 UNITS = 64
 DROPOUT = 0.3
 
-ACTIVATION = "sigmoid"
+ACTIVATION = "softmax"
 
 
-ADD_TAKE_OFF_CONTEXT = True
-ADD_MAP_CONTEXT = True
+ADD_TAKE_OFF_CONTEXT = False
+ADD_MAP_CONTEXT = False
 IMG_SIZE = 128
-ADD_AIRPORT_CONTEXT = True
+ADD_AIRPORT_CONTEXT = False
 
 USED_FEATURES = [
     "latitude", "longitude",

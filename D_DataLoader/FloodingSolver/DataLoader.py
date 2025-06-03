@@ -9,7 +9,7 @@ from  _Utils.FeatureGetter import FG_flooding as FG
 import _Utils.Color as C
 from   _Utils.Color import prntC
 import _Utils.Limits as Limits
-from   _Utils.Scaler3D import  StandardScaler3D, StandardScaler2D, MinMaxScaler2D, fill_nan_3d, fill_nan_2d
+from   _Utils.Scaler3D import  StandardScaler3D, StandardScaler2D, MinMaxScaler2D, MinMaxScaler3D, DummyScaler3D, DummyScaler2D, fill_nan_3d, fill_nan_2d
 from   _Utils.ProgressBar import ProgressBar
 from   _Utils.plotADSB import PLT
 from numpy_typing import np, ax
@@ -52,15 +52,15 @@ class DataLoader(AbstractDataLoader):
         self.CTX = CTX
         self.PAD = None
 
-        self.xScaler = StandardScaler3D()
-        self.yScaler = StandardScaler2D()
-
+        Scaler3D = U.getScaler(CTX["SCALER"], 3)
+        Scaler2D = U.getScaler(CTX["SCALER"], 2)
+        self.xScaler = Scaler3D()
+        self.yScaler = Scaler2D()
 
         training = (CTX["EPOCHS"] and path != "")
         if (training):
-            x = self.__get_dataset__(path)
+            x, self.PAD = self.__get_dataset__(path)
             self.x_train,self.x_test = self.__split__(x)
-
 
         # for streaming
         self.win_cache = CacheArray2D()
@@ -84,7 +84,7 @@ class DataLoader(AbstractDataLoader):
         if (self.PAD is None): self.PAD = U.genPadValues(CTX, x)
         x = fill_nan_3d(x, self.PAD)
 
-        return x
+        return x, self.PAD
 
 
 
@@ -160,6 +160,8 @@ class DataLoader(AbstractDataLoader):
                         x:np.float64_2d[ax.time, ax.feature],
                         y:np.float64_1d[ax.feature],
                         origin:"tuple[float, float, float]") -> None:
+        
+        if (not self.CTX["GENERATE_ARTIFACTS"]): return
 
         NAME = "train_example"
         lat = FG.lat(x)

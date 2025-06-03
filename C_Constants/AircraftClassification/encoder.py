@@ -1,6 +1,6 @@
 
 LEARNING_RATE = 0.00015
-EPOCHS = 0
+EPOCHS = 80
 BATCH_SIZE = 64
 MAX_BATCH_SIZE = BATCH_SIZE
 MIN_BATCH_SIZE = BATCH_SIZE
@@ -17,20 +17,21 @@ RANDOM_TRACK = False
 
 # "valid" do not pad convolutions
 # "same" pad convolutions
-MODEL_PADDING = "valid"
+MODEL_PADDING = "same"
 
 # "valid" do not pad convolutions
 # "last" duplicate the last row
 # "nan" fill with nan (as the model "know" what is a nan value)
 INPUT_PADDING = "nan"
 
+USE_DYT = False
+DYNAMIC_LABEL_RATIO = True
 
 LAYERS = 2
 DROPOUT = 0.3
+UNITS = 128
 
 ACTIVATION = "sigmoid"
-
-
 
 
 ADD_TAKE_OFF_CONTEXT = True

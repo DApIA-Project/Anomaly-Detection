@@ -5,7 +5,7 @@ from B_Model.AircraftClassification.Utils import *
 
 
 
-class Model(TensorflowModel):
+class Model(GlobalArchitectureV2):
 
     name = "encoder"
 

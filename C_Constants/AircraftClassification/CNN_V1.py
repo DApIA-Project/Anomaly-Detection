@@ -1,7 +1,7 @@
 
-LEARNING_RATE = 0.00015
+LEARNING_RATE = 0.0002
 EPOCHS = 80
-BATCH_SIZE = 64
+BATCH_SIZE = 128
 NB_BATCH = 32
 
 
@@ -22,24 +22,20 @@ MODEL_PADDING = "same"
 # "nan" fill with nan (as the model "know" what is a nan value)
 INPUT_PADDING = "nan"
 
-USE_DYT = False
-DYNAMIC_LABEL_RATIO = True
-
+DYNAMIC_LABEL_RATIO=True
 
 LAYERS = 2
 DROPOUT = 0.1
 UNITS = 128
 RESIDUAL = 1
 
-ACTIVATION = "sigmoid"
-
-
+ACTIVATION = "softmax"
 
 
 ADD_TAKE_OFF_CONTEXT = True
-ADD_MAP_CONTEXT = True
+ADD_MAP_CONTEXT = False
 IMG_SIZE = 128
-ADD_AIRPORT_CONTEXT = True
+ADD_AIRPORT_CONTEXT = False
 
 USED_FEATURES = [
     "latitude", "longitude",

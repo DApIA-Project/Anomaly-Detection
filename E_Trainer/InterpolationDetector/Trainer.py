@@ -289,9 +289,17 @@ class Trainer(AbstractTrainer):
         # predict only on interesting samples
         x_preds = x_batch[is_interesting]
         y_preds_ = np.zeros((len(x_preds), 1), dtype=np.float64)
-        for i in range(0, len(x_preds), self.CTX["MAX_BATCH_SIZE"]):
-            s = slice(i, i+self.CTX["MAX_BATCH_SIZE"])
-            y_preds_[s] = self.model.predict(x_preds[s])
+        for s in range(0, len(x_preds), self.CTX["MAX_BATCH_SIZE"]):
+            start = s
+            end = min(s + self.CTX["MAX_BATCH_SIZE"], len(x_preds))
+            pad = max(0, self.CTX["MIN_BATCH_SIZE"] - (end - start))
+            
+            x_batch_ =  np.concatenate([x_preds[start:end], np.empty((pad, ) + x_preds.shape[1:])], axis=0)
+            output = self.model.predict(x_batch_)
+            if (pad > 0):
+                output = output[0:-pad]
+            y_preds_[start:end] = output
+            
         y_batch_[is_interesting] = y_preds_
 
 
@@ -327,7 +335,7 @@ class Trainer(AbstractTrainer):
             list[int]]""":
 
         # load all ressources needed for the batch
-        files_df, max_lenght, y, y_, loss, acc = [], 0, [], [], [], []
+        files_df, max_lenght, y, y_, loss, acc, glob_pred = [], 0, [], [], [], [], []
         for f in range(len(files)):
             df = U.read_trajectory(files[f])
             files_df.append(df)
@@ -337,8 +345,9 @@ class Trainer(AbstractTrainer):
 
             max_lenght = max(max_lenght, len(df))
             acc.append(0)
+            glob_pred.append(0)
 
-        return files_df, max_lenght, y, y_, loss, acc
+        return files_df, max_lenght, y, y_, loss, acc, glob_pred
 
 
     def __next_msgs__(self, dfs:"list[pd.DataFrame]", t:int)-> "tuple[list[dict[str:float]], list[int]]":
@@ -359,16 +368,20 @@ class Trainer(AbstractTrainer):
 
 
 
-        dfs, max_len, y, y_, loss_, acc = self.__gen_eval_batch__(self.__eval_files__)
+        dfs, max_len, y, y_, loss_, acc, glob_pred = self.__gen_eval_batch__(self.__eval_files__)
 
         BAR.reset(max=max_len)
         prntC(C.INFO, "Evaluating model on : ", C.BLUE, self.__eval_files__[0].split("/")[-2])
 
+        CHRONO.start()
+        NB_MESSAGE = 0
         for t in range(max_len):
             x, files = self.__next_msgs__(dfs, t)
+            NB_MESSAGE += len(x)
             for i in range(len(x)): streamer.add(x[i])
 
             yt_, losst_, is_interp = self.predict(x)
+            
             
             
 
@@ -377,19 +390,39 @@ class Trainer(AbstractTrainer):
                 loss_[files[i]][t] = losst_[i]
                 acc[files[i]] += (is_interp[i] == y[files[i]])
                 
+                if (is_interp[i]):
+                    glob_pred[files[i]] += 1
+                
             BAR.update()
+            
+        CHRONO.stop()
 
         mean_acc = 0
+        acc_on_glob = 0
+        
+        detection_capacity = 0
+        nb_iterp = 0
         
         for i in range(len(dfs)):
             name = self.__eval_files__[i].split("/")[-1]
-            prntC(C.INFO, "Accuracy for ", C.BLUE, name, C.RESET, " : ", C.BLUE, round(acc[i]/len(dfs[i])*100, 2))
+            prntC(C.INFO, "Accuracy for ", C.BLUE, name, C.RESET, " : ", C.BLUE, round(acc[i]/len(dfs[i])*100, 2), glob_pred[i])
             mean_acc += acc[i]/len(dfs[i])
             
+            if ("interp" in name):
+                detection_capacity += glob_pred[i]
+                nb_iterp += len(dfs[i])
+                if (glob_pred[i] > 0):
+                    acc_on_glob += 1
+                
+            elif (glob_pred[i] == 0):
+                acc_on_glob += 1
+                
+            
         mean_acc /= len(dfs)
+        
+        print("TOTAL NUM OF MESSAGES : ", NB_MESSAGE)
 
-
-        return {"ACCURACY": round(mean_acc*100, 2)}
+        return {"ACCURACY": round(mean_acc*100, 2), "GLOBAL_ACC": round(acc_on_glob/len(dfs)*100, 2), "DETECTION_CAPACITY": round(detection_capacity/nb_iterp*100, 2), "TIME": round(CHRONO.get_time_s()/NB_MESSAGE*1000,2)}
 
 
 

@@ -6,7 +6,7 @@ VERSION = "0.8.2"
 
 
 class MODELS:
-    spoofing = "CNN2"
+    spoofing = "CNN"
     separator = "GEO"
     replay = "HASH"
     flooding = "LSTM"
@@ -294,7 +294,7 @@ file_content_remplace("./AdsbAnomalyDetector/E_Trainer_TrajectorySeparator_Train
                       "DEBUG = False")
 
 # rename model and constant file to be generic
-model = find_files_and_filter("B_Model_AircraftClassification_")
+model = find_files_and_filter("B_Model_AircraftClassification_", ["B_Model_AircraftClassification_Utils.py"])
 if len(model) > 1:
     raise RuntimeError("Multiple B_Model_AircraftClassification files found")
 constants = find_files_and_filter("C_Constants_AircraftClassification_", [

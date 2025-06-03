@@ -2,9 +2,9 @@
 pip install tensorflow==2.8.0
 pip install keras
 
-# not mendatory, as all model are tensoflow based 
-# pip install reformer-pytorch==1.4.4
-# pip install torch==1.10
+# [optional] for using PyTorch instead of TensorFlow
+pip install reformer-pytorch
+pip install torch
 
 # Data processing
 pip install pandas
@@ -13,6 +13,7 @@ pip install numpy-typing
 
 # webserver for live anomaly detection
 pip install flask
+pip install requests
 
 
 # Visualization (chart + maps)

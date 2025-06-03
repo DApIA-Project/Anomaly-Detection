@@ -22,9 +22,6 @@ MODEL_PADDING = "same"
 # "nan" fill with nan (as the model "know" what is a nan value)
 INPUT_PADDING = "valid"
 
-USE_DYT = False
-DYNAMIC_LABEL_RATIO = True
-
 
 DROPOUT = 0.1
 UNITS = 128

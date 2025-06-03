@@ -17,12 +17,6 @@ class Model(AbstactModel):
     name = "CNN"
 
     def __init__(self, CTX:dict):
-        """
-        Generate model architecture
-        Define loss function
-        Define optimizer
-        """
-
 
         # load context
         self.CTX = CTX
@@ -56,24 +50,13 @@ class Model(AbstactModel):
 
 
     def predict(self, x):
-        """
-        Make prediction for x
-        """
         return self.model(x)
 
     def compute_loss(self, x, y):
-        """
-        Make a prediction and compute the loss
-        that will be used for training
-        """
         y_ = self.model(x)
         return self.loss(y_, y), y_
 
     def training_step(self, x, y):
-        """
-        Do one forward pass and gradient descent
-        for the given batch
-        """
         with tf.GradientTape(watch_accessed_variables=True) as tape:
             loss, output = self.compute_loss(x, y)
 
@@ -86,9 +69,6 @@ class Model(AbstactModel):
 
 
     def visualize(self, save_path="./_Artifacts/"):
-        """
-        Generate a visualization of the model's architecture
-        """
 
         params = 0
         for i in range(len(self.model.trainable_variables)):
@@ -100,14 +80,8 @@ class Model(AbstactModel):
 
 
     def get_variables(self):
-        """
-        Return the variables of the model
-        """
         return self.model.trainable_variables
 
     def set_variables(self, variables):
-        """
-        Set the variables of the model
-        """
         for i in range(len(variables)):
             self.model.trainable_variables[i].assign(variables[i])

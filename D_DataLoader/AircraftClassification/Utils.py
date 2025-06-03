@@ -315,7 +315,12 @@ def gen_sample(CTX:"dict[str, object]",
         if (CTX["ADD_TAKE_OFF_CONTEXT"]):
             # reverse the trajectory to get the first position (not the last as default)
             to_lat, to_lon = U.get_aircraft_position(CTX, x_batch_takeoff[::-1])
-            airport = U.toulouse_airport_distance(to_lat, to_lon)
+            try:
+                airport = U.toulouse_airport_distance(to_lat, to_lon)
+            except Exception as e:
+                print(CTX, x_batch_takeoff[::-1], to_lat, to_lon)
+                raise e
+                
             dists = np.concatenate([dists, airport])
         x_batch_airport = dists
 

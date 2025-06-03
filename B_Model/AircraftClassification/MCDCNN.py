@@ -5,7 +5,7 @@ from B_Model.AircraftClassification.Utils import *
 
 
 
-class Model(TensorflowModel):
+class Model(GlobalArchitectureV2):
 
     name = "MCDCNN"
 
@@ -57,5 +57,6 @@ def ads_b_module(CTX, x, x_takeoff, airport, x_map):
         concat_layer = Concatenate(axis=-1)(conv2_layers)
 
     fully_connected = Dense(units=732,activation='relu')(concat_layer)
+    
     return fully_connected
     

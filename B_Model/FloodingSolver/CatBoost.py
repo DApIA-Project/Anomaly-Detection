@@ -89,7 +89,8 @@ class Model(AbstactModel):
         variables = []
         for i in range(self.CTX["FEATURES_OUT"]):
             variables.append(open("tmp"+str(i)+".json", "r").read())
-            # os.remove("tmp"+str(i)+".json")
+            os.remove("tmp"+str(i)+".json")
+        print(variables)
         return variables
 
 
@@ -100,6 +101,6 @@ class Model(AbstactModel):
         for i in range(self.CTX["FEATURES_OUT"]):
             with open("tmp"+str(i)+".json", "w") as f:
                 f.write(variables[i])
-            self.model[i] = CatBoostRegressor().load_model("tmp"+str(i)+".json")
-            # os.remove("tmp"+str(i)+".json")
+            self.model[i] = CatBoostRegressor().load_model("tmp"+str(i)+".json", format="json")
+            os.remove("tmp"+str(i)+".json")
         return variables

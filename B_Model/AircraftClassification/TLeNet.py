@@ -5,7 +5,7 @@ from B_Model.AircraftClassification.Utils import *
 
 
 
-class Model(TensorflowModel):
+class Model(GlobalArchitectureV2):
 
     name = "TLeNet"
 
@@ -34,7 +34,7 @@ def ads_b_module(CTX, x, x_takeoff, airport, x_map):
         x = Concatenate()(cat)
         
     conv_1 = Conv1D(filters=5,kernel_size=5,activation='relu', padding='same')(x)
-    conv_1 = MlaxPool1D(pool_size=2)(conv_1)
+    conv_1 = MaxPool1D(pool_size=2)(conv_1)
     
     conv_2 = Conv1D(filters=20, kernel_size=5, activation='relu', padding='same')(conv_1)
     conv_2 = MaxPool1D(pool_size=4)(conv_2)

@@ -1,68 +1,60 @@
 
+from _Utils.DebugGui import launch_gui
 
 # Convert CTX to dict for logging hyperparameters
 from _Utils.module import buildCTX
 from numpy_typing import np, ax
-from   _Utils.Color import prntC
-import _Utils.Color as C
 
 # For auto-completion, we use Abstract class as virtual type
 from B_Model.AbstractModel import Model as _Model_
 from E_Trainer.AbstractTrainer import Trainer as _Trainer_
+from F_Runner.Utils import log_data
 
 
-def multiFit(Model:"type[_Model_]", Trainer:"type[_Trainer_]", CTX, default_CTX=None, repeats=2, experiment_name:str = None):
-    """
-    Fit the model several times with a given set of hyperparameters
-    to check the stability of the training.
 
-    Parameters:
-    -----------
-    model: type[Model]:
-        Model used for training
+def multiFit(Model:"type[_Model_]", Trainer:"type[_Trainer_]", CTX, default_CTX=None, experiment_name:str = None, tested_values:"dict[str, list[object]]" = {}):
 
-    trainer: type[Trainer]
-        Trainer class, managing the training loop, testing and evaluation, for a specific task
-        (eg. spoofing detection)
-
-    CTX: Module
-        Python module containing the set of hyperparameters
-
-    repeats: int
-        Number of times the model is trained with the same hyperparameters
-    """
 
     # Convert CTX to dict and merge it with default_CTX
-    CTX = buildCTX(CTX, default_CTX)
-
-
-    metrics_stats:dict[str,list] = {}
-    for i in range(repeats):
-
+    BASE_CTX = buildCTX(CTX, default_CTX)
+    
+    actual_test = [0 for i in range(len(tested_values))]
+    nb_test = np.prod([len(tested_values[k]) for k in tested_values])
+    
+    
+    for t in range(nb_test):
+        
+        # build CTX from actual_test
+        CTX = BASE_CTX.copy()
+        for i, k in enumerate(tested_values):
+            # get the index of the current test
+            index = actual_test[i]
+            # get the value of the current test
+            value = tested_values[k][index]
+            # set the value in CTX
+            CTX[k] = value
+            
+        
 
         # Create a new training environment and run it
+        launch_gui(CTX)
         trainer = Trainer(CTX, Model)
+        
         metrics = trainer.run()
-
-        # save the results
-        for metric_label in metrics:
-            value = metrics[metric_label]
-            if (metric_label not in metrics_stats):
-                metrics_stats[metric_label] = [value]
+        
+        log_data(metrics, CTX, Model, experiment_name=experiment_name)
+       
+        # create the next test
+        for i, k in enumerate(tested_values):
+            max_value = len(tested_values[k]) - 1
+            if (actual_test[i] < max_value):
+                actual_test[i] += 1
+                break
             else:
-                metrics_stats[metric_label].append(value)
-
-        # Analyze the results if it is the last run
-        if (i == repeats -1):
-            prntC("Metric".rjust(15), "|", "min".rjust(10), "|", "mean".rjust(10), "|", "std".rjust(10), "|", "median".rjust(10), "|", "max".rjust(10), sep="")
-            for metric in metrics:
-                # min, mean, std, median, max
-                _min = np.min(metrics_stats[metric])
-                _mean = np.mean(metrics_stats[metric])
-                _std = np.std(metrics_stats[metric])
-                _median = np.median(metrics_stats[metric])
-                _max = np.max(metrics_stats[metric])
-
-                prntC(metric.rjust(15), "|", str(round(_min, 3)).rjust(10), "|", str(round(_mean, 3)).rjust(10), "|", str(round(_std, 3)).rjust(10), "|", str(round(_median, 3)).rjust(10), "|", str(round(_max, 3)).rjust(10), sep="")
+                actual_test[i] = 0
+            
+    
+    
+    
 
 

@@ -370,6 +370,10 @@ class Streamer:
 
     def add_cache(self, cache:Cache) -> None:
         self.__cache__.append(cache)
+        
+    def reset(self) -> None:
+        self.trajectories = {}
+        self.__cache__ = []
 
 
     def __create_trajectory__(self, icao:str, tag:str, start_time:int) -> Trajectory:

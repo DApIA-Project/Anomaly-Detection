@@ -30,8 +30,10 @@ class Model(AbstactModel):
         self.nb_train = 0
 
 
-        self.reservoir = Reservoir(1000,
-            lr=0.5, sr=0.9
+        self.reservoir = Reservoir(CTX["R_UNITS"],
+            lr=CTX["LR"], sr=CTX["SR"],
+            input_connectivity=CTX["INPUT_CONNECTIVITY"],
+            rc_connectivity=CTX["RC_CONNECTIVITY"],
         )
 
         x_input_shape = (self.CTX["INPUT_LEN"], self.reservoir.output_dim)
@@ -40,8 +42,6 @@ class Model(AbstactModel):
         z = Flatten()(z)
         z = Dense(CTX["FEATURES_OUT"], activation="linear")(z)
         z = Activation(CTX["ACTIVATION"])(z)
-        z = Dropout(CTX["DROPOUT"])(z)
-        z = MulAttention()(z)
         y = z
         
 
@@ -93,25 +93,17 @@ class Model(AbstactModel):
 
 
     def visualize(self, save_path="./_Artifacts/"):
-        """
-        Generate a visualization of the model's architecture
-        """
         filename = os.path.join(save_path, self.name+".png")
         tf.keras.utils.plot_model(self.readout, to_file=filename, show_shapes=True)
 
 
 
     def get_variables(self):
-        """
-        Return the variables of the model
-        """
         readout_arch = self.readout.trainable_variables
         return self.reservoir, readout_arch
+    
 
     def set_variables(self, variables):
-        """
-        Set the variables of the model
-        """
         self.reservoir, readout_arch = variables
 
         for i in range(len(readout_arch)):

@@ -14,4 +14,4 @@ BOX_CENTER = (
     (BOUNDING_BOX[0][0] + BOUNDING_BOX[1][0]) / 2,
     (BOUNDING_BOX[0][1] + BOUNDING_BOX[1][1]) / 2
 )
-LOSS_MOVING_AVERAGE = 10 # kernel size for moving average
+LOSS_MOVING_AVERAGE = 20 # kernel size for moving average

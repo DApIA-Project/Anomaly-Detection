@@ -54,17 +54,19 @@ class DataLoader(AbstractDataLoader):
         self.CTX = CTX
         self.PAD = None
 
-        Scaler = self.getScalerClass(self.CTX["SCALER"])
+        Scaler3D = U.getScaler(self.CTX["SCALER"], dims=3)
+        Scaler2D = U.getScaler(self.CTX["SCALER"], dims=2)
 
-        self.xScaler:StandardScaler3D = Scaler()
-        if (self.CTX["ADD_TAKE_OFF_CONTEXT"]): self.xTakeOffScaler:StandardScaler3D = Scaler()
-        if (self.CTX["ADD_AIRPORT_CONTEXT"]): self.xAirportScaler = MinMaxScaler2D()
+        self.xScaler:StandardScaler3D = Scaler3D()
+        if (self.CTX["ADD_TAKE_OFF_CONTEXT"]): self.xTakeOffScaler:StandardScaler3D = Scaler3D()
+        if (self.CTX["ADD_AIRPORT_CONTEXT"]): self.xAirportScaler = Scaler2D()
         self.yScaler = SparceLabelBinarizer(self.CTX["USED_LABELS"])
 
         training = (CTX["EPOCHS"] and path != "")
         if (training):
-            x, y, self.filenames = self.__get_dataset__(path)
+            x, y, self.filenames, self.PAD = self.__get_dataset__(path)
             self.x_train, self.y_train, self.x_test, self.y_test = self.__split__(x, y)
+
 
         self.win_cache = CacheArray2D()
         self.win_cache.set_feature_size(CTX["FEATURES_IN"])
@@ -108,7 +110,7 @@ class DataLoader(AbstractDataLoader):
         if (self.PAD is None): self.PAD = U.genPadValues(CTX, x)
         x = fill_nan_3d(x, self.PAD)
         y = self.yScaler.transform(y)
-        return x, y, filenames
+        return x, y, filenames, self.PAD
 
 
 
@@ -136,10 +138,7 @@ class DataLoader(AbstractDataLoader):
         if (self.CTX["ADD_AIRPORT_CONTEXT"]): x_batch_airport = self.xAirportScaler.transform(x_batch_airport)
         return x_batch, x_batch_takeoff, x_batch_airport
 
-    def getScalerClass(self, name:str) -> "type":
-        if (name == "standard") : return StandardScaler3D
-        if (name == "minmax") : return MinMaxScaler3D
-        return None
+
 
 # |====================================================================================================================
 # |     UTILS
@@ -241,12 +240,13 @@ class DataLoader(AbstractDataLoader):
         # compute the new ratio according to the accuracy
         # eg. 100, 90, 90 -> 0, 0.5, 0.5
         # eg. 90, 80, 80 -> 10, 20, 20 -> 0.2, 0.4, 0.4
-        DEV = 0.5
+        DEV = 0.25
         res = [0] * len(acc_per_class)
         for i in range(len(acc_per_class)):
             res[i] = (100 - acc_per_class[i]) / (100.0)
-            res[i] = (1.0-DEV + res[i] * DEV) / (1.0 + DEV)
+            res[i] = (DEV + res[i] * (1-DEV)) / (1.0 + DEV)
         tot = sum(res)
+        
         for i in range(len(res)):
             res[i] = res[i] / tot
             

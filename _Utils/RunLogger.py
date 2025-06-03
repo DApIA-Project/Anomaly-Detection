@@ -1,6 +1,6 @@
 import os
 from numpy_typing import np, ax
-from typing_extensions import Self, TextIO
+from typing_extensions import Self
 from datetime  import datetime
 import sys
 import requests
@@ -239,6 +239,43 @@ class RunLogger:
                 res["message"] = traceback.format_exc()
                 
             return json.dumps(res)
+        
+        @app.route("/set_at_loc", methods=["POST"])
+        def set_at_loc():
+            body = flask.request.data
+            body = json.loads(body)
+            column = body["column"]
+            loc = body["loc"]
+            value = body["value"]
+            
+            res = {}
+            try:
+                self.set_at_loc(column, loc, value)
+                res["status"] = "ok"
+            except Exception as e:
+                res["status"] = "error"
+                res["message"] = traceback.format_exc()
+                
+            return json.dumps(res)
+        
+        @app.route("/set", methods=["POST"])
+        def set():
+            body = flask.request.data
+            body = json.loads(body)
+            column = body["column"]
+            run_id = body["run_id"]
+            value = body["value"]
+            
+            res = {}
+            try:
+                self.set(column, run_id, value)
+                res["status"] = "ok"
+            except Exception as e:
+                res["status"] = "error"
+                res["message"] = traceback.format_exc()
+                
+            return json.dumps(res)
+        
             
         @app.route("/get", methods=["GET"])
         def get():
@@ -313,9 +350,46 @@ class RunLogger:
         else:
             raise Exception(f"Http error {r.status_code} : {r.text}")
         
+    def __http_set_at_loc__(self, column:str, loc:int,  value:float):
+        body = json.dumps({
+            "column": column,
+            "loc": loc,
+            "value": value
+        })
+        r = requests.post(f"http://{self.host}:{self.port}/set_at_loc", data=body)
+        if (r.status_code == 200):
+            res = json.loads(r.text)
+            if (res["status"] == "ok"):
+                return
+            else:
+                raise Exception("Server error: " + res["message"])
+        else:
+            raise Exception(f"Http error {r.status_code} : {r.text}")
+        
+    def __http_set__(self, column:str, run_id:str, value:float):
+        body = json.dumps({
+            "column": column,
+            "run_id": run_id,
+            "value": value
+        })
+        r = requests.post(f"http://{self.host}:{self.port}/set", data=body)
+        if (r.status_code == 200):
+            res = json.loads(r.text)
+            if (res["status"] == "ok"):
+                return
+            else:
+                raise Exception("Server error: " + res["message"])
+        else:
+            raise Exception(f"Http error {r.status_code} : {r.text}")
+        
+        
     def __flush__(self):
         if not self.is_client:
             raise ValueError("Cannot flush when not connected to a server")
+        
+        now = datetime.now()
+        if (now - self.last_update).total_seconds() < 60:
+            return
         
         # download the data
         r = requests.get(f"http://{self.host}:{self.port}/get?last_update={datetime.timestamp(self.last_update)}")
@@ -867,7 +941,7 @@ class RunLogger:
     def flush(self):
         self.__flush__()
 
-    def render(self, file:TextIO, title=""):
+    def render(self, file, title=""):
         if (self.is_client):
             self.__flush__()
         file.write(self.__str__(title))
@@ -897,20 +971,63 @@ class RunLogger:
         group = self.groups[group_name]
         col_i = group.columns_indices[column]
         
-        entree_group = self.groups[self.ENTREE_GROUP]
-        col_i_i = entree_group.columns.index("i")
-        find = False
         i = str(i)
-        for row_i in range(len(self.data[entree_group.i])):
-            if self.data[entree_group.i][row_i, col_i_i] == i:
-                find = True
-                break
-        if (not find):
+        row_i = self.get_loc(i)
+        if (row_i == -1):
             raise ValueError(f"The run {i} does not exist")
         
         return self.data[group.i][row_i, col_i]
         
+    def get_loc(self, run_id:str) -> int:
+        if (self.is_client):
+            self.__flush__()
+            
+        entree_group = self.groups[self.ENTREE_GROUP]
+        col_i_i = entree_group.columns.index("i")
+        find = False
+        for row_i in range(len(self.data[entree_group.i])):
+            if self.data[entree_group.i][row_i, col_i_i] == run_id:
+                find = True
+                break
+        if (not find):
+            return -1
+        return row_i
+    
+    def set_at_loc(self, column:str, i_loc:int, value:"float|str"):
+        if self.is_client:
+            return self.__http_set_at_loc__(column, i_loc, value)
         
+        self.__load__(self.file)
+        group_name = self.columns_group.get(column, None)
+        if (group_name is None):
+            raise ValueError(f"The column {column} does not exist")
+        group = self.groups[group_name]
+        col_i = group.columns_indices[column]
+        try:
+            self.data[group.i][i_loc, col_i] = value
+            self.__save__(self.file)
+        except Exception as e:
+            raise ValueError(f"Cannot set value {value} at location {i_loc} for column {column}: {e}")
+            
+    def set(self, column:str, run_id:str, value:"float|str"):
+        if self.is_client:
+            return self.__http_set__(column, run_id, value)
+        
+        
+        self.__load__(self.file)
+        group_name = self.columns_group.get(column, None)
+        if (group_name is None):
+            raise ValueError(f"The column {column} does not exist")
+        group = self.groups[group_name]
+        col_i = group.columns_indices[column]
+        i_loc = self.get_loc(str(run_id))
+        try:
+            self.data[group.i][i_loc, col_i] = value
+            self.__save__(self.file)
+
+        except Exception as e:
+            raise ValueError(f"Cannot set value {value} at location {i_loc} for column {column}: {e}")
+            
         
 # |====================================================================================================================
 # | FILTERS
@@ -1033,7 +1150,7 @@ class RunLogger:
         
         return res
     
-    def get_best_groupes_by(self, column:str, group_by:str, maximize=False, inplace=True) -> "list[RunLogger]":
+    def get_best_groupes_by(self, column:str, group_by:str, maximize=False, inplace=True) -> "RunLogger":
         if (self.is_client):
             if (inplace):
                 raise ValueError("Cannot use inplace when connected to a server")
@@ -1083,7 +1200,59 @@ class RunLogger:
                     
             return res
         
-    def where(self, column:str, eq:object=None, gt:object=None, lt:object=None, inplace=True) -> Self:
+    def get_mean_groupes_by(self, column:str, group_by:str) -> "RunLogger":
+        if (self.is_client):
+            self.__flush__()
+            
+        groups = {}
+        
+        gb_group_name = self.columns_group.get(group_by, None)
+        if (gb_group_name is None):
+            raise ValueError(f"The column {group_by} does not exist")
+        
+        gb_col_i = self.groups[gb_group_name].columns.index(group_by)
+        
+        col_group_name = self.columns_group.get(column, None)
+        if (col_group_name is None):
+            raise ValueError(f"The column {column} does not exist")
+        
+        col_col_i = self.groups[col_group_name].columns.index(column)
+        
+        for i in range(len(self)):
+            gb_value = self.data[self.groups[gb_group_name].i][i, gb_col_i]
+            col_value = self.data[self.groups[col_group_name].i][i, col_col_i]
+            
+            if gb_value not in groups:
+                groups[gb_value] = []
+            groups[gb_value].append((i, col_value))
+            
+        # sort groups by key
+        groups = sorted(groups.items(), key=lambda x: x[0])
+        print(groups)
+        
+        res = self.__empty_like__(len(groups))
+        for i in range(len(groups)):
+            group = groups[i][0]
+            lst = groups[i][1]
+            
+            i_run = lst[0][0]
+            mean = np.mean([i[1] for i in lst])
+            
+            for group in self.groups.values():
+                res.data[group.i][i, :] = self.data[group.i][i_run, :]
+                if (group.name == col_group_name):
+                    res.data[group.i][i, col_col_i] = mean
+                
+        return res
+        
+        
+        
+        
+        
+            
+        
+        
+    def where(self, column:str, eq:object=None, gt:object=None, lt:object=None, inplace=False) -> Self:
         if (self.is_client):
             if (inplace):
                 raise ValueError("Cannot use inplace when connected to a server")
@@ -1107,6 +1276,21 @@ class RunLogger:
             res.data[group.i] = res.data[group.i][rows_i, :]
             
         return res
+    
+    def slice(self, start:int, end:int, inplace=False) -> Self:
+        
+        if (self.is_client):
+            if (inplace):
+                raise ValueError("Cannot use inplace when connected to a server")
+            self.__flush__()
+            
+        res = self if inplace else self.copy()
+        
+        for group in res.groups.values():
+            res.data[group.i] = res.data[group.i][start:end, :]
+            
+        return res
+        
         
         
          
@@ -1215,6 +1399,12 @@ if __name__ == "__main__":
     else:
         LOGGER = RunLogger("./logs.pkl")
         print(LOGGER)
+        
+    
+
+            
+        
+    
         
         
         
