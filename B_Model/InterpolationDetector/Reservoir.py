@@ -90,12 +90,14 @@ class Model(AbstactModel):
 
 
     def get_variables(self):
-        readout_arch = self.readout.trainable_variables
+        readout_arch = self.readout.variables
         return self.reservoir, readout_arch
 
+    def nb_parameters(self):
+        return np.sum([np.prod(v.get_shape().as_list()) for v in self.readout.trainable_variables])
 
 
     def set_variables(self, variables):
         self.reservoir, readout_arch = variables
         for i in range(len(readout_arch)):
-            self.readout.trainable_variables[i].assign(readout_arch[i])
+            self.readout.variables[i].assign(readout_arch[i])

@@ -1,10 +1,10 @@
 
 
 # Import the model
-from B_Model.AircraftClassification.MCDCNN import Model
+from B_Model.AircraftClassification.MLP import Model
 
 # Import the context (hyperparameters, constants, etc...)
-import C_Constants.AircraftClassification.MCDCNN as CTX
+import C_Constants.AircraftClassification.MLP as CTX
 import C_Constants.AircraftClassification.DefaultCTX as DefaultCTX
 
 # Import the training loop adapted to the model

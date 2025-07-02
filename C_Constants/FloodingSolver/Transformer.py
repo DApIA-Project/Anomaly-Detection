@@ -1,7 +1,7 @@
-GENERATE_ARTIFACTS=False
+GENERATE_ARTIFACTS=True
 
-LEARNING_RATE = 0.0003
-EPOCHS = 80
+LEARNING_RATE = 0.0001
+EPOCHS = 0
 BATCH_SIZE = 64
 NB_BATCH = 32
 
@@ -16,6 +16,13 @@ RANDOM_TRACK = False
 
 HORIZON = 5
 
+ACTIVATION = "linear"
+
+# HEAD_SIZE = 6
+# NUM_HEADS = 2
+# FF_DIM = 64
+# LAYERS = 2
+# DROPOUT = 0.3
 
 DEC_LEN = 1
 D_MODEL = 64
@@ -30,8 +37,6 @@ FACTOR = 1
 DROPOUT = 0.3
 
 
-
-
 USED_FEATURES = [
     "latitude", "longitude",
     "groundspeed", "track",
@@ -40,7 +45,7 @@ USED_FEATURES = [
     "distance_diff", "bearing_diff",
     # "alert", "spi", "squawk",
     "altitude", "geoaltitude",
-    "timestamp", "pad", "pred_distance"
+    "timestamp", # "pad", "pred_distance"
 ]
 
 FEATURES_IN = len(USED_FEATURES)

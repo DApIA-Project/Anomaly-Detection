@@ -14,13 +14,13 @@ RELATIVE_POSITION = True
 RELATIVE_TRACK = False
 RANDOM_TRACK = True
 
-LAYERS = 2
-DROPOUT = 0.3
+
 
 HEAD_SIZE = 6
 NUM_HEADS = 2
 FF_DIM = 64
-
+LAYERS = 2
+DROPOUT = 0.3
 
 USED_FEATURES = [
     "latitude", "longitude",

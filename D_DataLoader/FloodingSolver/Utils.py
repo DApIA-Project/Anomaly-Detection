@@ -166,6 +166,7 @@ def gen_sample(CTX:dict,
     start, end, _, pad_lenght, shift = U.window_slice(CTX, t)
     x_sample[pad_lenght:] = x[i][start+shift:end:CTX["DILATION_RATE"]]
     x_sample[:pad_lenght] = PAD
+    
 
     last_message = U.get_aircraft_last_message(CTX, x_sample)
     lat, lon, track = FG.lat(last_message), FG.lon(last_message), FG.track(last_message)

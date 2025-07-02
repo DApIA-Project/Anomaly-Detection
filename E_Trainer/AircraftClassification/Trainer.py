@@ -138,6 +138,8 @@ class Trainer(AbstractTrainer):
             write(self.ARTIFACTS+"/xas", self.dl.xAirportScaler.get_variables())
 
         write(self.ARTIFACTS+"/pad", self.dl.PAD)
+        
+        print(self.model.get_variables())
 
 
 
@@ -359,8 +361,9 @@ class Trainer(AbstractTrainer):
                 batch = x_inputs[d][i_loc]
                 batch = np.concatenate([batch, np.empty((pad,) + batch.shape[1:])])
                 x_batch.append(batch)
-                
+            
             y_batch_ = self.model.predict(x_batch)
+            
             if (pad > 0):
                 y_batch_ = y_batch_[:-pad]
             y_[i_loc] = y_batch_
@@ -369,12 +372,14 @@ class Trainer(AbstractTrainer):
         for i in range(len(y_)):
             if not(np.isnan(y_[i]).all()):
                 all_y_ = self.dl.prediction_cache.append(x_[i]["icao24"], x_[i]["tag"], y_[i])
-                # use mean method for now
-                y_agg[i] = np.nanmean(all_y_, axis=0)
             else:
-                cache = self.dl.prediction_cache.get(x_[i]["icao24"], x_[i]["tag"])
-                if (cache is not None and len(cache) > 0):
-                    y_agg[i] = cache[-1]
+                all_y_ = self.dl.prediction_cache.get(x_[i]["icao24"], x_[i]["tag"])
+            # use nth max method
+            l = min(len(all_y_), 20)
+            if (l > 0):
+                confidence = Metrics.confidence(all_y_)
+                # TODO performance improvment with already sorted list
+                y_agg[i] = np.nanmean(all_y_[np.argsort(confidence)[-l:]], axis=0)
 
         return y_, y_agg
 
@@ -438,6 +443,9 @@ class Trainer(AbstractTrainer):
     def eval(self)->dict:
         if (self.__eval_files__ is None):
             self.__eval_files__ = U.list_flights(EVAL_FOLDER)[0:]
+            # self.__eval_files__ = ["./A_Dataset/AircraftClassification/Eval/2022-01-01_15-15-33_FJDGY_3a2cbc.csv"]
+            
+        print(self.__eval_files__)
 
         BAR.reset(max=len(self.__eval_files__))
 

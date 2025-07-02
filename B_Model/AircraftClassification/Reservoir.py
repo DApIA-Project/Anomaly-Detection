@@ -71,8 +71,9 @@ class Model(AbstactModel):
         filename = os.path.join(filename, self.name+".png")
         tf.keras.utils.plot_model(self.model, to_file=filename, show_shapes=True)
 
-
-
+    def nb_parameters(self):
+        return np.sum([np.prod(v.get_shape().as_list()) for v in self.model.trainable_variables])
+    
     def get_variables(self):
         return self.model.get_variables()
     
@@ -137,15 +138,14 @@ class Module(tf.Module):
         return y
     
     def get_variables(self):
-        return self.trainable_variables, self.reservoir
+        return self.variables, self.reservoir
 
 
 
     def set_variables(self, variables):
         model_vars, reservoir = variables
-        print(variables)
-        for i in range(len(variables)):
-            self.trainable_variables[i].assign(model_vars[i])
+        for i in range(len(model_vars)):
+            self.variables[i].assign(model_vars[i])
 
         self.reservoir = reservoir
         

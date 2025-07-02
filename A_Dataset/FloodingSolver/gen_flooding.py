@@ -38,7 +38,7 @@ def rotate_geo(lats, lons, Olat, Olon, angle):
 
     return new_lats_rot + Olat, new_lons_rot + Olon
 
-def rotate_sphe(lats, lons, Olat:float, Olon:float, angle:float):
+def rotate_sphe(lats, lons, Olat:float, Olon:float, angle:float, scale=1.0):
 
 
     LAT = -Olat
@@ -50,16 +50,23 @@ def rotate_sphe(lats, lons, Olat:float, Olon:float, angle:float):
     x, y, z = z_rotation(x, y, z, np.radians(LON))
     # Normalize latitude with Y rotation
     x, y, z = y_rotation(x, y, z, np.radians(LAT))
+    
+    
     # Rotate the fragment with the random angle along X axis
     x, y, z = x_rotation(x, y, z, np.radians(ROT))
+    
     # Denormalize latitude with Y rotation
     x, y, z = y_rotation(x, y, z, np.radians(-LAT))
     # Denormalize longitude with Z rotation
     x, y, z = z_rotation(x, y, z, np.radians(-LON))
     # Convert the fragment back to spherical coordinates
     lats, lons = cartesian_to_spherical(x, y, z)
+    
+    lats = (lats - Olat) * scale + Olat
+    lons = (lons - Olon) * scale + Olon
 
     return lats, lons,
+
 
 def lat_lon_dist_m(lat1, lon1, lat2, lon2):
     R = 6371000
@@ -116,31 +123,24 @@ def flood(df, after=60):
     
     res = {}
     
-    for deriv in [-25, -16, -11, -7, -4, -2, -1, 0, 1, 2, 4, 7, 11, 16, 25]:
+    # for deriv in [-25, -16, -11, -7, -4, -2, -1, 0, 1, 2, 4, 7, 11, 16, 25]:
+    for _ in range(15):
+        deriv = np.random.rand() * 50 - 25
         # if (geo):
         #     lats, lons = rotate_geo (df['latitude'].values[i:].copy(), df['longitude'].values[i:].copy(), O_lat, O_long, deriv)
         # else:
-        lats, lons = rotate_sphe(df['latitude'].values[i:].copy(), df['longitude'].values[i:].copy(), O_lat, O_long, deriv)
+        lats, lons = rotate_sphe(df['latitude'].values[i:].copy(), df['longitude'].values[i:].copy(), O_lat, O_long, deriv, np.random.rand() * 0.2 + 0.9)
 
         sub_df = df.copy()
         sub_df['latitude'][i:] = lats
         sub_df['longitude'][i:] = lons
         sub_df['track'][i:] += deriv
 
-        while sub_df['track'][i] < 0:
-            sub_df['track'][i:] += 360
-        while sub_df['track'][i] >= 360:
-            sub_df['track'][i:] -= 360
         if (deriv != 0):
             sub_df["icao24"] = str(deriv)
 
-        # sub_df.to_csv(f'{OUT}_{MODE}/rot{deriv}.csv', index=False)
         res["rot"+str(deriv)] = sub_df
 
-    #     sub_df['icao24'] = df["icao24"]
-    #     concat = pd.concat([concat, sub_df])
-    
-    # concat = concat.sort_values(by='timestamp')
 
     return res
 
@@ -149,10 +149,10 @@ files = os.listdir("../AircraftClassification/Eval")
 # shuffle the files
 np.random.shuffle(files)
 
+OUT = "./Test"
 # delete every directory starting with EVAL
-os.system("rm -rf ./Eval/EVAL*")
+os.system(f"rm -rf {OUT}/EVAL*")
 
-OUT = "./Eval"
 i = 0
 f = 0
 while i < 30:

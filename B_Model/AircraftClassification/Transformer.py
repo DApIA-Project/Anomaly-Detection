@@ -60,8 +60,8 @@ def ads_b_module(CTX, x, x_takeoff, airport, x_map):
     for dim in range(CTX["LAYERS"]):
         x = Dense(CTX["FF_DIM"], activation="relu")(x)
         x = Dropout(CTX["DROPOUT"])(x)
-    x = Dense(CTX["LABELS_OUT"], activation="linear", name="prediction")(x)
-    x = Activation(CTX["ACTIVATION"], name=CTX["ACTIVATION"])(x)
+    x = Dense(CTX["LABELS_OUT"], activation="linear")(x)
+    x = Activation(CTX["ACTIVATION"])(x)
     
     return x
     

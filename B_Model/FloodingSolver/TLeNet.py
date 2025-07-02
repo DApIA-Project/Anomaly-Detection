@@ -78,6 +78,8 @@ class Model(AbstactModel):
         self.nb_train += 1
         return loss, output
 
+    def nb_parameters(self):
+        return np.sum([np.prod(v.get_shape().as_list()) for v in self.model.trainable_variables])
 
 
     def visualize(self, save_path="./_Artifacts/"):
@@ -98,11 +100,11 @@ class Model(AbstactModel):
         """
         Return the variables of the model
         """
-        return self.model.trainable_variables
+        return self.model.variables
 
     def set_variables(self, variables):
         """
         Set the variables of the model
         """
         for i in range(len(variables)):
-            self.model.trainable_variables[i].assign(variables[i])
+            self.model.variables[i].assign(variables[i])

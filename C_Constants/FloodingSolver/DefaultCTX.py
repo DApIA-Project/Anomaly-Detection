@@ -15,7 +15,7 @@ BOX_CENTER = (
 
 INPUT_PADDING = "valid"
 
-THRESHOLD = 25
+THRESHOLD = 250 # Meters
 LOSS_MOVING_AVERAGE = 3 # kernel size for moving average
 
 GENERATE_ARTIFACTS = True

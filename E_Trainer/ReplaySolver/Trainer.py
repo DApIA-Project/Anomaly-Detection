@@ -163,6 +163,7 @@ class Trainer(AbstractTrainer):
         for i in range(len(is_interesting)):
             y_[is_interesting[i]] = y_is_interesting[i]
 
+
         res:"list[str]" = ["unknown"] * len(x)
         for i in range(len(x)):
             # TODO cache the count of predictions

@@ -339,17 +339,17 @@ class Trainer(AbstractTrainer):
 
         # predict only on interesting samples
         x_preds = x_batch[is_interesting]
-        y_preds_ = np.empty((len(x_preds), self.CTX["FEATURES_OUT"]), dtype=np.float64)
+        y_preds_ = np.zeros((len(x_preds), self.CTX["FEATURES_OUT"]), dtype=np.float64)
         for s in range(0, len(x_preds), self.CTX["MAX_BATCH_SIZE"]):
             start = s
             end   = min(s + self.CTX["MAX_BATCH_SIZE"], len(x_preds))
             pad = max(0, self.CTX["MIN_BATCH_SIZE"] - (end - start))
             
             x_batch_ = np.concatenate([x_preds[start:end], np.empty((pad, ) + x_preds.shape[1:])], axis=0)
-            # output = self.model.predict(x_batch)
-            # if (pad > 0):
-            #     output = output[0:-pad]
-            # y_preds_[start:end] = output
+            output = self.model.predict(x_batch_)
+            if (pad > 0):
+                output = output[0:-pad]
+            y_preds_[start:end] = output
             
             
         y_batch_[is_interesting] = y_preds_
@@ -702,7 +702,7 @@ class Trainer(AbstractTrainer):
         while(dfs[0]["latitude"].iloc[attack_t] == dfs[1]["latitude"].iloc[attack_t] or np.isnan(loss[0][attack_t]) or np.isnan(loss[1][attack_t])):
             attack_t += 1
             
-        s = slice(max(0, attack_t-3), min(max_len, attack_t+self.CTX["LOSS_MOVING_AVERAGE"]))
+        s = slice(max(0, attack_t-self.CTX["HORIZON"] - 1), min(max_len, attack_t+self.CTX["LOSS_MOVING_AVERAGE"] + self.CTX["HORIZON"]))
         
         # plot the trajectory and the prediction in a map
         min_lat, min_lon = np.inf, np.inf

@@ -18,16 +18,22 @@ pip install requests
 
 # Visualization (chart + maps)
 pip install matplotlib
-pip install cartopy # needs sudo apt -y install libgeos-dev
+
+ # needs sudo apt -y install libgeos-dev
 
 
 # [optional] to run Unit test
 pip install pytest
 
-# [optional] graphviz for model visualization
+# [optional] graphviz for tensorflow model visualization
 pip install graphviz
+sudo apt install graphviz
+
+# [optional] torchviz for PyTorch model visualization
+pip install torchviz
 sudo apt install graphviz
 
 
 
 
+tf.config.experimental.list_physical_devices('GPU')

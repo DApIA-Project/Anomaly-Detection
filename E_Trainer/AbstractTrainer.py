@@ -9,6 +9,7 @@ from B_Model.AbstractModel import Model
 
 import _Utils.Color as C
 from _Utils.Color import prntC
+import traceback
 
 
 
@@ -51,11 +52,15 @@ class Trainer:
 
     def viz_model(self, filename:str):
         try:
+            parameters = self.model.nb_parameters()
+            prntC(C.INFO, self.model.name, "has", C.BLUE, parameters, C.RESET, "parameters")
             self.model.visualize(filename)
         except Exception as e:
-
+            # print traceback
+            
             prntC(C.WARNING, "Visualization of the model failed")
-            prntC(C.RED, e)
+            prntC(C.RED, "Error: ", str(e))
+            prntC(C.RED, traceback.format_exc())
             prntC()
 
     ###################################################

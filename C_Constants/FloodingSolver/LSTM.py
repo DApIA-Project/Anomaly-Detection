@@ -25,6 +25,8 @@ UNITS = 128
 DROPOUT = 0.2
 ACTIVATION = "linear"
 
+THRESHOLD = 60.0 #M
+
 
 
 

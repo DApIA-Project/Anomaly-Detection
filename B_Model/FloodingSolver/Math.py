@@ -9,6 +9,7 @@ import _Utils.Color as C
 from   _Utils.Color import prntC
 
 import pandas as pd
+import matplotlib
 
 
 class Model(AbstactModel):
@@ -41,7 +42,9 @@ class Model(AbstactModel):
         prntC(C.INFO, "No need to train the model")
         return 0, y
 
-
+    def nb_parameters(self):
+        return 0
+    
     def visualize(self, save_path="./_Artifacts/"):
         pass
 
@@ -57,8 +60,15 @@ class Model(AbstactModel):
 
 debug = False
 def predict_next_pts(x, y, t, h):
+    
     t0 = t[0]
     t, t0 = t - t0, 0
+    
+    while(len(t) > 1 and t[0] == 0):
+        t = t[1:]
+        x = x[1:]
+        y = y[1:]
+    t = -t
     
     if (len(x) < 2):
         return x[-1], y[-1]
@@ -68,31 +78,32 @@ def predict_next_pts(x, y, t, h):
         vy = y[-1] - y[0]
         return x[-1] + vx, y[-1] + vy
     
+    x_t = np.zeros(len(x)-1)
+    for i in range(len(x)-1):
+        x_t[i] = (t[i] + t[i+1]) / 2.0
+    
     d = np.zeros(len(x)-1)
     for i in range(len(x)-1):
-        # d[i] = np.sqrt((x[i+1] - x[i]) ** 2 + (y[i+1] - y[i]) ** 2)
-        d = GEO.distance(x[i], y[i], x[i+1], y[i+1])
+        d[i] = np.sqrt((x[i+1] - x[i]) ** 2 + (y[i+1] - y[i]) ** 2)
+        # d = GEO.distance(x[i], y[i], x[i+1], y[i+1])
     d = np.mean(d)
 
     a = np.zeros(len(x)-1)
-    a_x = np.zeros(len(x))
     for i in range(len(x)-1):
         vx = x[i+1] - x[i]
         vy = y[i+1] - y[i]
         if (vx == 0 and vy == 0 and i > 0):
             a[i] = a[i-1]
         else:
-            a[i] = GEO.bearing(x[i], y[i], x[i+1], y[i+1])
-        a_x[i+1] = (t[i] + t[i+1]) / 2.0
-    a_x = a_x[1:]
-    a_x = a_x - a_x[0]
+            a[i] = np.arctan2(vy, vx)
+            # a[i] = GEO.bearing(x[i], y[i], x[i+1], y[i+1])
 
 
     rots = np.zeros(len(a)-1)
     rotx = np.zeros(len(a))
     for i in range(len(a)-1):
         rots[i] = angle_shift(a[i], a[i+1])
-        rotx[i+1] = (a_x[i] + a_x[i+1]) / 2.0
+        rotx[i+1] = (x_t[i] + x_t[i+1]) / 2.0
     rotx = rotx[1:]
     rotx = rotx - rotx[0]
 
@@ -103,15 +114,17 @@ def predict_next_pts(x, y, t, h):
         next_rot = reg_a * (rotx[-1] + h) + reg_b
 
     next_angle = a[-1] + next_rot / 2.0
-    # nx, ny = x[-1] + d * np.cos(next_angle), y[-1] + d * np.sin(next_angle)
+    
     if (np.isnan(next_angle)):
         nx = x[-1]
         ny = y[-1]
     else:
-        nx, ny = GEO.predict(x[-1], y[-1], next_angle, d * h)
-
+        nx, ny = x[-1] + d * np.cos(next_angle) * h, y[-1] + d * np.sin(next_angle) * h
+        # nx, ny =  GEO.predict(x[-1], y[-1], next_angle, d * h)
 
     if (debug):
+        plt.switch_backend('TkAgg')
+
         fig, ax = plt.subplots(1, 3, figsize=(12, 4))
 
         ax[0].plot(x, y, 'o-')
@@ -119,8 +132,8 @@ def predict_next_pts(x, y, t, h):
         ax[0].set_aspect('equal', adjustable='box')
         ax[0].set_title("Predicted next point")
 
-        ax[1].plot(a_x, a, 'o')
-        ax[1].plot(a_x[-1]+h, next_angle, 'o')
+        ax[1].plot(x_t, a, 'o')
+        ax[1].plot(x_t[-1]+h, next_angle, 'o')
         ax[1].set_title("Angles")
         
         ax[2].plot(rotx, rots, 'o')
@@ -131,9 +144,8 @@ def predict_next_pts(x, y, t, h):
 
         # show the plot
         fig.tight_layout()
-        print(plt.get_backend())
         plt.show()
-        input("Press Enter to continue...")
+        # input("Press Enter to continue...")
         
     return nx, ny
 

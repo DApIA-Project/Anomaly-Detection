@@ -1,4 +1,4 @@
-VERSION = "0.8.2"
+VERSION = "0.8.3"
 HASH_TABLE_VERSION = "0.6.3"
 
 from ._Utils_os_wrapper import os
@@ -25,7 +25,7 @@ def show_progress(block_num, block_size, total_size):
 
 
 def download_hash_table():
-    URL = "http://51.77.221.41/hashtable.zip"
+    URL = "http://162.19.155.184/hashtable.zip"
     import urllib.request
     import zipfile
 
@@ -140,39 +140,39 @@ prntC("\r",C.INFO, "LOADING REPLAY MODEL", C.CYAN, " [DONE]")
 # | SPOOFING DETECTION
 # |====================================================================================================================
 
-# prntC(C.INFO, "LOADING SPOOFING MODEL ", end="...", flush=True)
+prntC(C.INFO, "LOADING SPOOFING MODEL ", end="...", flush=True)
 
-# from .E_Trainer_AircraftClassification_Trainer import Trainer as AircraftClassification
-# from .B_Model_AircraftClassification import Model as MODEL_SPOOFING
-# from . import C_Constants_AircraftClassification as CTX_SPOOFING
-# from . import C_Constants_AircraftClassification_DefaultCTX as DefaultCTX_SPOOFING
+from .E_Trainer_AircraftClassification_Trainer import Trainer as AircraftClassification
+from .B_Model_AircraftClassification import Model as MODEL_SPOOFING
+from . import C_Constants_AircraftClassification as CTX_SPOOFING
+from . import C_Constants_AircraftClassification_DefaultCTX as DefaultCTX_SPOOFING
 from .D_DataLoader_AircraftClassification_Utils import getLabel
 
 
-# CTX_AC = buildCTX(CTX_SPOOFING, DefaultCTX_SPOOFING)
-# CTX_AC["LIB"] = True
-# aircraftClassification = AircraftClassification(CTX_AC, MODEL_SPOOFING)
-# aircraftClassification.load(HERE+"/AircraftClassification")
+CTX_AC = buildCTX(CTX_SPOOFING, DefaultCTX_SPOOFING)
+CTX_AC["LIB"] = True
+aircraftClassification = AircraftClassification(CTX_AC, MODEL_SPOOFING)
+aircraftClassification.load(HERE+"/AircraftClassification")
 
-# prntC("\r",C.INFO, "LOADING SPOOFING MODEL", C.CYAN, " [DONE]")
+prntC("\r",C.INFO, "LOADING SPOOFING MODEL", C.CYAN, " [DONE]")
 
 # |====================================================================================================================
 # | INTERPOLATION DETECTION
 # |====================================================================================================================
 
-# prntC(C.INFO, "LOADING INTERPOLATION MODEL ", end="...", flush=True)
+prntC(C.INFO, "LOADING INTERPOLATION MODEL ", end="...", flush=True)
 
-# from .E_Trainer_InterpolationDetector_Trainer import Trainer as InterpolationDetector
-# from .B_Model_InterpolationDetector import Model as MODEL_INTERP
-# from . import C_Constants_InterpolationDetector as CTX_INTERP
-# from . import C_Constants_InterpolationDetector_DefaultCTX as DefaultCTX_INTERP
+from .E_Trainer_InterpolationDetector_Trainer import Trainer as InterpolationDetector
+from .B_Model_InterpolationDetector import Model as MODEL_INTERP
+from . import C_Constants_InterpolationDetector as CTX_INTERP
+from . import C_Constants_InterpolationDetector_DefaultCTX as DefaultCTX_INTERP
 
-# CTX_ID = buildCTX(CTX_INTERP, DefaultCTX_INTERP)
-# CTX_ID["LIB"] = True
-# interpolationDetector = InterpolationDetector(CTX_ID, MODEL_INTERP)
-# interpolationDetector.load(HERE+"/InterpolationDetector")
+CTX_ID = buildCTX(CTX_INTERP, DefaultCTX_INTERP)
+CTX_ID["LIB"] = True
+interpolationDetector = InterpolationDetector(CTX_ID, MODEL_INTERP)
+interpolationDetector.load(HERE+"/InterpolationDetector")
 
-# prntC("\r",C.INFO, "LOADING INTERPOLATION MODEL", C.CYAN, " [DONE]")
+prntC("\r",C.INFO, "LOADING INTERPOLATION MODEL", C.CYAN, " [DONE]")
 
 
 
@@ -325,12 +325,12 @@ def __predict__(messages: "list[dict[str, str]]", compress:bool=True, debug:bool
         if (matches[i] != "unknown"):
             messages[indices[i]]["anomaly"] = AnomalyType.REPLAY
             
-    # # check for interpolation anomalies
-    # sub_msg, indices = message_subset(messages)
-    # _, _, anomaly = interpolationDetector.predict(sub_msg)
-    # for i in range(len(indices)):
-    #     if (anomaly[i]):
-    #         messages[indices[i]]["anomaly"] = AnomalyType.INTERP
+    # check for interpolation anomalies
+    sub_msg, indices = message_subset(messages)
+    _, _, anomaly = interpolationDetector.predict(sub_msg)
+    for i in range(len(indices)):
+        if (anomaly[i]):
+            messages[indices[i]]["anomaly"] = AnomalyType.INTERP
 
     
     # check for flooding anomalies
@@ -348,19 +348,19 @@ def __predict__(messages: "list[dict[str, str]]", compress:bool=True, debug:bool
 
     # check for spoofing
     # filter messages having unknown icao24
-    # true_labels = get_true_aircraft_type(messages)
-    # for i in range(len(messages)):
-    #     if (true_labels[i] == 0 and messages[i]["anomaly"] == AnomalyType.VALID):
-    #         messages[i]["anomaly"] = AnomalyType.__INVALID__
+    true_labels = get_true_aircraft_type(messages)
+    for i in range(len(messages)):
+        if (true_labels[i] == 0 and messages[i]["anomaly"] == AnomalyType.VALID):
+            messages[i]["anomaly"] = AnomalyType.__INVALID__
 
-    # sub_msg, indices = message_subset(messages)
-    # _, label_proba = aircraftClassification.predict(sub_msg)
-    # spoofing = is_spoofing(true_labels[indices], label_proba)
-    # for i in range(len(indices)):
-    #     if (spoofing[i]):
-    #         messages[indices[i]]["anomaly"] = AnomalyType.SPOOFING
+    sub_msg, indices = message_subset(messages)
+    _, label_proba = aircraftClassification.predict(sub_msg)
+    spoofing = is_spoofing(true_labels[indices], label_proba)
+    for i in range(len(indices)):
+        if (spoofing[i]):
+            messages[indices[i]]["anomaly"] = AnomalyType.SPOOFING
 
-    #     messages[indices[i]]["debug_spoofing_proba"] = label_proba[i].tolist()
+        messages[indices[i]]["debug_spoofing_proba"] = label_proba[i].tolist()
 
 
     # # save messages predictions in case of a future request
@@ -386,20 +386,20 @@ def get_base_icaos(messages: "list[dict[str, str]]") -> "list[str]":
     icaos = [messages[i]["icao24"] for i in range(len(messages))]
     return [icaos[i].split("_")[0] if ("_" in icaos[i]) else icaos[i] for i in range(len(icaos))]
 
-# def get_true_aircraft_type(messages: "list[dict[str, str]]") -> np.int32_1d[ax.sample]:
-#     icaos = get_base_icaos(messages)
-#     return np.array([getLabel(CTX_AC, icaos[i]) for i in range(len(icaos))], dtype=np.int32)
+def get_true_aircraft_type(messages: "list[dict[str, str]]") -> np.int32_1d[ax.sample]:
+    icaos = get_base_icaos(messages)
+    return np.array([getLabel(CTX_AC, icaos[i]) for i in range(len(icaos))], dtype=np.int32)
 
 
-# def get_pred_aircraft_type(proba: "np.ndarray") -> "list[int]":
-#     argmax = np.argmax(proba, axis=1)
-#     confidence = np.nan_to_num([proba[i][argmax[i]] for i in range(len(argmax))])
-#     return [0 if confidence[i] <= 0.5 else CTX_AC["USED_LABELS"][argmax[i]] for i in range(len(argmax))]
+def get_pred_aircraft_type(proba: "np.ndarray") -> "list[int]":
+    argmax = np.argmax(proba, axis=1)
+    confidence = np.nan_to_num([proba[i][argmax[i]] for i in range(len(argmax))])
+    return [0 if confidence[i] <= 0.5 else CTX_AC["USED_LABELS"][argmax[i]] for i in range(len(argmax))]
 
-# def is_spoofing(true_labels: "np.int32_1d[ax.sample]", predictions: np.float64_2d[ax.feature, ax.label])\
-#         -> "list[bool]":
-#     if (len(true_labels) == 0): return []
-#     pred_labels = get_pred_aircraft_type(predictions)
-#     return [pred_labels[i] != 0 and true_labels[i] != 0 and pred_labels[i] != true_labels[i]
-#         for i in range(len(true_labels))]
+def is_spoofing(true_labels: "np.int32_1d[ax.sample]", predictions: np.float64_2d[ax.feature, ax.label])\
+        -> "list[bool]":
+    if (len(true_labels) == 0): return []
+    pred_labels = get_pred_aircraft_type(predictions)
+    return [pred_labels[i] != 0 and true_labels[i] != 0 and pred_labels[i] != true_labels[i]
+        for i in range(len(true_labels))]
 

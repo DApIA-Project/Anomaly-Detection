@@ -173,7 +173,8 @@ class Model(AbstactModel):
     def training_step(self) -> None:
         return None
 
-
+    def nb_parameters(self):
+        return 0
 
     def visualize(self, save_path="./_Artifacts/"):
         """

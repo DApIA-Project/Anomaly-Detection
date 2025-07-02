@@ -3,6 +3,7 @@ from keras.layers import *
 from B_Model.Utils.TF_Modules import *
 from B_Model.AbstractModel import Model as AbstactModel
 from _Utils.os_wrapper import os
+import numpy as np
 
 def map_module(CTX, x):
     for _ in range(CTX["MAP_LAYERS"]):
@@ -33,8 +34,10 @@ def output_module(CTX, x_adsb, ctxs:list=None):
     if (ctxs is not None):
         x.extend(ctxs)
     
-        
-    x = Concatenate()(x)
+    if (len(x) == 1):
+        x = x[0]
+    else:
+        x = Concatenate()(x)
     x = Dense(CTX["LABELS_OUT"], activation="linear", name="prediction")(x)
     x = Activation(CTX["ACTIVATION"], name=CTX["ACTIVATION"])(x)
     return x
@@ -83,12 +86,13 @@ class GlobalArchitectureV2(AbstactModel):
             x_airport = airport
             
             
-            
+        ctx = []
         if (CTX["ADD_MAP_CONTEXT"]):
             x_map = map_module(CTX, map)
+            ctx.append(x_map)
             
         x = ads_b_module(CTX, x, x_takeoff, x_airport, x_map)
-        y = output_module(CTX, x, [x_map])
+        y = output_module(CTX, x, ctx)
 
 
         # generate model
@@ -134,20 +138,23 @@ class GlobalArchitectureV2(AbstactModel):
         filename = os.path.join(filename, self.name+".png")
         tf.keras.utils.plot_model(self.model, to_file=filename, show_shapes=True)
 
+    def nb_parameters(self):
+        return np.sum([np.prod(v.get_shape().as_list()) for v in self.model.trainable_variables])
+
 
 
     def get_variables(self):
         """
         Return the variables of the model
         """
-        return self.model.trainable_variables
+        return self.model.variables
 
     def set_variables(self, variables):
         """
         Set the variables of the model
         """
         for i in range(len(variables)):
-            self.model.trainable_variables[i].assign(variables[i])
+            self.model.variables[i].assign(variables[i])
 
 
 
@@ -203,7 +210,7 @@ class GlobalArchitectureV1(AbstactModel):
         if (CTX["ADD_TAKE_OFF_CONTEXT"]):
             x_takeoff = ads_b_module(CTX, x_takeoff, None, None, None)
             
-        x_cat = [x]
+        x_cat = []
         if (CTX["ADD_TAKE_OFF_CONTEXT"]): x_cat.append(x_takeoff)
         if (CTX["ADD_AIRPORT_CONTEXT"]): x_cat.append(x_airport)
         if (CTX["ADD_MAP_CONTEXT"]): x_cat.append(x_map)
@@ -254,18 +261,19 @@ class GlobalArchitectureV1(AbstactModel):
         filename = os.path.join(filename, self.name+".png")
         tf.keras.utils.plot_model(self.model, to_file=filename, show_shapes=True)
 
-
+    def nb_parameters(self):
+        return np.sum([np.prod(v.get_shape().as_list()) for v in self.model.trainable_variables])
 
     def get_variables(self):
         """
         Return the variables of the model
         """
-        return self.model.trainable_variables
+        return self.model.variables
 
     def set_variables(self, variables):
         """
         Set the variables of the model
         """
         for i in range(len(variables)):
-            self.model.trainable_variables[i].assign(variables[i])
+            self.model.variables[i].assign(variables[i])
 

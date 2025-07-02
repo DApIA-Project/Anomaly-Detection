@@ -2,15 +2,15 @@ import os
 import subprocess
 
 
-VERSION = "0.8.2"
+VERSION = "0.8.3"
 
 
 class MODELS:
-    spoofing = "CNN"
+    spoofing = "CNN_V2"
     separator = "GEO"
     replay = "HASH"
     flooding = "LSTM"
-    interp = "CNN"
+    interp = "TLeNet"
 
 
 
@@ -402,7 +402,6 @@ os.system(f"mv ./AdsbAnomalyDetector/{constants[0]} ./AdsbAnomalyDetector/C_Cons
 # |====================================================================================================================
 # | DISABLE TRAINING FOR ALL MODELS
 # |====================================================================================================================
-
 # list every files starting with C_Constants
 # find lines starting with EPOCHS
 # remplace by EPOCHS = 0

@@ -23,7 +23,7 @@ def __main__() -> None:
     parent_dir = os.path.dirname(os.path.abspath(__file__)).split("/")[-1]
     fitOnce(Model, Trainer, CTX, default_CTX=DefaultCTX, experiment_name=parent_dir)
 
-    multiFit(Model, Trainer, CTX, default_CTX=DefaultCTX, experiment_name=parent_dir,
-             tested_values={
-                "ADD_TAKE_OFF_CONTEXT": [True] * 5 + [False] * 5,
-             })
+   #  multiFit(Model, Trainer, CTX, default_CTX=DefaultCTX, experiment_name=parent_dir,
+   #           tested_values={
+   #              "ADD_TAKE_OFF_CONTEXT": [True] * 5 + [False] * 5,
+   #           })

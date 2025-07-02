@@ -103,8 +103,9 @@ class Model(AbstactModel):
             for h in range(len(hashes)):
                 self.hashtable[hashes[h]] = y[b]
 
-
-
+    def nb_parameters(self):
+        return 0
+    
 
     def visualize(self, save_path="./_Artifacts/"):
         """

@@ -5,7 +5,8 @@ LOGGER = RunLogger(host=S.IP, port=S.PORT)
 loggers_per_problem = LOGGER.split_by("PROBLEM")
 
 for i in range(len(loggers_per_problem)):
-    # if (loggers_per_problem[i].get("PROBLEM") == "AircraftClassification"):
+    if (loggers_per_problem[i].loc("PROBLEM", 0) == "AircraftClassification"):
+        loggers_per_problem[i] = loggers_per_problem[i].where("ADD_MAP_CONTEXT", 0)
     loggers_per_problem[i] = loggers_per_problem[i].get_best_groupes_by("ACCURACY", "model", maximize=True)
 loggers_per_problem:RunLogger = RunLogger.join(loggers_per_problem)
 

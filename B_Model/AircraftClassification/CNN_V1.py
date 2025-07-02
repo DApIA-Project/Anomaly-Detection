@@ -7,7 +7,7 @@ from B_Model.AircraftClassification.Utils import *
 
 class Model(GlobalArchitectureV1):
 
-    name = "CNN1"
+    name = "CNN_V1"
 
     def __init__(self, CTX:dict):
         super().__init__(CTX, ads_b_module)

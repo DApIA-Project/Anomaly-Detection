@@ -106,6 +106,9 @@ class Model(AbstactModel):
 
         filename = os.path.join(save_path, self.name+".png")
         tf.keras.utils.plot_model(self.model, to_file=filename, show_shapes=True)
+    
+    def nb_parameters(self):
+        return np.sum([np.prod(v.get_shape().as_list()) for v in self.model.trainable_variables])
 
 
 
@@ -113,11 +116,11 @@ class Model(AbstactModel):
         """
         Return the variables of the model
         """
-        return self.model.trainable_variables
+        return self.model.variables
 
     def set_variables(self, variables):
         """
         Set the variables of the model
         """
         for i in range(len(variables)):
-            self.model.trainable_variables[i].assign(variables[i])
+            self.model.v[i].assign(variables[i])

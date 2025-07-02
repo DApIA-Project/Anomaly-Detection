@@ -37,10 +37,10 @@ ACTIVATION = "sigmoid"
 
 
 
-ADD_TAKE_OFF_CONTEXT = True
-ADD_MAP_CONTEXT = True
+ADD_TAKE_OFF_CONTEXT = False
+ADD_MAP_CONTEXT = False
 IMG_SIZE = 128
-ADD_AIRPORT_CONTEXT = True
+ADD_AIRPORT_CONTEXT = False
 
 USED_FEATURES = [
     "latitude", "longitude",

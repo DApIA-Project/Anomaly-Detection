@@ -148,7 +148,7 @@ class DataLoader(AbstractDataLoader):
             y_batch[n] = y_sample
 
         self.__plot_flight__(x_sample, y_sample, origin)
-
+        
         x_batch, y_batch = self.__scalers_transform__(x_batch, y_batch)
         x_batches, y_batches = self.__reshape__(x_batch, y_batch, CTX["NB_BATCH"], CTX["BATCH_SIZE"])
 
@@ -278,7 +278,7 @@ class DataLoader(AbstractDataLoader):
             self.CTX, [win], self.PAD, 0, t, len(win)-1, training=False)
         y_batch[0] = FG.lat_lon(y)
 
-
+        
         x_batch, y_batch = self.__scalers_transform__(x_batch, y_batch)
         x_batches, y_batches = self.__reshape__(x_batch, y_batch, 1, 1)
         return x_batches[0], y_batches[0], valid, origin

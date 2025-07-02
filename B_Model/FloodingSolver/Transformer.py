@@ -6,6 +6,7 @@ from _Utils.former_layers.SelfAttention_Family import FullAttention, AttentionLa
 from _Utils.former_layers.Embed import DataEmbedding
 from numpy_typing import np, ax
 from _Utils.FeatureGetter import FG_flooding as FG
+from torchviz import make_dot
 
 
 class Model(nn.Module):
@@ -23,7 +24,7 @@ class Model(nn.Module):
         self.CTX = CTX
         self.pred_len = 1
         self.output_attention = False
-        self.task_name = "short_term_forecast"
+        self.task_name = "anomaly_detection"
 
         # Embedding
         self.enc_embedding = DataEmbedding(CTX["FEATURES_IN"] - CTX["EMBED_IN"],
@@ -71,7 +72,8 @@ class Model(nn.Module):
         if self.task_name == 'imputation':
             self.projection = nn.Linear(CTX["D_MODEL"], CTX["FEATURES_OUT"], bias=True)
         if self.task_name == 'anomaly_detection':
-            self.projection = nn.Linear(CTX["D_MODEL"], CTX["FEATURES_OUT"], bias=True)
+            self.flatten = nn.Flatten()
+            self.projection = nn.Linear(CTX["D_MODEL"] * CTX["INPUT_LEN"], CTX["FEATURES_OUT"], bias=True)
         if self.task_name == 'classification':
             self.act = F.gelu
             self.dropout = nn.Dropout(CTX["DROPOUT"])
@@ -82,26 +84,28 @@ class Model(nn.Module):
 
 
     def __predict__(self, x):
-        x_enc = FG.get_not(x, "timestamp")
-        s:np.float64_2d[ax.sample, ax.time] = FG.timestamp(x)
-
+        # print(x[0])
+        gx_enc = FG.get_not(x, "timestamp")
+        gx_mark:np.float64_2d[ax.sample, ax.time] = FG.timestamp(x)
+        
+        x_enc = gx_enc
         x_mark_enc = np.zeros((x_enc.shape[0], x_enc.shape[1], self.CTX["EMBED_IN"]))
-        x_mark_enc[:, :, 0] = s
+        x_mark_enc[:, :, 0] = gx_mark
 
-        x_dec = np.zeros((x_enc.shape[0], self.CTX["DEC_LEN"], x_enc.shape[2]))
+        x_dec = gx_enc[:, -self.CTX["DEC_LEN"]:]
         x_mark_dec = np.zeros((x_enc.shape[0], self.CTX["DEC_LEN"], 1))
-        x_dec[:, 0, :] = x_enc[:, -1, :]
-        x_mark_dec[:, 0, :] = x_mark_enc[:, -1, :] + 1
+        x_mark_dec[:, :, 0] = gx_mark[:, -self.CTX["DEC_LEN"]:] 
 
         x_enc = torch.tensor(x_enc, dtype=torch.float32)
         x_mark_enc = torch.tensor(x_mark_enc, dtype=torch.float32)
         x_dec = torch.tensor(x_dec, dtype=torch.float32)
         x_mark_dec = torch.tensor(x_mark_dec, dtype=torch.float32)
-
+        
         y_ = self.forward(x_enc, x_mark_enc, x_dec, x_mark_dec)
 
         # clean up
         del x_enc, x_mark_enc, x_dec, x_mark_dec
+    
 
         return y_.reshape(y_.shape[0], self.CTX["FEATURES_OUT"])
 
@@ -121,8 +125,8 @@ class Model(nn.Module):
 
     def training_step(self, x, y):
         with torch.autograd.set_detect_anomaly(True):
-            loss, output = self.__compute_loss__(x, y)
             self.opt.zero_grad()
+            loss, output = self.__compute_loss__(x, y)
             loss.backward()
             self.opt.step()
             return loss.detach().numpy(), output.detach().numpy()
@@ -131,7 +135,22 @@ class Model(nn.Module):
         """
         Generate a visualization of the model's architecture
         """
-        return
+        x_enc = torch.randn(1, self.CTX["INPUT_LEN"], self.CTX["FEATURES_IN"] - self.CTX["EMBED_IN"])
+        x_mark_enc = torch.randn(1, self.CTX["INPUT_LEN"], self.CTX["EMBED_IN"])
+        x_dec = torch.randn(1, self.CTX["DEC_LEN"], self.CTX["FEATURES_IN"] - self.CTX["EMBED_IN"])
+        x_mark_dec = torch.randn(1, self.CTX["DEC_LEN"], self.CTX["EMBED_IN"])
+        
+        y = self.forward(x_enc, x_mark_enc, x_dec, x_mark_dec)
+        
+        make_dot(y.mean(), params=dict(self.named_parameters()), show_attrs=True).render(
+            save_path +"/"+ self.name + "_architecture", format="png", cleanup=True)
+
+    def nb_parameters(self):
+        """
+        Return the number of parameters in the model
+        """
+        params = self.parameters()
+        return sum(p.numel() for p in params if p.requires_grad)
 
     def get_variables(self):
         """
@@ -192,6 +211,7 @@ class Model(nn.Module):
 
         dec_out = self.dec_embedding(x_dec, x_mark_dec)
         dec_out = self.decoder(dec_out, enc_out, x_mask=None, cross_mask=None)
+        
         return dec_out
 
     def imputation(self, x_enc, x_mark_enc, x_dec, x_mark_dec, mask):
@@ -207,6 +227,7 @@ class Model(nn.Module):
         enc_out = self.enc_embedding(x_enc, None)
         enc_out, attns = self.encoder(enc_out, attn_mask=None)
 
+        enc_out = self.flatten(enc_out)  # Flatten the output for anomaly detection
         dec_out = self.projection(enc_out)
         return dec_out
 

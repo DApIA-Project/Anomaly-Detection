@@ -35,6 +35,7 @@ def ads_b_module(CTX, x, x_takeoff, airport, x_map):
     x = TimeDistributed(Dense(CTX["UNITS"], activation="linear"))(x)
     x_skip = x
     for _ in range(CTX["LAYERS"]):
+        print(x)
         x = LSTM(CTX["UNITS"], return_sequences=True)(x)
         if (CTX["RESIDUAL"] > 0):
             x_skip = x_skip * CTX["RESIDUAL"]

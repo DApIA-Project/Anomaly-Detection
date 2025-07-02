@@ -5,21 +5,21 @@ import sys
 import numpy as np
 np.set_printoptions(linewidth=200)
 
-
+# print np version
+print("Numpy version:", np.__version__)
 
 ##################################
 # Choose your model here         #
 # You can also use               #
 # python main.py <model>         #
 # python main.py <algo> <model>  #
-##################################
+# ##################################
 # algo = "AircraftClassification"
 # algo = "FloodingSolver"
 # algo = "ReplaySolver"
-# algo = "ReplaySolver"
 algo = "InterpolationDetector"
 
-model = "encoder"
+model = "TLeNet"  
 
 ###################################
 argv = sys.argv
@@ -39,57 +39,59 @@ elif (len(sys.argv) >= 2):
 ################################### 935329
 
 if ("_" in model):
-    model.split("_")
+    model = model.split("_")
+else:
+    model = [model]
 
 
 if (algo == "AircraftClassification"):
 
-    if model == "CNN1":
+    if ("CNN-V1" in model):
         import G_Main.AircraftClassification.exp_CNN_V1 as CNN
         CNN.__main__()
     
-    if model == "CNN2":
+    if ("CNN-V2" in model):
         import G_Main.AircraftClassification.exp_CNN_V2 as CNN
         CNN.__main__()
     
-    elif model == "encoder":
+    if ("encoder" in model):
         import G_Main.AircraftClassification.exp_encoder as encoder
         encoder.__main__()
     
-    elif model == "FCN":
+    if ("FCN" in model):
         import G_Main.AircraftClassification.exp_FCN as FCN
         FCN.__main__()
         
-    elif model == "inception":
+    if ("inception" in model):
         import G_Main.AircraftClassification.exp_inception as inception
         inception.__main__()
         
-    elif model == "LSTM":
+    if ("LSTM" in model):
         import G_Main.AircraftClassification.exp_LSTM as LSTM
         LSTM.__main__()
         
-    elif model == "MCDCNN":
+    if ("MCDCNN" in model):
         import G_Main.AircraftClassification.exp_MCDCNN as MCDCNN
         MCDCNN.__main__()
         
-    elif model == "MLP":
+    if ("MLP" in model):
         import G_Main.AircraftClassification.exp_MLP as MLP
         MLP.__main__()
         
-    elif model == "reservoir":
+    if ("reservoir" in model):
         import G_Main.AircraftClassification.exp_Reservoir as Reservoir
         Reservoir.__main__()
 
-    elif model == "resnet":
+    if ("resnet" in model):
         import G_Main.AircraftClassification.exp_resnet as resnet
         resnet.__main__()
         
-    elif model == "TLeNet":
+    if ("TLeNet" in model):
         import G_Main.AircraftClassification.exp_TLeNet as TLeNet
         TLeNet.__main__()
 
         
-    elif model == "Transformer":
+    if ("Transformer" in model):
         import G_Main.AircraftClassification.exp_Transformer as Transformer
         Transformer.__main__()
 
@@ -153,7 +155,7 @@ elif (algo == "FloodingSolver"):
 
 
 elif (algo == "ReplaySolver"):
-    if (model == "HASH"):
+    if ("HASH" in model):
         import G_Main.ReplaySolver.exp_HASH as HASH
         HASH.__main__()
 
@@ -161,10 +163,10 @@ elif (algo == "ReplaySolver"):
 
 
 elif (algo == "TrajectorySeparator"):
-    if (model == "GEO"):
+    if ("GEO" in model):
         import G_Main.TrajectorySeparator.exp_GEO as GEO
         GEO.__main__()
-    if (model == "DEV"):
+    if ("DEV" in model):
         import G_Main.TrajectorySeparator.exp_DEV as DEV
         DEV.__main__()
 
@@ -173,47 +175,47 @@ elif (algo == "TrajectorySeparator"):
 
 elif (algo == "InterpolationDetector"):
 
-    if (model == "CNN"):
+    if ("CNN" in model):
         import G_Main.InterpolationDetector.exp_CNN as CNN
         CNN.__main__()
         
-    if (model == "encoder"):
+    if ("encoder" in model):
         import G_Main.InterpolationDetector.exp_encoder as encoder
         encoder.__main__()
         
-    if (model == "FCN"):
+    if ("FCN" in model):
         import G_Main.InterpolationDetector.exp_FCN as FCN
         FCN.__main__()
         
-    if (model == "inception"):
+    if ("inception" in model):
         import G_Main.InterpolationDetector.exp_inception as inception
         inception.__main__()
         
-    if (model == "LSTM"):
+    if ("LSTM" in model):
         import G_Main.InterpolationDetector.exp_LSTM as LSTM
         LSTM.__main__()
         
-    if (model == "MCDCNN"):
+    if ("MCDCNN" in model):
         import G_Main.InterpolationDetector.exp_MCDCNN as MCDCNN
         MCDCNN.__main__()
         
-    if (model == "MLP"):
+    if ("MLP" in model):
         import G_Main.InterpolationDetector.exp_MLP as MLP
         MLP.__main__()
         
-    if (model == "reservoir"):
+    if ("reservoir" in model):
         import G_Main.InterpolationDetector.exp_Reservoir as Reservoir
         Reservoir.__main__()
         
-    if (model == "resnet"):
+    if ("resnet" in model):
         import G_Main.InterpolationDetector.exp_resnet as resnet
         resnet.__main__()
         
-    if (model == "TLeNet"):
+    if ("TLeNet" in model):
         import G_Main.InterpolationDetector.exp_TLeNet as TLeNet
         TLeNet.__main__()
         
-    if (model == "Transformer"):
+    if ("Transformer" in model):
         import G_Main.InterpolationDetector.exp_Transformer as Transformer
         Transformer.__main__()
 

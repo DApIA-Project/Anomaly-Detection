@@ -175,6 +175,11 @@ def window_slice(CTX:dict, t:int) -> "tuple[int, int, int, int, int]":
 # | GET LAST MESSAGE FROM TRAJECTORY WITH NANs
 # |--------------------------------------------------------------------------------------------------------------------
 
+def equals(a, b, d=1e-6) -> bool:
+    """
+    Check if two values are equal with a tolerance
+    """
+    return abs(a - b) < d
 
 def get_aircraft_last_message_t(CTX:dict, flight:np.float64_2d[ax.time, ax.feature], last_t = -1) -> np.float64_1d:
     # get the aircraft last non zero latitudes and longitudes
@@ -182,17 +187,12 @@ def get_aircraft_last_message_t(CTX:dict, flight:np.float64_2d[ax.time, ax.featu
     lon = flight[:, CTX["FEATURE_MAP"]["longitude"]]
     if (last_t == -1): last_t = len(lat)-1
     i = last_t
-    while (i >= 1 and ((lat[i] == 0 and lon[i] == 0) or (lat[i] == lat[i-1] and lon[i] == lon[i-1]))):
+    while (i >= 1 and ((equals(lat[i], 0) and equals(lon[i], 0)) or (equals(lat[i], lat[i-1]) and equals(lon[i], lon[i-1])))):
         i -= 1
     return i
 
 def get_aircraft_last_message(CTX:dict, flight:np.float64_2d[ax.time, ax.feature]) -> np.float64_1d:
-    # get the aircraft last non zero latitudes and longitudes
-    lat = flight[:, CTX["FEATURE_MAP"]["latitude"]]
-    lon = flight[:, CTX["FEATURE_MAP"]["longitude"]]
-    i = len(lat)-1
-    while (i >= 1 and ((lat[i] == 0 and lon[i] == 0) or (lat[i] == lat[i-1] and lon[i] == lon[i-1]))):
-        i -= 1
+    i = get_aircraft_last_message_t(CTX, flight)
     if (i == -1):
         return None
     return flight[i]
@@ -608,7 +608,9 @@ def batch_preprocess(CTX:dict, flight:"np.float64_2d[ax.time, ax.feature]",
 
     # if there is timestamp in the features, we normalize it
     if (FG.has("timestamp")):
-        x[:, FG.timestamp()] = FG.timestamp(pos) - FG.timestamp(x)
+        x[~nan_value, FG.timestamp()] -= FG.timestamp(pos)
+        x[nan_value, FG.timestamp()] = 0
+        x[:, FG.timestamp()] *= -1
 
     if (post_flight is not None):
         return x[:len(flight)], x[len(flight):]

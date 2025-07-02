@@ -3,11 +3,12 @@ from keras.layers import *
 from B_Model.Utils.TF_Modules import *
 from B_Model.AircraftClassification.Utils import *
 
+print(tf.test.gpu_device_name())
 
 
 class Model(GlobalArchitectureV2):
 
-    name = "CNN2"
+    name = "CNN_V2"
 
     def __init__(self, CTX:dict):
         super().__init__(CTX, ads_b_module)
