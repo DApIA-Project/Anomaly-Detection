@@ -28,6 +28,7 @@ __pycache__/
 A_Dataset/*/*
 !A_Dataset/readme.md
 !A_Dataset/*/readme.md
+!A_Dataset/*/*.py
 
 # Do not put any built lib or lib building artefact in git !
 _Lib/*
