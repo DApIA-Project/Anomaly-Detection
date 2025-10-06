@@ -1,0 +1,39 @@
+# ML
+pip install tensorflow==2.8.0
+pip install keras
+
+# [optional] for using PyTorch instead of TensorFlow
+pip install reformer-pytorch
+pip install torch
+
+# Data processing
+pip install pandas
+pip install scikit-learn
+pip install numpy-typing
+
+# webserver for live anomaly detection
+pip install flask
+pip install requests
+
+
+# Visualization (chart + maps)
+pip install matplotlib
+
+ # needs sudo apt -y install libgeos-dev
+
+
+# [optional] to run Unit test
+pip install pytest
+
+# [optional] graphviz for tensorflow model visualization
+pip install graphviz
+sudo apt install graphviz
+
+# [optional] torchviz for PyTorch model visualization
+pip install torchviz
+sudo apt install graphviz
+
+
+
+
+tf.config.experimental.list_physical_devices('GPU')

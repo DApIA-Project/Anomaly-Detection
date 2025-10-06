@@ -1,0 +1,18 @@
+MIN_BATCH_SIZE = 1
+TEST_RATIO = 1.0/8.0
+MAX_BATCH_SIZE = 1024
+
+INPUT_PADDING = "valid"
+
+
+
+BOUNDING_BOX = [
+    (43.11581, 0.72561),
+    (44.07449, 2.16344)
+]
+BOX_CENTER = (
+    (BOUNDING_BOX[0][0] + BOUNDING_BOX[1][0]) / 2,
+    (BOUNDING_BOX[0][1] + BOUNDING_BOX[1][1]) / 2
+)
+LOSS_MOVING_AVERAGE = 32 # kernel size for moving average
+THRESHOLD = 0.90 # Threshold for the interpolation detector

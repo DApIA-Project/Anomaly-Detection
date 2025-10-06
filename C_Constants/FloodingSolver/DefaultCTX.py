@@ -1,0 +1,25 @@
+
+TEST_RATIO = 1.0/8.0
+MAX_BATCH_SIZE = 1024
+MIN_BATCH_SIZE = 1
+
+
+BOUNDING_BOX = [
+    (43.11581, 0.72561),
+    (44.07449, 2.16344)
+]
+BOX_CENTER = (
+    (BOUNDING_BOX[0][0] + BOUNDING_BOX[1][0]) / 2,
+    (BOUNDING_BOX[0][1] + BOUNDING_BOX[1][1]) / 2
+)
+
+INPUT_PADDING = "valid"
+
+THRESHOLD = 250 # Meters
+LOSS_MOVING_AVERAGE = 3 # kernel size for moving average
+
+GENERATE_ARTIFACTS = True
+
+SCALER = "standard"
+
+HAS_WEIGHT = True
