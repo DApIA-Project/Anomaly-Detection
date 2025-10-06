@@ -8,7 +8,11 @@
 from   _Utils.os_wrapper import os
 import pandas as pd
 import matplotlib.pyplot as plt
+<<<<<<< HEAD
 from   matplotlib.backends.backend_pdf import PdfPages
+=======
+from sklearn import metrics
+>>>>>>> master
 
 from   B_Model.AbstractModel import Model as _Model_
 from   D_DataLoader.AircraftClassification.DataLoader import DataLoader
@@ -28,6 +32,10 @@ import _Utils.Metrics as Metrics
 from   _Utils.ProgressBar import ProgressBar
 from   _Utils.save import write, load
 from   _Utils.ADSB_Streamer import streamer
+<<<<<<< HEAD
+=======
+from   _Utils.Metrics import accuracy
+>>>>>>> master
 
 
 # |====================================================================================================================
@@ -38,8 +46,13 @@ from   _Utils.ADSB_Streamer import streamer
 PBM_NAME = os.path.dirname(os.path.abspath(__file__)).split("/")[-1]+"/"
 ARTIFACTS = "./_Artifacts/"
 
+<<<<<<< HEAD
 TRAIN_FOLDER = "./A_Dataset/AircraftClassification/Train/"
 EVAL_FOLDER = "./A_Dataset/AircraftClassification/Eval/"
+=======
+TRAIN_FOLDER = "./A_Dataset/V1/Train/"
+EVAL_FOLDER = "./A_Dataset/V1/Eval/"
+>>>>>>> master
 
 H_TRAIN_LOSS = 0
 H_TEST_LOSS = 1
@@ -374,8 +387,16 @@ class Trainer(AbstractTrainer):
                 all_y_ = self.dl.prediction_cache.append(x_[i]["icao24"], x_[i]["tag"], y_[i])
             else:
                 all_y_ = self.dl.prediction_cache.get(x_[i]["icao24"], x_[i]["tag"])
+<<<<<<< HEAD
             # use nth max method
             l = min(len(all_y_), 20)
+=======
+            if (all_y_ is None):
+                continue
+            
+            # use nth max method
+            l = min(len(all_y_), self.CTX["LOSS_MOVING_AVERAGE"])
+>>>>>>> master
             if (l > 0):
                 confidence = Metrics.confidence(all_y_)
                 # TODO performance improvment with already sorted list
@@ -470,8 +491,15 @@ class Trainer(AbstractTrainer):
         
         print("TOTAL NUM OF MESSAGES : ", NB_MESSAGE)
 
+<<<<<<< HEAD
         acc = self.__eval_stats__(y, y_)
         return {"ACCURACY": round(acc*100, 2), "TIME": round(CHRONO.get_time_s(),1)}
+=======
+        acc, _, precision, recall, f1, roc_auc = self.__eval_stats__(y, y_)
+        return {"ACCURACY": round(acc*100, 2), "TIME": round(CHRONO.get_time_s(),1), 
+                "PRECISION": round(precision*100,2), "RECALL": round(recall*100,2),
+                "F1_SCORE": round(f1*100,2), "ROC_AUC": round(roc_auc*100,2)}
+>>>>>>> master
 
 
 # |====================================================================================================================
@@ -499,9 +527,23 @@ class Trainer(AbstractTrainer):
     def __eval_stats__(self, y:np.float64_2d[ax.sample, ax.label], y_:"list[np.float64_2d[ax.time, ax.label]]") -> None:
         OUT = np.ndarray((len(y), self.CTX["LABELS_OUT"]), dtype=np.float64)
         agg_mean, agg_max, agg_count, agg_nth_max = OUT.copy(), OUT.copy(), OUT.copy(), OUT.copy()
+<<<<<<< HEAD
 
         for f in range(len(self.__eval_files__)):
             agg_mean[f], agg_max[f], agg_count[f], agg_nth_max[f] = self.__compute_prediction__(y_[f])
+=======
+        
+        per_message_correct = 0
+        total_messages = 0
+        
+
+        for f in range(len(self.__eval_files__)):
+            per_message_correct += np.sum(np.argmax(y[f]) == np.argmax(y_[f], axis=1))
+            total_messages += len(y_[f])
+            
+            agg_mean[f], agg_max[f], agg_count[f], agg_nth_max[f] = self.__compute_prediction__(y_[f])
+        acc_per_messages = per_message_correct / total_messages
+>>>>>>> master
 
         methods = ["mean", "max", "count", "nth_max"]
         prediction_methods = [agg_mean, agg_max, agg_count, agg_nth_max]
@@ -513,10 +555,30 @@ class Trainer(AbstractTrainer):
         for i in range(len(methods)):
             prntC(C.INFO, "with", methods[i], " aggregation, accuracy : ", round(accuracy_per_method[i] * 100, 2))
         prntC(C.INFO, "Best method is :", methods[best_method])
+<<<<<<< HEAD
 
         confusion_matrix = Metrics.confusion_matrix(y, prediction_methods[best_method])
         prntC(confusion_matrix)
 
+=======
+        
+        
+        trues_label = np.argmax(y, axis=1)
+        preds_label = np.argmax(prediction_methods[best_method], axis=1)
+        
+        
+        confusion_matrix = Metrics.confusion_matrix(y, prediction_methods[best_method])
+        
+        accuracy_score = metrics.accuracy_score(trues_label, preds_label)
+        precision = metrics.precision_score(trues_label, preds_label, average='macro')
+        recall = metrics.recall_score(trues_label, preds_label, average='macro')
+        f1 = metrics.f1_score(trues_label, preds_label, average='macro')
+        roc_auc = metrics.roc_auc_score(y, prediction_methods[best_method], average='macro', multi_class='ovo')
+        
+        
+        print(accuracy_per_method[best_method], accuracy_score)
+        print(precision, recall, f1, roc_auc)
+>>>>>>> master
 
         labels = [self.CTX["LABEL_NAMES"][i] for i in self.CTX["USED_LABELS"]]
         Metrics.plot_confusion_matrix(confusion_matrix,
@@ -531,5 +593,9 @@ class Trainer(AbstractTrainer):
                       " - True label :", self.CTX["LABEL_NAMES"][self.CTX["USED_LABELS"][true]],
                       " - Predicted :",  self.CTX["LABEL_NAMES"][self.CTX["USED_LABELS"][pred]])
         
+<<<<<<< HEAD
         return accuracy_per_method[best_method]
+=======
+        return accuracy_per_method[best_method], acc_per_messages, precision, recall, f1, roc_auc
+>>>>>>> master
 

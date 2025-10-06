@@ -5,17 +5,32 @@ import D_DataLoader.Utils      as U
 import _Utils.geographic_maths as GEO
 
 
+<<<<<<< HEAD
 
+=======
+def get_lat_lon(x:"np.float64_2d[ax.time, ax.feature]") -> "np.float64_2d[ax.time, ax.lat_lon]":
+    if (FG.lat() is not None):
+        traj = FG.lat_lon(x)
+    else:
+        traj = U.convert_distance_bearing_traj_to_lat_lon(FG.distance(x), FG.bearing(x)) 
+    return traj
+>>>>>>> master
 
 
 # |====================================================================================================================
 # | CHECKING CLEANESS FOR TRAINING DATA
 # |====================================================================================================================
 
+<<<<<<< HEAD
 def check_sample(CTX:"dict[str, object]", x:"list[np.float64_2d[ax.time, ax.feature]]", i:int, t:int, training:bool=True) -> bool:
 
     lats = FG.lat(x[i][t-CTX["HISTORY"]+1:t+1])
     lons = FG.lon(x[i][t-CTX["HISTORY"]+1:t+1])
+=======
+def check_sample(CTX:"dict[str, object]", x:"np.float64_2d[ax.time, ax.feature]", sample_lat_lon:np.float64_2d[ax.time, ax.feature], t:int, training:bool=True) -> bool:
+
+    lats, lons = sample_lat_lon[:,0], sample_lat_lon[:,1]
+>>>>>>> master
     
     MISSING_VALUES_THRESOLD = 0
 
@@ -47,17 +62,36 @@ def check_sample(CTX:"dict[str, object]", x:"list[np.float64_2d[ax.time, ax.feat
 # |====================================================================================================================
 
 
+<<<<<<< HEAD
 def pick_random_loc(CTX:dict, x:"list[np.float64_2d[ax.time, ax.feature]]", y:"list[bool]") -> "tuple[int, int]":
     flight_i = np.random.randint(0, len(x))
     negative = False # TODO np.random.randint(0, 100) < 1 # 1% of samples
     true_y = np.random.randint(0, 2) == 0
     t = -1
     while t < 0 or true_y != y[flight_i] or not(check_sample(CTX, x, flight_i, t)) or U.eval_curvature(CTX, x, flight_i, t-CTX["HISTORY"]+1, t+1) < 15:
+=======
+
+def pick_random_loc(CTX:dict, x:"list[np.float64_2d[ax.time, ax.feature]]", y:"list[bool]") -> "tuple[int, int]":
+    flight_i = -1
+    negative = False # TODO np.random.randint(0, 100) < 1 # 1% of samples
+    true_y = np.random.randint(0, 2) == 0
+    t = -1
+    while t < 0 or true_y != y[flight_i] or not(check_sample(CTX, sample, sample_lat_lon, t)) or U.eval_curvature(sample_lat_lon[:, 0], sample_lat_lon[:, 1]) < 15:
+        
+>>>>>>> master
         flight_i = np.random.randint(0, len(x))
         if (negative):
             t = np.random.randint(CTX["HISTORY"]//2, CTX["HISTORY"])
         else:
             t = np.random.randint(CTX["HISTORY"], len(x[flight_i]))
+<<<<<<< HEAD
+=======
+            
+        
+        sample = x[flight_i][t-CTX["HISTORY"]+1:t+1]
+        sample_lat_lon = get_lat_lon(sample)
+
+>>>>>>> master
 
     return flight_i, t
 
@@ -105,7 +139,15 @@ def gen_sample(CTX:dict,
                     np.float64_1d[ax.feature],
                     bool]""":
 
+<<<<<<< HEAD
     if (valid is None): valid = check_sample(CTX, x, i, t, training)
+=======
+    if (valid is None): 
+        sample = x[i][t-CTX["HISTORY"]+1:t+1]
+        sample_lat_lon = get_lat_lon(sample)
+        valid = check_sample(CTX, sample, sample_lat_lon, t, training)
+        
+>>>>>>> master
     x_sample = alloc_sample(CTX)
     if (not(valid)): return x_sample, None, valid
 

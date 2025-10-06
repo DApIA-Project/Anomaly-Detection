@@ -1,6 +1,10 @@
 
 LEARNING_RATE = 0.0001
+<<<<<<< HEAD
 EPOCHS = 80
+=======
+EPOCHS = 0
+>>>>>>> master
 BATCH_SIZE = 32
 NB_BATCH = 128
 
@@ -20,7 +24,10 @@ KERNEL_SIZE = 41
 RESIDUAL = 1
 BOTTLENECK_SIZE = 32
 
+<<<<<<< HEAD
 LOSS_MOVING_AVERAGE = 20
+=======
+>>>>>>> master
 
 USED_FEATURES = [
     "latitude", "longitude",
@@ -36,3 +43,8 @@ RESUDUAL = 1.0
 # possibilities "valid", "last", "nan"
 INPUT_PADDING = "nan"
 
+<<<<<<< HEAD
+=======
+
+
+>>>>>>> master

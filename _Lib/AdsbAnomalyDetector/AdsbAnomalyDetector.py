@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 VERSION = "0.8.3"
+=======
+VERSION = "0.8.4"
+>>>>>>> master
 HASH_TABLE_VERSION = "0.6.3"
 
 from ._Utils_os_wrapper import os
@@ -25,7 +29,11 @@ def show_progress(block_num, block_size, total_size):
 
 
 def download_hash_table():
+<<<<<<< HEAD
     URL = "http://162.19.155.184/hashtable.zip"
+=======
+    URL = "http://home.pirotech.fr/hashtable.zip"
+>>>>>>> master
     import urllib.request
     import zipfile
 
@@ -327,8 +335,15 @@ def __predict__(messages: "list[dict[str, str]]", compress:bool=True, debug:bool
             
     # check for interpolation anomalies
     sub_msg, indices = message_subset(messages)
+<<<<<<< HEAD
     _, _, anomaly = interpolationDetector.predict(sub_msg)
     for i in range(len(indices)):
+=======
+    y_, _, anomaly = interpolationDetector.predict(sub_msg)
+    for i in range(len(indices)):    
+        messages[indices[i]]["debug_interp_loss"] = y_[i]
+
+>>>>>>> master
         if (anomaly[i]):
             messages[indices[i]]["anomaly"] = AnomalyType.INTERP
 

@@ -51,6 +51,7 @@ class Model(AbstactModel):
         # load context
         self.CTX = CTX
 
+    @tf.function
     def predict(self, x:np.float64_3d[ax.sample, ax.time, ax.feature], t:np.int64_1d[ax.sample])\
             -> np.float64_2d[ax.sample, ax.feature]:
 
@@ -61,6 +62,7 @@ class Model(AbstactModel):
         return preds
 
 
+    @tf.function
     def compute_loss(self, x:np.float64_3d[ax.sample, ax.time, ax.feature], t:np.int64_1d[ax.sample],
                      y:np.float64_2d[ax.sample, ax.feature])\
             -> "tuple[np.float64_1d[ax.sample], np.float64_2d[ax.sample, ax.feature]]":
@@ -74,6 +76,7 @@ class Model(AbstactModel):
 
 
 
+    @tf.function
     def training_step(self, *args) -> None:
         return None
 

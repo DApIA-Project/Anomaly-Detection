@@ -48,6 +48,10 @@ class Model(AbstactModel):
 # |====================================================================================================================
 
 
+<<<<<<< HEAD
+=======
+    @tf.function
+>>>>>>> master
     def predict(self, x:np.float64_3d[ax.sample, ax.time, ax.feature]) -> "list[list[str]]":
 
         if (x.shape[1] != self.CTX["HISTORY"]):
@@ -65,6 +69,10 @@ class Model(AbstactModel):
 
 
 
+<<<<<<< HEAD
+=======
+    @tf.function
+>>>>>>> master
     def compute_loss(self, x:np.float64_3d[ax.sample, ax.time, ax.feature], y:np.str_1d[ax.sample]) -> """
             tuple[float, list[list[str]]]""":
 
@@ -92,6 +100,10 @@ class Model(AbstactModel):
 
 
 
+<<<<<<< HEAD
+=======
+    @tf.function
+>>>>>>> master
     def training_step(self, x:np.float64_3d[ax.sample, ax.time, ax.feature], y:np.str_1d[ax.sample]) -> None:
         for b in range(len(x)):
             if (y[b] == 'nan'):

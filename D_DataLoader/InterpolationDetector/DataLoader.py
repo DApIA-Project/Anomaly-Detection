@@ -50,15 +50,25 @@ class DataLoader(AbstractDataLoader):
 # |     INITIALISATION : LOADING RAW DATASET FROM DISK
 # |====================================================================================================================
 
+<<<<<<< HEAD
     def __init__(self, CTX:dict, path:str="") -> None:
+=======
+    def __init__(self, CTX:dict, path:"list[str]"=[]) -> None:
+>>>>>>> master
         self.CTX = CTX
         self.PAD = None
 
         self.xScaler = StandardScaler3D()
 
+<<<<<<< HEAD
         training = (CTX["EPOCHS"] and path != "")
         if (training):
             x, y = self.__get_dataset__(path)
+=======
+        training = (CTX["EPOCHS"] and len(path) != 0)
+        if (training):
+            x, y, self.PAD = self.__get_dataset__(path)
+>>>>>>> master
             self.x_train, self.y_train, self.x_test, self.y_test = self.__split__(x, y)
 
 
@@ -69,6 +79,7 @@ class DataLoader(AbstractDataLoader):
         self.preds_cache.set_feature_size(1)
 
 
+<<<<<<< HEAD
     def __load_dataset__(self, CTX:dict, path:str) -> "list[np.float64_2d[ax.time, ax.feature]]":
 
         filenames = []
@@ -76,6 +87,13 @@ class DataLoader(AbstractDataLoader):
         filenames += U.list_flights(path+"interp_0-0.00015/", limit=Limits.INT_MAX)
         # filenames += U.list_flights(path+"interp_0.0001/", limit=1000)#Limits.INT_MAX)
         # filenames += U.list_flights(path+"interp_3e-05/", limit=1000)#Limits.INT_MAX)
+=======
+    def __load_dataset__(self, CTX:dict, path:"list[str]") -> "list[np.float64_2d[ax.time, ax.feature]]":
+
+        filenames = []
+        filenames += U.list_flights(path[0], limit=Limits.INT_MAX)
+        filenames += U.list_flights(path[1], limit=Limits.INT_MAX)
+>>>>>>> master
         BAR.reset(max=len(filenames))
         
         np.random.shuffle(filenames)
@@ -92,7 +110,11 @@ class DataLoader(AbstractDataLoader):
         if (self.PAD is None): self.PAD = U.genPadValues(CTX, x)
         x = fill_nan_3d(x, self.PAD)
 
+<<<<<<< HEAD
         return x, y
+=======
+        return x, y, self.PAD
+>>>>>>> master
 
 
 

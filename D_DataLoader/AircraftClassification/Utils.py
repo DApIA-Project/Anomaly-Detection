@@ -171,8 +171,13 @@ def check_sample(CTX:"dict[str, object]", x:"np.ndarray", i:int, t:int) -> bool:
     if (lats[t-1] == lats[t] and lons[t-1] == lons[t]):
         return False
 
+<<<<<<< HEAD
     if (not in_bbox(CTX, lat, lon)):
         return False
+=======
+    # if (not in_bbox(CTX, lat, lon)):
+    #     return False
+>>>>>>> master
 
     return True
 

@@ -24,7 +24,11 @@ from   _Utils.ADSB_Streamer import streamer
 PBM_NAME = os.path.dirname(os.path.abspath(__file__)).split("/")[-1]+"/"
 ARTIFACTS = "./_Artifacts/"
 
+<<<<<<< HEAD
 TRAIN_FOLDER = "./A_Dataset/AircraftClassification/Train/"
+=======
+TRAIN_FOLDER = "./A_Dataset/V1/Train/"
+>>>>>>> master
 EVAL_FOLDER = "./A_Dataset/ReplaySolver/Eval"
 
 BAR = ProgressBar(max = 100)
@@ -178,7 +182,11 @@ class Trainer(AbstractTrainer):
 
             if (len(count) > 0):
                 best = max(count, key=count.get)
+<<<<<<< HEAD
                 if (count[best] > 30):
+=======
+                if (count[best] > 32):
+>>>>>>> master
                     res[i] = best
         return res
 

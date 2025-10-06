@@ -74,6 +74,12 @@ class SemaphoreQueue:
     def release(self, order):
         if (DEBUG): print("begin release ", order)
         i = self.__get_queue_index__(order)
+<<<<<<< HEAD
+=======
+        if (i == len(self.queue) or self.queue_order[i] != order):
+            print("Error release order ", order)
+            return
+>>>>>>> master
         sem_id = self.queue[i]
         self.sem_storage[sem_id].release()
         self.sem_locked[sem_id] = False

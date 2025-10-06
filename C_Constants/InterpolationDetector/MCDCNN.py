@@ -1,6 +1,10 @@
 
 LEARNING_RATE = 0.0003
+<<<<<<< HEAD
 EPOCHS = 80
+=======
+EPOCHS = 0
+>>>>>>> master
 BATCH_SIZE = 32
 NB_BATCH = 128
 
@@ -19,11 +23,17 @@ MODEL_PADDING = "same"
 
 LAYERS = 2
 DROPOUT = 0.1
+<<<<<<< HEAD
 UNITS = 8
 RESIDUAL = 1
 
 LOSS_MOVING_AVERAGE = 20
 
+=======
+UNITS = 4
+RESIDUAL = 1
+
+>>>>>>> master
 USED_FEATURES = [
     "latitude", "longitude",
     "bearing", "bearing_diff",
@@ -45,4 +55,9 @@ RESUDUAL = 1.0
 
 # possibilities "valid", "last", "nan"
 INPUT_PADDING = "nan"
+<<<<<<< HEAD
+=======
+THRESHOLD=0.95
+LOSS_MOVING_AVERAGE = 64
+>>>>>>> master
 

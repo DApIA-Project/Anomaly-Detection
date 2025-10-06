@@ -14,6 +14,11 @@ class FeatureGetter:
     BARO_ALT = None
     GEO_ALT = None
     VELOCITY = None
+<<<<<<< HEAD
+=======
+    DISTANCE = None
+    BEARING = None
+>>>>>>> master
 
     def init(self, CTX:dict)->None:
         """Init the feature getter with the context"""
@@ -27,6 +32,11 @@ class FeatureGetter:
         self.BARO_ALT  = self.FEATURE_MAP.get("altitude", None)
         self.GEO_ALT   = self.FEATURE_MAP.get("geoaltitude", None)
         self.VELOCITY  = self.FEATURE_MAP.get("groundspeed", None)
+<<<<<<< HEAD
+=======
+        self.DISTANCE  = self.FEATURE_MAP.get("distance", None)
+        self.BEARING   = self.FEATURE_MAP.get("bearing", None)
+>>>>>>> master
         CTX["FG"] = self
 
     T  = TypeVar('T')
@@ -181,6 +191,46 @@ class FeatureGetter:
     def velocity(self, slf:np.ndarray = None, axis:int=-1) -> np.ndarray:
         if not(isinstance(slf, np.ndarray)): return self.VELOCITY
         return slf.take(self.VELOCITY, axis)
+<<<<<<< HEAD
+=======
+    
+    # |====================================================================================================================
+    # | DISTANCE GETTER
+    # |====================================================================================================================
+    @overload
+    def distance(self, slf:np.array_1d[T, T1], axis:int=-1) -> T: ...
+    @overload
+    def distance(self, slf:np.array_2d[T, T1, T2], axis:int=-1) -> np.array_1d[T, T1]: ...
+    @overload
+    def distance(self, slf:np.array_3d[T, T1, T2, T3], axis:int=-1) -> np.array_2d[T, T1, T2]: ...
+    @overload
+    def distance(self, slf:np.array_4d[T, T1, T2, T3, T4], axis:int=-1) -> np.array_3d[T, T1, T2, T3]: ...
+    @overload
+    def distance(self) -> int: ...
+    
+    def distance(self, slf:np.ndarray = None, axis:int=-1) -> np.ndarray:
+        if not(isinstance(slf, np.ndarray)): return self.DISTANCE
+        return slf.take(self.DISTANCE, axis)
+    
+    # |====================================================================================================================
+    # | BEARING GETTER
+    # |====================================================================================================================
+    @overload
+    def bearing(self, slf:np.array_1d[T, T1], axis:int=-1) -> T: ...
+    @overload
+    def bearing(self, slf:np.array_2d[T, T1, T2], axis:int=-1) -> np.array_1d[T, T1]: ...
+    @overload
+    def bearing(self, slf:np.array_3d[T, T1, T2, T3], axis:int=-1) -> np.array_2d[T, T1, T2]: ...
+    @overload
+    def bearing(self, slf:np.array_4d[T, T1, T2, T3, T4], axis:int=-1) -> np.array_3d[T, T1, T2, T3]: ...
+    @overload
+    def bearing(self) -> int: ...
+    
+    def bearing(self, slf:np.ndarray = None, axis:int=-1) -> np.ndarray:
+        if not(isinstance(slf, np.ndarray)): return self.BEARING
+        return slf.take(self.BEARING, axis)
+    
+>>>>>>> master
 
     # |====================================================================================================================
     # | GENERIC GETTER
@@ -233,6 +283,10 @@ class FeatureGetter:
 
 FG_spoofing = FeatureGetter()
 FG_flooding = FeatureGetter()
+<<<<<<< HEAD
+=======
+FG_generator = FeatureGetter()
+>>>>>>> master
 FG_replay = FeatureGetter()
 FG_separator = FeatureGetter()
 FG_interp = FeatureGetter()

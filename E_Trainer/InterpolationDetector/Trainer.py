@@ -2,6 +2,11 @@ from _Utils.os_wrapper import os
 import pandas as pd
 import matplotlib.pyplot as plt
 from   matplotlib.backends.backend_pdf import PdfPages
+<<<<<<< HEAD
+=======
+from sklearn import metrics
+
+>>>>>>> master
 
 from   B_Model.AbstractModel import Model as _Model_
 from   D_DataLoader.InterpolationDetector.DataLoader import DataLoader
@@ -32,7 +37,11 @@ from   _Utils.ADSB_Streamer import streamer
 PBM_NAME = os.path.dirname(os.path.abspath(__file__)).split("/")[-1]+"/"
 ARTIFACTS = "./_Artifacts/"
 
+<<<<<<< HEAD
 TRAIN_FOLDER = "./A_Dataset/InterpolationDetector/Train/"
+=======
+TRAIN_FOLDER = ["./A_Dataset/V1/Train/", "./A_Dataset/InterpolationDetector/Train/interp_0-0.00015/"]
+>>>>>>> master
 EVAL_FOLDER = "./A_Dataset/InterpolationDetector/Eval/"
 
 H_TRAIN_LOSS = 0
@@ -316,7 +325,11 @@ class Trainer(AbstractTrainer):
             
             if (len(loss_win) > self.CTX["LOSS_MOVING_AVERAGE"]):
                 y_mean[i] = np.mean(loss_win[-self.CTX["LOSS_MOVING_AVERAGE"]:])
+<<<<<<< HEAD
                 is_interp[i] = y_mean[i] > 0.9
+=======
+                is_interp[i] = y_mean[i] > self.CTX["THRESHOLD"]
+>>>>>>> master
 
 
         return y_batch_, y_mean, is_interp
@@ -368,7 +381,11 @@ class Trainer(AbstractTrainer):
 
 
 
+<<<<<<< HEAD
         dfs, max_len, y, y_, loss_, acc, glob_pred = self.__gen_eval_batch__(self.__eval_files__)
+=======
+        dfs, max_len, y, y_, mean_y_, acc, glob_pred = self.__gen_eval_batch__(self.__eval_files__)
+>>>>>>> master
 
         BAR.reset(max=max_len)
         prntC(C.INFO, "Evaluating model on : ", C.BLUE, self.__eval_files__[0].split("/")[-2])
@@ -380,14 +397,22 @@ class Trainer(AbstractTrainer):
             NB_MESSAGE += len(x)
             for i in range(len(x)): streamer.add(x[i])
 
+<<<<<<< HEAD
             yt_, losst_, is_interp = self.predict(x)
+=======
+            yt_, mean_yt_, is_interp = self.predict(x)
+>>>>>>> master
             
             
             
 
             for i in range(len(files)):
                 y_[files[i]][t] = yt_[i]
+<<<<<<< HEAD
                 loss_[files[i]][t] = losst_[i]
+=======
+                mean_y_[files[i]][t] = mean_yt_[i]
+>>>>>>> master
                 acc[files[i]] += (is_interp[i] == y[files[i]])
                 
                 if (is_interp[i]):
@@ -403,6 +428,25 @@ class Trainer(AbstractTrainer):
         detection_capacity = 0
         nb_iterp = 0
         
+<<<<<<< HEAD
+=======
+        y_true_per_message = [np.array([y[i]]*len(dfs[i])) for i in range(len(dfs))]
+        y_true_per_message = np.concatenate(y_true_per_message, axis=0)
+        mean_y_ = np.concatenate(mean_y_, axis=0)
+        mean_y_ = np.nan_to_num(mean_y_, nan=0.0)
+        y_ = np.concatenate(y_, axis=0)
+        y_ = np.nan_to_num(y_, nan=0.0)
+        y_bin = [(mean_y_[i] > self.CTX["THRESHOLD"]) for i in range(len(mean_y_))]
+        # remplace nan with 0
+        
+        
+        confusion_matrix = metrics.confusion_matrix(y_true_per_message, y_bin)
+        Metrics.plot_confusion_matrix(confusion_matrix, self.ARTIFACTS+"/confusion_matrix.png", ["Normal", "Interpolated"])
+        
+       
+        
+        
+>>>>>>> master
         for i in range(len(dfs)):
             name = self.__eval_files__[i].split("/")[-1]
             prntC(C.INFO, "Accuracy for ", C.BLUE, name, C.RESET, " : ", C.BLUE, round(acc[i]/len(dfs[i])*100, 2), glob_pred[i])
@@ -421,6 +465,7 @@ class Trainer(AbstractTrainer):
         mean_acc /= len(dfs)
         
         print("TOTAL NUM OF MESSAGES : ", NB_MESSAGE)
+<<<<<<< HEAD
 
         return {"ACCURACY": round(mean_acc*100, 2), "GLOBAL_ACC": round(acc_on_glob/len(dfs)*100, 2), "DETECTION_CAPACITY": round(detection_capacity/nb_iterp*100, 2), "TIME": round(CHRONO.get_time_s()/NB_MESSAGE*1000,2)}
 
@@ -696,4 +741,26 @@ class Trainer(AbstractTrainer):
 
         return best_acc, acc
 
+=======
+        accuracy = metrics.accuracy_score(y_true_per_message, y_bin)
+        precision = metrics.precision_score(y_true_per_message, y_bin)
+        recall = metrics.recall_score(y_true_per_message, y_bin)
+        f1 = metrics.f1_score(y_true_per_message, y_bin)
+        
+        y_true_per_message = y_true_per_message.astype(np.float64)
+        # print(list(zip(y_true_per_message, mean_y_)))
+        roc_auc = metrics.roc_auc_score(y_true_per_message, y_)
+        fpr = confusion_matrix[0][1]/(confusion_matrix[0][1]+confusion_matrix[0][0])
+        
+        prntC(C.INFO, "Overall accuracy : ", C.BLUE, round(mean_acc*100, 2), "%")
+        prntC(C.INFO, "Overall accuracy : ", C.BLUE, round(accuracy*100, 2), "%")
+        prntC(C.INFO, "Overall precision : ", C.BLUE, round(precision*100, 2), "%")
+        prntC(C.INFO, "Overall recall : ", C.BLUE, round(recall*100, 2), "%")
+        prntC(C.INFO, "Overall F1-score : ", C.BLUE, round(f1*100, 2), "%")
+        prntC(C.INFO, "Overall ROC-AUC : ", C.BLUE, round(roc_auc*100, 2), "%")
+        prntC(C.INFO, "Overall FPR : ", C.BLUE, round(fpr*100, 2), "%")
+
+        return {"ACCURACY": round(accuracy*100, 2), "GLOBAL_ACC": round(acc_on_glob/len(dfs)*100, 2), "DETECTION_CAPACITY": round(detection_capacity/nb_iterp*100, 2), "TIME": round(CHRONO.get_time_s()/NB_MESSAGE*1000,2),
+                "PRECISION": round(precision*100, 2), "RECALL": round(recall*100, 2), "F1": round(f1*100, 2), "ROC_AUC": round(roc_auc*100, 2), "FPR": round(fpr*100, 2)}
+>>>>>>> master
 

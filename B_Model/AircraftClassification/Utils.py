@@ -107,15 +107,18 @@ class GlobalArchitectureV2(AbstactModel):
         self.nb_train = 0
 
 
+    @tf.function
     def predict(self, x, training=False):
         return self.model(x, training=training)
 
 
+    @tf.function
     def compute_loss(self, x, y, taining=False):
         y_ = self.model(x, training=taining)
         return self.loss(y_, y), y_
 
 
+    @tf.function
     def training_step(self, x, y):
         with tf.GradientTape(watch_accessed_variables=True) as tape:
 
@@ -139,7 +142,7 @@ class GlobalArchitectureV2(AbstactModel):
         tf.keras.utils.plot_model(self.model, to_file=filename, show_shapes=True)
 
     def nb_parameters(self):
-        return np.sum([np.prod(v.get_shape().as_list()) for v in self.model.trainable_variables])
+        return np.sum([np.prod(list(v._shape)) for v in self.model.trainable_variables])
 
 
 
@@ -230,15 +233,18 @@ class GlobalArchitectureV1(AbstactModel):
         self.nb_train = 0
 
 
+    @tf.function
     def predict(self, x, training=False):
         return self.model(x, training=training)
 
 
+    @tf.function
     def compute_loss(self, x, y, taining=False):
         y_ = self.model(x, training=taining)
         return self.loss(y_, y), y_
 
 
+    @tf.function
     def training_step(self, x, y):
         with tf.GradientTape(watch_accessed_variables=True) as tape:
 
@@ -262,7 +268,7 @@ class GlobalArchitectureV1(AbstactModel):
         tf.keras.utils.plot_model(self.model, to_file=filename, show_shapes=True)
 
     def nb_parameters(self):
-        return np.sum([np.prod(v.get_shape().as_list()) for v in self.model.trainable_variables])
+        return np.sum([np.prod(list(v._shape)) for v in self.model.trainable_variables])
 
     def get_variables(self):
         """

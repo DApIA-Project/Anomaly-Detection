@@ -60,6 +60,7 @@ class Model(AbstactModel):
         return y_
 
 
+<<<<<<< HEAD
     def predict(self, x):
         y_reservoir = self.__predict_reservoir__(x)
         return self.readout(y_reservoir)
@@ -73,6 +74,24 @@ class Model(AbstactModel):
 
         with tf.GradientTape(watch_accessed_variables=True) as tape:
             output = self.readout(y_reservoir)
+=======
+    @tf.function
+    def predict(self, x, training=False):
+        y_reservoir = self.__predict_reservoir__(x)
+        return self.readout(y_reservoir, training=training)
+
+    @tf.function
+    def compute_loss(self, x, y, training=False):
+        y_pred = self.predict(x, training=training)
+        return self.loss(y, y_pred), y_pred
+
+    @tf.function
+    def training_step(self, x, y, training=True):
+        y_reservoir = self.__predict_reservoir__(x)
+
+        with tf.GradientTape(watch_accessed_variables=True) as tape:
+            output = self.readout(y_reservoir, training=training)
+>>>>>>> master
             loss = self.loss(y, output)
 
             gradients = tape.gradient(loss, self.readout.trainable_variables)
@@ -94,7 +113,11 @@ class Model(AbstactModel):
         return self.reservoir, readout_arch
 
     def nb_parameters(self):
+<<<<<<< HEAD
         return np.sum([np.prod(v.get_shape().as_list()) for v in self.readout.trainable_variables])
+=======
+        return np.sum([np.prod(list(v._shape)) for v in self.readout.trainable_variables])
+>>>>>>> master
 
 
     def set_variables(self, variables):

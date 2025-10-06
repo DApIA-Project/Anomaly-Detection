@@ -52,10 +52,15 @@ class DataLoader(AbstractDataLoader):
         self.CTX = CTX
         self.PAD = None
 
+<<<<<<< HEAD
         Scaler3D = U.getScaler(CTX["SCALER"], 3)
         Scaler2D = U.getScaler(CTX["SCALER"], 2)
         self.xScaler = Scaler3D()
         self.yScaler = Scaler2D()
+=======
+        self.xScaler = U.getScaler(CTX["SCALER"], 3)
+        self.yScaler = U.getScaler(CTX["SCALER"], 2)
+>>>>>>> master
 
         training = (CTX["EPOCHS"] and path != "")
         if (training):
@@ -71,7 +76,11 @@ class DataLoader(AbstractDataLoader):
 
     def __load_dataset__(self, CTX:dict, path:str) -> "list[np.float64_2d[ax.time, ax.feature]]":
 
+<<<<<<< HEAD
         filenames = U.list_flights(path, limit=1000)#Limits.INT_MAX)
+=======
+        filenames = U.list_flights(path, limit=Limits.INT_MAX)
+>>>>>>> master
         BAR.reset(max=len(filenames))
 
         x = []
@@ -197,8 +206,17 @@ class DataLoader(AbstractDataLoader):
         import matplotlib.pyplot as plt
         fig, ax = plt.subplots(1, 3, figsize=(15, 5))
         ax[0].plot(lon, lat, color="tab:blue")
+<<<<<<< HEAD
         ax[0].scatter(lon, lat, color="tab:blue", marker="x")
         ax[0].scatter([lon[-1]], [lat[-1]], color="tab:red", marker="o")
+=======
+
+        ax[0].scatter([lon[0], lon[len(lon) * 1 // 3], lon[len(lon) * 2 // 3], lon[-1]],
+                 [lat[0], lat[len(lon) * 1 // 3], lat[len(lon) * 2 // 3], lat[-1]], color="tab:red", marker="x")
+        ax[0].plot([lon[0], lon[len(lon) * 1 // 3], lon[len(lon) * 2 // 3], lon[-1]],
+                 [lat[0], lat[len(lon) * 1 // 3], lat[len(lon) * 2 // 3], lat[-1]], color="black", linestyle="--")
+        
+>>>>>>> master
         ax[0].title.set_text("Trajectory")
         ax[0].axis('equal')
 
@@ -243,6 +261,13 @@ class DataLoader(AbstractDataLoader):
         x_batch, y_batch = self.__scalers_transform__(x_batch, y_batch)
         x_batches, y_batches = self.__reshape__(x_batch, y_batch, nb_batches, batch_size)
         return x_batches, y_batches
+<<<<<<< HEAD
+=======
+    
+    
+    
+    
+>>>>>>> master
 
     def process_stream_of(self, message:"dict[str, object]") -> """tuple[
             np.float64_3d[ax.sample, ax.time, ax.feature],

@@ -2,9 +2,15 @@
 from _Utils.FeatureGetter import FG_flooding as FG
 import _Utils.geographic_maths as GEO
 import _Utils.plotADSB         as PLT
+<<<<<<< HEAD
 from numpy_typing import np, ax
 
 import D_DataLoader.Utils      as U
+=======
+import D_DataLoader.Utils      as U
+from numpy_typing import np, ax
+
+>>>>>>> master
 
 
 
@@ -109,13 +115,22 @@ def pick_random_loc(CTX:dict, x:"list[np.float64_2d[ax.time, ax.feature]]") -> "
     t, t_ = -1, -1
 
 
+<<<<<<< HEAD
     while t < 0 or not(check_sample(CTX, x, flight_i, t, t_)) or U.eval_curvature(CTX, x, flight_i, t-CTX["HISTORY"]+1, t_+1) < 5:
+=======
+    while t < 0 or not(check_sample(CTX, x, flight_i, t, t_)) or U.eval_curvature(FG.lat(sample), FG.lon(sample)) < 5:
+>>>>>>> master
         flight_i = np.random.randint(0, len(x))
         if (negative):
             t = np.random.randint(CTX["HISTORY"]//2, CTX["HISTORY"])
         else:
             t = np.random.randint(CTX["HISTORY"], len(x[flight_i])-HORIZON)
         t_ = get_t_(CTX, x, flight_i, t)
+<<<<<<< HEAD
+=======
+        start, end, _, pad_lenght, shift = U.window_slice(CTX, t)
+        sample = x[flight_i][start+shift:end:CTX["DILATION_RATE"]]
+>>>>>>> master
 
     return flight_i, t, t_
 

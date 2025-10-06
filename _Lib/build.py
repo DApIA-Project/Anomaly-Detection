@@ -2,7 +2,11 @@ import os
 import subprocess
 
 
+<<<<<<< HEAD
 VERSION = "0.8.3"
+=======
+VERSION = "0.8.4"
+>>>>>>> master
 
 
 class MODELS:

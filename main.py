@@ -13,13 +13,14 @@ print("Numpy version:", np.__version__)
 # You can also use               #
 # python main.py <model>         #
 # python main.py <algo> <model>  #
-# ##################################
+# ################################
 # algo = "AircraftClassification"
 algo = "FloodingSolver"
+# algo = "TrajectoryGenerator"
 # algo = "ReplaySolver"
 # algo = "InterpolationDetector"
 
-model = "CNN"  
+model = "LSTM"
 
 ###################################
 argv = sys.argv
@@ -218,6 +219,17 @@ elif (algo == "InterpolationDetector"):
     if ("Transformer" in model):
         import G_Main.InterpolationDetector.exp_Transformer as Transformer
         Transformer.__main__()
+        
+
+
+elif (algo == "TrajectoryGenerator"):
+
+    if ("CNN" in model):
+        import G_Main.TrajectoryGenerator.exp_GAN_CNN as CNN
+        CNN.__main__()
+
+
+
 
 else:
     print("Unknown algo")

@@ -43,17 +43,29 @@ class Model(AbstactModel):
 
 
 
+<<<<<<< HEAD
+=======
+    @tf.function
+>>>>>>> master
     def predict(self, x):
         return self.model(x)
     
 
 
+<<<<<<< HEAD
+=======
+    @tf.function
+>>>>>>> master
     def compute_loss(self, x, y):
         y_ = self.model(x)
         return self.loss(y_, y), y_
     
     
 
+<<<<<<< HEAD
+=======
+    @tf.function
+>>>>>>> master
     def training_step(self, x, y):
         """
         Do one forward pass and gradient descent
@@ -78,7 +90,11 @@ class Model(AbstactModel):
         tf.keras.utils.plot_model(self.model, to_file=filename, show_shapes=True)
 
     def nb_parameters(self):
+<<<<<<< HEAD
         return np.sum([np.prod(v.get_shape().as_list()) for v in self.model.trainable_variables])
+=======
+        return np.sum([np.prod(list(v._shape)) for v in self.model.trainable_variables])
+>>>>>>> master
 
 
     def get_variables(self):

@@ -41,11 +41,13 @@ class Model(AbstactModel):
 
 
 
+    @tf.function
     def predict(self, x, training=False):
         return self.model.predict(x, training=training)
     
 
 
+    @tf.function
     def compute_loss(self, x, y, training=False):
         y_ = self.predict(x, training=training)
         loss = self.loss(y_, y)
@@ -53,6 +55,7 @@ class Model(AbstactModel):
     
     
 
+    @tf.function
     def training_step(self, x, y):
         with tf.GradientTape(watch_accessed_variables=True) as tape:
 
@@ -72,7 +75,7 @@ class Model(AbstactModel):
         tf.keras.utils.plot_model(self.model, to_file=filename, show_shapes=True)
 
     def nb_parameters(self):
-        return np.sum([np.prod(v.get_shape().as_list()) for v in self.model.trainable_variables])
+        return np.sum([np.prod(list(v._shape)) for v in self.model.trainable_variables])
     
     def get_variables(self):
         return self.model.get_variables()
@@ -115,6 +118,7 @@ class Module(tf.Module):
         self.readout_model = tf.keras.Model([x_readout, x_map], y_readout)
 
 
+    @tf.function
     def predict(self, x_, training=False):
         x = x_.pop(0)
         if (self.CTX["ADD_TAKE_OFF_CONTEXT"]): 

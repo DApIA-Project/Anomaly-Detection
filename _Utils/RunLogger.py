@@ -168,7 +168,18 @@ class RunLogger:
         if (file is not None):
             self.__load__(file)
         if (host is not None):
+<<<<<<< HEAD
             self.__check_host__(host, port)
+=======
+            try:
+                self.__check_host__(host, port)
+            except Exception as e:
+                print(f"Error connecting to server {host}:{port}: {e}")
+                self.is_client = False
+                self.is_server = False
+                self.host = None
+                self.port = None
+>>>>>>> master
         
         
 

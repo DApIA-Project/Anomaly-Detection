@@ -68,6 +68,7 @@ class Model(AbstactModel):
         # self.opt = tf.keras.optimizers.SGD(learning_rate=CTX["LEARNING_RATE"])
 
 
+<<<<<<< HEAD
     def predict(self, x):
         return self.model(x)
 
@@ -78,6 +79,21 @@ class Model(AbstactModel):
     def training_step(self, x, y):
         with tf.GradientTape(watch_accessed_variables=True) as tape:
             loss, output = self.compute_loss(x, y)
+=======
+    @tf.function
+    def predict(self, x, training=False):
+        return self.model(x, training=training)
+
+    @tf.function
+    def compute_loss(self, x, y, training=False):
+        y_ = self.model(x, training=training)
+        return self.loss(y_, y), y_
+
+    @tf.function
+    def training_step(self, x, y, training=True):
+        with tf.GradientTape(watch_accessed_variables=True) as tape:
+            loss, output = self.compute_loss(x, y, training=training)
+>>>>>>> master
 
             gradients = tape.gradient(loss, self.model.trainable_variables)
             self.opt.apply_gradients(zip(gradients, self.model.trainable_variables))
@@ -97,7 +113,11 @@ class Model(AbstactModel):
         tf.keras.utils.plot_model(self.model, to_file=filename, show_shapes=True)
 
     def nb_parameters(self):
+<<<<<<< HEAD
         return np.sum([np.prod(v.get_shape().as_list()) for v in self.model.trainable_variables])
+=======
+        return np.sum([np.prod(list(v._shape)) for v in self.model.trainable_variables])
+>>>>>>> master
 
 
     def get_variables(self):

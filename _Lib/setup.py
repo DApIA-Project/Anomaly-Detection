@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 VERSION = "0.8.3"
+=======
+VERSION = "0.8.4"
+>>>>>>> master
 
 from setuptools import setup, find_packages
 import sys

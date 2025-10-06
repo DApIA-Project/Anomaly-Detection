@@ -1,6 +1,10 @@
 
 LEARNING_RATE = 0.0003
+<<<<<<< HEAD
 EPOCHS = 80
+=======
+EPOCHS = 0
+>>>>>>> master
 BATCH_SIZE = 32
 NB_BATCH = 128
 
@@ -39,4 +43,9 @@ RESUDUAL = 1.0
 
 # possibilities "valid", "last", "nan"
 INPUT_PADDING = "nan"
+<<<<<<< HEAD
+=======
+THRESHOLD = 0.90
+
+>>>>>>> master
 

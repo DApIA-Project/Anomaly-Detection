@@ -34,7 +34,11 @@ from   _Utils.ADSB_Streamer import streamer
 PBM_NAME = os.path.dirname(os.path.abspath(__file__)).split("/")[-1]+"/"
 ARTIFACTS = "./_Artifacts/"
 
+<<<<<<< HEAD
 TRAIN_FOLDER = "./A_Dataset/AircraftClassification/Train/"
+=======
+TRAIN_FOLDER = "./A_Dataset/V1/Train/"
+>>>>>>> master
 EVAL_FOLDER = "./A_Dataset/FloodingSolver/Eval/"
 
 H_TRAIN_LOSS = 0
@@ -539,12 +543,22 @@ class Trainer(AbstractTrainer):
                 yt_, losst_, _ = self.predict(x)
                 nb_msg += len(x)
 
+<<<<<<< HEAD
+=======
+                
+>>>>>>> master
                 for i in range(len(files)):
                     y_[files[i]][t] = yt_[i]
                     y [files[i]][t] = [x[i]["latitude"], x[i]["longitude"]]
                     loss_[files[i]][t] = losst_[i]
                     loss [files[i]][t] = GEO.distance(x[i]["latitude"], x[i]["longitude"], yt_[i][0], yt_[i][1])
+<<<<<<< HEAD
                 BAR.update((float(fi) + float(t+1)/max_len)/len(self.__eval_files__)*100, f"{fi}/{len(self.__eval_files__)}")
+=======
+
+                BAR.update((float(fi) + float(t+1)/max_len)/len(self.__eval_files__)*100, f"{fi}/{len(self.__eval_files__)}")
+        
+>>>>>>> master
 
             name = folder[0].split("/")[-2]
             best, accs, loss = self.__eval_stats__(loss, loss_, y_, y, dfs, max_len, name=name)

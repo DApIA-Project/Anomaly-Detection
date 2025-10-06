@@ -2,7 +2,11 @@ GENERATE_ARTIFACTS=True
 
 
 LEARNING_RATE = 0.0003
+<<<<<<< HEAD
 EPOCHS = 0
+=======
+EPOCHS = 80
+>>>>>>> master
 BATCH_SIZE = 64
 NB_BATCH = 32
 

@@ -27,6 +27,29 @@ class Conv1DModule(tf.Module):
             x = self.norm(x)
         x = self.act(x)
         return x
+    
+class Conv1DTransposeModule(tf.Module):
+    
+    def __init__(self, units, kernel_size = 3, strides=1, padding="same", batch_norm=True, dyt=False, name="Conv1DTransposeModule"):
+        super(Conv1DTransposeModule, self).__init__(name=name)
+
+        self.conv = Conv1DTranspose(units, kernel_size, strides=strides, padding=padding)
+        self.norm = None
+        if (batch_norm and dyt):
+            raise ValueError("Batch norm and DyT can't be used together")
+        if (batch_norm):
+            self.norm = BatchNormalization()
+        if (dyt):
+            self.norm = DyT()
+        self.act = ACTIVATION()
+
+    def __call__(self, x):
+        x = self.conv(x)
+        if (self.norm is not None):
+            x = self.norm(x)
+        x = self.act(x)
+        return x
+    
 
 class Conv2DModule(tf.Module):
 

@@ -109,15 +109,27 @@ class Model(AbstactModel):
         self.opt = tf.keras.optimizers.Adam(learning_rate=CTX["LEARNING_RATE"])
 
 
+<<<<<<< HEAD
+=======
+    @tf.function
+>>>>>>> master
     def predict(self, x, training=False):
         return self.model(x, training=training)
 
 
+<<<<<<< HEAD
+=======
+    @tf.function
+>>>>>>> master
     def compute_loss(self, x, y, taining=False):
         y_ = self.model(x, training=taining)
         return self.loss(y_, y), y_
     
 
+<<<<<<< HEAD
+=======
+    @tf.function
+>>>>>>> master
     def training_step(self, x, y):
         with tf.GradientTape(watch_accessed_variables=True) as tape:
             loss, output = self.compute_loss(x, y, taining=True)
@@ -143,7 +155,11 @@ class Model(AbstactModel):
         tf.keras.utils.plot_model(self.model, to_file=filename, show_shapes=True)
 
     def nb_parameters(self):
+<<<<<<< HEAD
         return np.sum([np.prod(v.get_shape().as_list()) for v in self.model.trainable_variables])
+=======
+        return np.sum([np.prod(list(v._shape)) for v in self.model.trainable_variables])
+>>>>>>> master
 
 
     def get_variables(self):

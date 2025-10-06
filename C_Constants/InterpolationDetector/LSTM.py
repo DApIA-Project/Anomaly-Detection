@@ -1,8 +1,14 @@
 
 LEARNING_RATE = 0.0003
+<<<<<<< HEAD
 EPOCHS = 20
 BATCH_SIZE = 32
 NB_BATCH = 128
+=======
+EPOCHS = 0
+BATCH_SIZE = 32
+NB_BATCH = 64
+>>>>>>> master
 
 # LOAD_EP = 80
 
@@ -14,10 +20,17 @@ RELATIVE_POSITION = True
 RELATIVE_TRACK = False
 RANDOM_TRACK = True
 
+<<<<<<< HEAD
 RESIDUAL = 1.0
 LAYERS = 3
 UNITS = 128
 DROPOUT = 0.3
+=======
+RESIDUAL = 0.5
+LAYERS = 2
+UNITS = 64
+DROPOUT = 0.1
+>>>>>>> master
 
 USED_FEATURES = [
     "latitude", "longitude",
@@ -36,8 +49,15 @@ USED_FEATURES = [
 FEATURES_IN = len(USED_FEATURES)
 FEATURE_MAP = dict([[USED_FEATURES[i], i] for i in range(FEATURES_IN)])
 
+<<<<<<< HEAD
 RESUDUAL = 1.0
 
 # possibilities "valid", "last", "nan"
 INPUT_PADDING = "nan"
+=======
+
+# possibilities "valid", "last", "nan"
+INPUT_PADDING = "nan"
+THRESHOLD = 0.90
+>>>>>>> master
 
