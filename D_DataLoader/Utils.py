@@ -131,18 +131,6 @@ def angle_diff(a:float, b:float) -> float:
 # | SCALERS
 # |--------------------------------------------------------------------------------------------------------------------
 
-<<<<<<< HEAD
-def getScaler(name:str, dims=2) -> "type":
-    if (dims == 2):
-        if (name == "standard") : return StandardScaler2D
-        if (name == "minmax") : return MinMaxScaler2D
-        if (name == "dummy") : return DummyScaler2D
-    
-    if (dims == 3):
-        if (name == "standard") : return StandardScaler3D
-        if (name == "minmax") : return MinMaxScaler3D
-        if (name == "dummy") : return DummyScaler3D
-=======
 def getScaler(name:str, dims=2, params = None) -> "type":
     smin, smax = 0, 1
     if (params is not None):
@@ -159,7 +147,6 @@ def getScaler(name:str, dims=2, params = None) -> "type":
         if (name == "standard") : return StandardScaler3D()
         if (name == "minmax") : return MinMaxScaler3D(smin, smax)
         if (name == "dummy") : return DummyScaler3D()
->>>>>>> master
     return None
 
 
@@ -252,15 +239,12 @@ def df_to_feature_array(CTX:dict, df:DataFrame, check_length:bool=True) -> np.fl
     df.add_column("hour", (timestamp//3600 + 1) % 24)
     df.add_column("min", (timestamp//60) % 60)
     df.add_column("sec", timestamp % 60)
-<<<<<<< HEAD
-=======
     
     if ("timestamp_diff" in CTX["FEATURE_MAP"]):
         time = df["timestamp"]
         time_diff = np.diff(time, prepend=time[0] - 1)
         df.add_column("timestamp_diff", time_diff)
         
->>>>>>> master
 
 
     df["altitude"] = np.clip(df["altitude"], 0, None)
@@ -281,11 +265,8 @@ def df_to_feature_array(CTX:dict, df:DataFrame, check_length:bool=True) -> np.fl
     if ("distance" in CTX["FEATURE_MAP"]):
         df.add_column("distance", compute_distance(df))
         
-<<<<<<< HEAD
-=======
     # print(np.dstack((df["bearing"], df["track"])))
 
->>>>>>> master
     if ("bearing_diff" in CTX["FEATURE_MAP"]):
         if ("bearing" in CTX["FEATURE_MAP"]):
             bearing = df["bearing"]
@@ -295,8 +276,6 @@ def df_to_feature_array(CTX:dict, df:DataFrame, check_length:bool=True) -> np.fl
         
         df.add_column("bearing_diff", compute_bearing_diff(bearing))
         
-<<<<<<< HEAD
-=======
     if ("track_drift" in CTX["FEATURE_MAP"]):
         if ("bearing" in CTX["FEATURE_MAP"]):
             bearing = df["bearing"]
@@ -308,7 +287,6 @@ def df_to_feature_array(CTX:dict, df:DataFrame, check_length:bool=True) -> np.fl
             track_drift[i] = angle_diff(track[i], bearing[i])
         df.add_column("track_drift", track_drift)
         
->>>>>>> master
     if ("distance_diff" in CTX["FEATURE_MAP"]):
         if ("distance" in CTX["FEATURE_MAP"]):
             distance = df["distance"]
@@ -352,11 +330,7 @@ def df_to_feature_array(CTX:dict, df:DataFrame, check_length:bool=True) -> np.fl
     array = df.get_columns(CTX["USED_FEATURES"])
 
 
-<<<<<<< HEAD
-    if (len(array) == 0): return None
-=======
     if (len(array) == 0): return []
->>>>>>> master
     return array
 
 
@@ -466,27 +440,13 @@ def analysis(CTX:dict, dataframe:"list[np.float64_2d[ax.time, ax.feature]]") -> 
     return mins, maxs
 
 
-<<<<<<< HEAD
-def eval_curvature(CTX:dict, x:"list[np.float64_2d[ax.time, ax.feature]]", i:int, start:int, end:int) -> float:
-    FG:FeatureGetter = CTX["FG"]
-    start = max(0, start)
-    end = end
-    
-    lat = FG.lat(x[i][start:end])
-    lon = FG.lon(x[i][start:end])
-=======
 def eval_curvature(lat:"np.float64_1d[ax.time]", lon:"np.float64_1d[ax.time]") -> float:
     
->>>>>>> master
     a_lat, a_lon = lat[0], lon[0]
     b_lat, b_lon = lat[-1], lon[-1]
     m1_lat, m1_lon = lat[len(lat)//3], lon[len(lat)//3]
     m2_lat, m2_lon = lat[2*len(lat)//3], lon[2*len(lat)//3]
 
-<<<<<<< HEAD
-
-=======
->>>>>>> master
     b_a_m1 = GEO.bearing(a_lat, a_lon, m1_lat, m1_lon)
     b_m1_m2 = GEO.bearing(m1_lat, m1_lon, m2_lat, m2_lon)
     b_m2b = GEO.bearing(m2_lat, m2_lon, b_lat, b_lon)
@@ -728,8 +688,6 @@ def fingerprint(lat:np.float64_1d, lon:np.float64_1d) -> np.int8_1d:
     return fingerprint, rot_speed
 
 
-<<<<<<< HEAD
-=======
 def convert_distance_bearing_traj_to_lat_lon(distances:np.float64_1d[ax.time], bearings:np.float64_1d[ax.time]) -> "np.float64_2d[ax.time, ax.feature]":
     new_sample = [(0, 0)]
     for t in range(1, len(distances)):
@@ -737,7 +695,6 @@ def convert_distance_bearing_traj_to_lat_lon(distances:np.float64_1d[ax.time], b
     return np.array(new_sample, dtype=np.float64)
 
 
->>>>>>> master
 
 # def rotate_df(df:DataFrame) -> DataFrame:
 #     df = df.copy()

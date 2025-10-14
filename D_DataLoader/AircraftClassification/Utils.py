@@ -171,13 +171,8 @@ def check_sample(CTX:"dict[str, object]", x:"np.ndarray", i:int, t:int) -> bool:
     if (lats[t-1] == lats[t] and lons[t-1] == lons[t]):
         return False
 
-<<<<<<< HEAD
-    if (not in_bbox(CTX, lat, lon)):
-        return False
-=======
     # if (not in_bbox(CTX, lat, lon)):
     #     return False
->>>>>>> master
 
     return True
 
@@ -296,7 +291,6 @@ def gen_sample(CTX:"dict[str, object]",
         start, end, length, pad_lenght, shift = U.window_slice(CTX, length-1)
 
         # if onground => valid takeoff
-        # TODO remove false
         if(FG.baroAlt(x[i][0]) > 2000 or FG.geoAlt(x[i][0]) > 2000):
             x_batch_takeoff = np.full((len(x_batch), CTX["FEATURES_IN"]), PAD)
         else:

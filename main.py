@@ -15,12 +15,11 @@ print("Numpy version:", np.__version__)
 # python main.py <algo> <model>  #
 # ################################
 # algo = "AircraftClassification"
-algo = "FloodingSolver"
+# algo = "FloodingSolver"
 # algo = "TrajectoryGenerator"
 # algo = "ReplaySolver"
-# algo = "InterpolationDetector"
-
-model = "LSTM"
+algo = "AircraftClassification"
+model = "CNN-V2"
 
 ###################################
 argv = sys.argv

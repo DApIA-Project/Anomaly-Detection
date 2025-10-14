@@ -15,10 +15,6 @@ def log_data(metrics, CTX, Model:"type[_Model_]", experiment_name:str = None):
     groups = {}
     dtypes = {}
     
-<<<<<<< HEAD
-    print(metrics)
-=======
->>>>>>> master
     
     
     for key in metrics.keys():

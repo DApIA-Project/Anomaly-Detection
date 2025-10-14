@@ -37,10 +37,7 @@ class Model(AbstactModel):
                                        verbose=False))
         self.loss = mse
 
-<<<<<<< HEAD
-=======
     @tf.function
->>>>>>> master
     def predict(self, x):
         """
         Make prediction for x
@@ -51,10 +48,7 @@ class Model(AbstactModel):
             y_[:, i] = self.model[i].predict(x)
         return y_
 
-<<<<<<< HEAD
-=======
     @tf.function
->>>>>>> master
     def compute_loss(self, x, y):
         """
         Make a prediction and compute the loss
@@ -62,10 +56,7 @@ class Model(AbstactModel):
         y_ = self.predict(x)
         return self.loss(y, y_), y_
 
-<<<<<<< HEAD
-=======
     @tf.function
->>>>>>> master
     def training_step(self, x, y):
         """
         Train the model for one step

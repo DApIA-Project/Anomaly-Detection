@@ -12,11 +12,8 @@ MAP_LAYERS = 2
 USE_DYT = False
 DYNAMIC_LABEL_RATIO = True
 
-<<<<<<< HEAD
-=======
-LOSS_MOVING_AVERAGE = 32
+LOSS_MOVING_AVERAGE = 16
 
->>>>>>> master
 LABEL_NAMES = [
     "UNKNOWN",
     "CARGO",

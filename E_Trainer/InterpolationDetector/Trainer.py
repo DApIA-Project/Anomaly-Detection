@@ -2,11 +2,8 @@ from _Utils.os_wrapper import os
 import pandas as pd
 import matplotlib.pyplot as plt
 from   matplotlib.backends.backend_pdf import PdfPages
-<<<<<<< HEAD
-=======
 from sklearn import metrics
 
->>>>>>> master
 
 from   B_Model.AbstractModel import Model as _Model_
 from   D_DataLoader.InterpolationDetector.DataLoader import DataLoader
@@ -37,11 +34,7 @@ from   _Utils.ADSB_Streamer import streamer
 PBM_NAME = os.path.dirname(os.path.abspath(__file__)).split("/")[-1]+"/"
 ARTIFACTS = "./_Artifacts/"
 
-<<<<<<< HEAD
-TRAIN_FOLDER = "./A_Dataset/InterpolationDetector/Train/"
-=======
-TRAIN_FOLDER = ["./A_Dataset/V1/Train/", "./A_Dataset/InterpolationDetector/Train/interp_0-0.00015/"]
->>>>>>> master
+TRAIN_FOLDER = ["./A_Dataset/V1/Train/", "./A_Dataset/InterpolationDetector/Train/interp_0/"]
 EVAL_FOLDER = "./A_Dataset/InterpolationDetector/Eval/"
 
 H_TRAIN_LOSS = 0
@@ -325,11 +318,7 @@ class Trainer(AbstractTrainer):
             
             if (len(loss_win) > self.CTX["LOSS_MOVING_AVERAGE"]):
                 y_mean[i] = np.mean(loss_win[-self.CTX["LOSS_MOVING_AVERAGE"]:])
-<<<<<<< HEAD
-                is_interp[i] = y_mean[i] > 0.9
-=======
                 is_interp[i] = y_mean[i] > self.CTX["THRESHOLD"]
->>>>>>> master
 
 
         return y_batch_, y_mean, is_interp
@@ -381,11 +370,7 @@ class Trainer(AbstractTrainer):
 
 
 
-<<<<<<< HEAD
-        dfs, max_len, y, y_, loss_, acc, glob_pred = self.__gen_eval_batch__(self.__eval_files__)
-=======
         dfs, max_len, y, y_, mean_y_, acc, glob_pred = self.__gen_eval_batch__(self.__eval_files__)
->>>>>>> master
 
         BAR.reset(max=max_len)
         prntC(C.INFO, "Evaluating model on : ", C.BLUE, self.__eval_files__[0].split("/")[-2])
@@ -397,22 +382,14 @@ class Trainer(AbstractTrainer):
             NB_MESSAGE += len(x)
             for i in range(len(x)): streamer.add(x[i])
 
-<<<<<<< HEAD
-            yt_, losst_, is_interp = self.predict(x)
-=======
             yt_, mean_yt_, is_interp = self.predict(x)
->>>>>>> master
             
             
             
 
             for i in range(len(files)):
                 y_[files[i]][t] = yt_[i]
-<<<<<<< HEAD
-                loss_[files[i]][t] = losst_[i]
-=======
                 mean_y_[files[i]][t] = mean_yt_[i]
->>>>>>> master
                 acc[files[i]] += (is_interp[i] == y[files[i]])
                 
                 if (is_interp[i]):
@@ -428,8 +405,6 @@ class Trainer(AbstractTrainer):
         detection_capacity = 0
         nb_iterp = 0
         
-<<<<<<< HEAD
-=======
         y_true_per_message = [np.array([y[i]]*len(dfs[i])) for i in range(len(dfs))]
         y_true_per_message = np.concatenate(y_true_per_message, axis=0)
         mean_y_ = np.concatenate(mean_y_, axis=0)
@@ -446,7 +421,6 @@ class Trainer(AbstractTrainer):
        
         
         
->>>>>>> master
         for i in range(len(dfs)):
             name = self.__eval_files__[i].split("/")[-1]
             prntC(C.INFO, "Accuracy for ", C.BLUE, name, C.RESET, " : ", C.BLUE, round(acc[i]/len(dfs[i])*100, 2), glob_pred[i])
@@ -465,283 +439,6 @@ class Trainer(AbstractTrainer):
         mean_acc /= len(dfs)
         
         print("TOTAL NUM OF MESSAGES : ", NB_MESSAGE)
-<<<<<<< HEAD
-
-        return {"ACCURACY": round(mean_acc*100, 2), "GLOBAL_ACC": round(acc_on_glob/len(dfs)*100, 2), "DETECTION_CAPACITY": round(detection_capacity/nb_iterp*100, 2), "TIME": round(CHRONO.get_time_s()/NB_MESSAGE*1000,2)}
-
-
-
-# |====================================================================================================================
-# |     EVALUATION STATISTICS
-# |====================================================================================================================
-
-
-    def __eval_stats__(self,
-                       loss:"list[np.float64_1d]",
-                       loss_:"list[np.float64_1d]",
-                       y_:"list[np.float64_2d[ax.time, ax.feature]]",
-                       y:"list[np.float64_2d[ax.time, ax.feature]]",
-                       dfs:"list[pd.DataFrame]",
-                       max_len:int, name:str) -> float:
-
-        # plot mean loss (along flights), per timestamp
-        mean_loss = np.zeros(max_len, dtype=np.float64)
-        mean_loss_ = np.zeros(max_len, dtype=np.float64)
-        for t in range(max_len):
-            files = [f for f in range(len(loss)) if t < len(loss[f])]
-            mean_loss[t] = np.nanmean([loss[f][t] for f in files])
-            mean_loss_[t] = np.nanmean([loss_[f][t] for f in files])
-
-
-        return self.__plot_eval__(dfs, y_, y, loss, loss_, mean_loss, mean_loss_, max_len, name)
-
-
-
-    def __plot_eval__(self, dfs:"list[pd.DataFrame]",
-                      y_:"list[np.float64_2d[ax.time, ax.feature]]", y:"list[np.float64_2d[ax.time, ax.feature]]",
-                      loss:"list[np.float64_1d]", loss_:"list[np.float64_1d]", mean_loss:np.float64_1d, mean_loss_:np.float64_1d,
-                      max_len:int, name:str) -> float:
-
-        self.__plot_loss_curves__(loss, loss_, mean_loss, mean_loss_, max_len, name)
-        self.__plot_predictions_on_saturation__(dfs, y_, y, loss, max_len, name)
-        self.__plot_prediction_on_error_spikes__(dfs, y_, y, loss, loss_, max_len, name)
-        return self.__plot_safe_icao24__(dfs, loss, name)
-
-
-# |====================================================================================================================
-# | SUB FUNCTIONS FOR PLOTTING
-# |====================================================================================================================
-
-
-    def __plot_loss_curves__(self, loss:"list[np.float64_1d]", loss_:"list[np.float64_1d]",
-                             mean_loss:np.float64_1d, mean_loss_:np.float64_1d,
-                             max_len:int, name:str) -> None:
-        COLORS = ["tab:blue", "tab:orange", "tab:green", "tab:red", "tab:purple", "tab:brown", "tab:pink", "tab:gray", "tab:olive", "tab:cyan"]
-        plt.figure(figsize=(24 * max_len / 500, 12))
-        for f in range(len(loss)):
-            plt.plot(loss[f], color=COLORS[f%len(COLORS)], linestyle="--")
-            plt.plot(loss_[f], color=COLORS[f%len(COLORS)])
-        plt.plot(mean_loss, color="black", linestyle="--", linewidth=1)
-        plt.plot(mean_loss_, color="black", linewidth=2)
-        plt.plot([0, max_len], [self.CTX["THRESHOLD"]]*2, color="black", linestyle="--", linewidth=2)
-        plt.title("Mean Loss along timestamps")
-        plt.xlabel("Timestamp")
-        plt.ylabel("Distance Loss (m)")
-        plt.grid()
-        plt.savefig(self.ARTIFACTS+f"/eval_loss_{name}.png")
-
-
-
-
-
-    def __plot_predictions_on_saturation__(self, dfs:"list[pd.DataFrame]",
-                                            y_:"list[np.float64_2d[ax.time, ax.feature]]",
-                                            y:"list[np.float64_2d[ax.time, ax.feature]]",
-                                            loss:"list[np.float64_1d]", max_len:int, name:str) -> None:
-
-        if (len(dfs) == 1): return
-        # find when the saturation is reached
-        attack_t = 0
-        while(loss[0][attack_t] == loss[1][attack_t] or np.isnan(loss[0][attack_t]) or np.isnan(loss[1][attack_t])):
-            attack_t += 1
-        s = slice(max(0, attack_t-20), min(max_len, attack_t+20))
-
-        # plot the trajectory and the prediction in a map
-        min_lat, min_lon = np.inf, np.inf
-        max_lat, max_lon = -np.inf, -np.inf
-        for i in range(len(dfs)):
-            lat = dfs[i]["latitude"].to_numpy()[s]
-            lon = dfs[i]["longitude"].to_numpy()[s]
-            min_lat = min(min_lat, lat.min())
-            min_lon = min(min_lon, lon.min())
-            max_lat = max(max_lat, lat.max())
-            max_lon = max(max_lon, lon.max())
-
-
-        nb_flight = min(9, len(dfs))
-        side = int(np.ceil(np.sqrt(nb_flight)))
-        col = side
-        row = int(np.ceil(nb_flight / side))
-
-
-        box = [min_lat, min_lon, max_lat, max_lon]
-        PLT.figure (name, box[0], box[1], box[2], box[3], figsize=(15*row, 15*col), sub_plots=(row, col))
-
-
-        for i in range(nb_flight):
-            r, c = i // col, i % col
-
-            lat = dfs[i]["latitude"].to_numpy()
-            lon = dfs[i]["longitude"].to_numpy()
-
-            laty_ = y_[i][:, 0]
-            lony_ = y_[i][:, 1]
-            laty  = y [i][:, 0]
-            lony  = y [i][:, 1]
-
-            PLT.subplot(name, r, c).plot   (lon[s],  lat[s],  color="tab:blue")
-            PLT.subplot(name, r, c).scatter(lon[s],  lat[s],  color="tab:blue", marker="x")
-            PLT.subplot(name, r, c).scatter(lon[attack_t],  lat[attack_t],  color="tab:red", marker="x")
-            PLT.subplot(name, r, c).scatter(lony_[s], laty_[s], color="tab:purple", marker="x")
-            PLT.subplot(name, r, c).scatter(lony[s], laty[s], color="tab:green", marker="+")
-
-            for t in range(s.start, s.stop):
-                PLT.subplot(name, r, c).plot([lon[t], lony_[t]], [lat[t], laty_[t]], color="black", linestyle="--")
-                PLT.subplot(name, r, c).plot([lony[t], lony_[t]], [laty[t], laty_[t]], color="black", linestyle="--")
-
-        PLT.show(name, self.ARTIFACTS+f"/predictions_{name}.png")
-
-
-    def __plot_prediction_on_error_spikes__(self, dfs:"list[pd.DataFrame]",
-                                            y_:"list[np.float64_2d[ax.time, ax.feature]]",
-                                            y:"list[np.float64_2d[ax.time, ax.feature]]",
-                                            loss:"list[np.float64_1d]", loss_:"list[np.float64_1d]",
-                                            max_len:int, name:str) -> None:
-
-        # find error spikes
-        spikes = []
-        for t in range(max_len):
-            remaining = [i for i in range(len(dfs)) if t < len(dfs[i])]
-            max_i = remaining[np.argmax([loss_[f][t] for f in remaining])]
-            if (loss_[max_i][t] > self.CTX["THRESHOLD"]):
-                spikes.append([t, max_i])
-
-        if (len(spikes) == 0):
-            return
-
-
-        GAP = 15
-        gaps = []
-        gap = []
-        start = 0
-        i = start
-        while (i < len(spikes)-1):
-
-            if (spikes[i][1] == spikes[start][1] and spikes[i][0] - spikes[start][0] <= GAP and i-start < 100):
-                gap.append(spikes[i])
-            else:
-                gaps.append(gap)
-                start = i
-                gap = [spikes[i]]
-            i += 1
-        gaps.append(gap)
-        gaps = [(g[0][0], g[-1][0], g[0][1]) for g in gaps]
-
-        pdf = PdfPages(self.ARTIFACTS+f"/eval_mistakes_{name}.pdf")
-        for g in gaps:
-            flight = g[2]
-            gap_start = g[0]
-            gap_end = g[1]
-
-            traj_slice = slice(max(0, gap_start-GAP), min(len(dfs[flight]), g[1]+2))
-            pred_start = g[0]
-            pred_end = min(max_len, gap_end+1)
-            pred_slice = slice(pred_start, pred_end)
-
-            lat = dfs[flight]["latitude"].to_numpy()
-            lon = dfs[flight]["longitude"].to_numpy()
-            laty_ = y_[flight][:, 0]
-            lony_ = y_[flight][:, 1]
-
-            box = [lat[traj_slice].min(), lon[traj_slice].min(),
-                   lat[traj_slice].max(), lon[traj_slice].max()]
-            box = [min(box[0], laty_[traj_slice].min())-0.001, min(box[1], lony_[traj_slice].min()-0.001),
-                   max(box[2], laty_[traj_slice].max()+0.001), max(box[3], lony_[traj_slice].max()+0.001)]
-
-            PLT.figure(name, box[0], box[1], box[2], box[3],
-                        figsize=(15, 15),
-                        sub_plots=(2, 1), display_map=[[True], [False]])
-
-            PLT.subplot(name, 0, 0).plot   (lon[traj_slice],  lat[traj_slice],  color="tab:blue", label="trajectory")
-            PLT.subplot(name, 0, 0).scatter(lon[traj_slice],  lat[traj_slice],  color="tab:blue", marker="x")
-            PLT.subplot(name, 0, 0).scatter(lony_[traj_slice], laty_[traj_slice], color="tab:green",
-                                            marker="x", label="prediction")
-            PLT.subplot(name, 0, 0).scatter(lony_[pred_slice], laty_[pred_slice], color="tab:purple",
-                                            marker="x", label="wrong")
-            # plot actual position
-            PLT.subplot(name, 0, 0).scatter(lon[traj_slice.stop-1], lat[traj_slice.stop-1], color="tab:red",
-                                            marker="o", label="actual position")
-            for t in range(traj_slice.start, traj_slice.stop):
-                PLT.subplot(name, 0, 0).plot([lon[t], lony_[t]], [lat[t], laty_[t]], color="black", linestyle="--")
-
-
-            # plot loss_
-            PLT.subplot(name, 1, 0).plot(list(range(traj_slice.start, traj_slice.stop)),
-                                         loss_[flight][traj_slice],
-                                         label="loss_")
-            PLT.subplot(name, 1, 0).scatter(list(range(traj_slice.start, traj_slice.stop)),
-                                            loss_[flight][traj_slice],
-                                            color="tab:green", marker="x")
-
-            PLT.subplot(name, 1, 0).scatter(list(range(pred_start, pred_end)),
-                                            loss_[flight][pred_slice],
-                                            color="tab:purple", marker="x",
-                                            label="prediction")
-
-            # plot loss
-            PLT.subplot(name, 1, 0).plot(list(range(traj_slice.start, traj_slice.stop)),
-                                         loss[flight][traj_slice],
-                                         label="loss")
-
-
-            PLT.subplot(name, 1, 0).plot([traj_slice.start, traj_slice.stop-1],
-                                         [self.CTX["THRESHOLD"]]*2, label="limit", linestyle="--", color="black")
-            PLT.legend(name)
-            PLT.show(name, pdf=pdf)
-        pdf.close()
-
-
-    def __plot_safe_icao24__(self, dfs:"list[pd.DataFrame]", loss:"list[np.float64_1d]", name:str) -> float:
-        if (len(dfs) == 1): return 1,  [1, 1, 1]
-        icaos24 = [df["icao24"].iloc[0] for df in dfs]
-
-        # find when the saturation is reached
-        attack_t = 0
-        while(loss[0][attack_t] == loss[1][attack_t] or np.isnan(loss[0][attack_t]) or np.isnan(loss[1][attack_t])):
-            attack_t += 1
-
-        short_slice = slice(attack_t, attack_t+self.CTX["LOSS_MOVING_AVERAGE"])
-        long_slice = slice(attack_t, attack_t+self.CTX["HISTORY"]//2)
-
-
-        mean_loss_per_flights =   [np.nanmean(loss[f])              for f in range(len(loss))]
-        mean_loss_at_attack =     [np.nanmean(loss[f][short_slice]) for f in range(len(loss))]
-        mean_loss_around_attack = [np.nanmean(loss[f][long_slice])  for f in range(len(loss))]
-
-        LABELS = ["Mean Loss", "Mean Loss at Attack", "Mean Loss around Attack"]
-
-        fig, ax = plt.subplots(1, len(LABELS), figsize=(15 * len(dfs) / 10.0, 5))
-
-        colors = ["tab:blue", "tab:green", "tab:purple", "tab:red", "tab:orange", "tab:brown", "tab:pink", "tab:gray", "tab:olive", "tab:cyan"]
-        best_acc = 0
-        acc = [0, 0, 0]
-        for i, loss in enumerate([mean_loss_per_flights, mean_loss_at_attack, mean_loss_around_attack]):
-
-            order = np.argsort(loss)
-
-            sorted_icaos24 = [icaos24[i] for i in order]
-            sorted_loss = [loss[i] for i in order]
-
-            # true icao i is the index of the longuest icaco24
-            true_icao_i = np.argmax([len(sorted_icaos24[i]) for i in range(len(sorted_icaos24))])
-            acc[i] = 1-true_icao_i/(len(sorted_icaos24)-1)
-            if (acc[i] > best_acc):
-                best_acc = acc[i]
-
-            for j in range(len(sorted_loss)):
-                col = colors[order[j] % len(colors)]
-                ax[i].bar(j, sorted_loss[j], color=col, label=sorted_icaos24[j])
-
-            ax[i].set_xticks(range(len(icaos24)))
-            ax[i].set_xticklabels(sorted_icaos24, rotation=70)
-            ax[i].set_title(LABELS[i])
-            ax[i].grid()
-        fig.tight_layout()
-        plt.savefig(self.ARTIFACTS+f"/safe_icao24_{name}.png")
-
-        return best_acc, acc
-
-=======
         accuracy = metrics.accuracy_score(y_true_per_message, y_bin)
         precision = metrics.precision_score(y_true_per_message, y_bin)
         recall = metrics.recall_score(y_true_per_message, y_bin)
@@ -762,5 +459,4 @@ class Trainer(AbstractTrainer):
 
         return {"ACCURACY": round(accuracy*100, 2), "GLOBAL_ACC": round(acc_on_glob/len(dfs)*100, 2), "DETECTION_CAPACITY": round(detection_capacity/nb_iterp*100, 2), "TIME": round(CHRONO.get_time_s()/NB_MESSAGE*1000,2),
                 "PRECISION": round(precision*100, 2), "RECALL": round(recall*100, 2), "F1": round(f1*100, 2), "ROC_AUC": round(roc_auc*100, 2), "FPR": round(fpr*100, 2)}
->>>>>>> master
 

@@ -2,11 +2,7 @@ import os
 import subprocess
 
 
-<<<<<<< HEAD
-VERSION = "0.8.3"
-=======
-VERSION = "0.8.4"
->>>>>>> master
+VERSION = "0.9"
 
 
 class MODELS:
@@ -14,7 +10,7 @@ class MODELS:
     separator = "GEO"
     replay = "HASH"
     flooding = "LSTM"
-    interp = "TLeNet"
+    interp = "CNN"
 
 
 

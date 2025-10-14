@@ -65,28 +65,19 @@ class Model(AbstactModel):
 
 
 
-<<<<<<< HEAD
-=======
     @tf.function
->>>>>>> master
     def predict(self, x):
         y_reservoir = self.__predict_reservoir__(x)
         return self.readout(y_reservoir)
 
 
-<<<<<<< HEAD
-=======
     @tf.function
->>>>>>> master
     def compute_loss(self, x, y):
         y_pred = self.predict(x)
         return self.loss(y, y_pred), y_pred
 
 
-<<<<<<< HEAD
-=======
     @tf.function
->>>>>>> master
     def training_step(self, x, y):
         y_reservoir = self.__predict_reservoir__(x)
 
@@ -109,11 +100,7 @@ class Model(AbstactModel):
         tf.keras.utils.plot_model(self.readout, to_file=filename, show_shapes=True)
 
     def nb_parameters(self):
-<<<<<<< HEAD
-        return np.sum([np.prod(v.get_shape().as_list()) for v in self.readout.trainable_variables])
-=======
         return np.sum([np.prod(list(v._shape)) for v in self.readout.trainable_variables])
->>>>>>> master
 
 
     def get_variables(self):

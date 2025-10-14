@@ -74,12 +74,9 @@ class SemaphoreQueue:
     def release(self, order):
         if (DEBUG): print("begin release ", order)
         i = self.__get_queue_index__(order)
-<<<<<<< HEAD
-=======
         if (i == len(self.queue) or self.queue_order[i] != order):
             print("Error release order ", order)
             return
->>>>>>> master
         sem_id = self.queue[i]
         self.sem_storage[sem_id].release()
         self.sem_locked[sem_id] = False
@@ -131,6 +128,9 @@ def api():
     data = request.get_json()
     order = data["order"]
     message:"list[dict[str, str]]" = data["messages"]
+    if ("timestamp" not in message[0]):
+        print("Error: no timestamp in message \n", message[0])
+        
     t = int(message[0]["timestamp"])%3600
     if (DEBUG): print("Recieved msg time ", t//60, "m", t%60, "s")
     # if (DEBUG): print("Call queue lenght :", len(sem), "msg time : ", t//60, "m", t%60, "s")

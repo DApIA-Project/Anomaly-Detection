@@ -22,15 +22,10 @@ def fitOnce(Model:"type[_Model_]", Trainer:"type[_Trainer_]", CTX, default_CTX=N
     trainer = Trainer(CTX, Model)
     
     metrics = trainer.run()
-<<<<<<< HEAD
-    
-    log_data(metrics, CTX, Model, experiment_name=experiment_name)
-=======
     print(metrics)
 
     if (metrics is not None and len(metrics) > 0 and CTX["EPOCHS"] > 0):
         log_data(metrics, CTX, Model, experiment_name=experiment_name)
->>>>>>> master
 
     
     

@@ -155,10 +155,7 @@ class Model(AbstactModel):
         # load context
         self.CTX = CTX
 
-<<<<<<< HEAD
-=======
     @tf.function
->>>>>>> master
     def predict(self, x:"list[np.float64_2d[ax.time, ax.feature]]", t:"list[int]") \
             -> np.float64_2d[ax.sample, ax.feature]:
 
@@ -168,20 +165,14 @@ class Model(AbstactModel):
         return preds
 
 
-<<<<<<< HEAD
-=======
     @tf.function
->>>>>>> master
     def compute_loss(self) -> None:
         return None
 
 
 
 
-<<<<<<< HEAD
-=======
     @tf.function
->>>>>>> master
     def training_step(self) -> None:
         return None
 

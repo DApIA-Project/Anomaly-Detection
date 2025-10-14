@@ -14,11 +14,8 @@ class FeatureGetter:
     BARO_ALT = None
     GEO_ALT = None
     VELOCITY = None
-<<<<<<< HEAD
-=======
     DISTANCE = None
     BEARING = None
->>>>>>> master
 
     def init(self, CTX:dict)->None:
         """Init the feature getter with the context"""
@@ -32,11 +29,8 @@ class FeatureGetter:
         self.BARO_ALT  = self.FEATURE_MAP.get("altitude", None)
         self.GEO_ALT   = self.FEATURE_MAP.get("geoaltitude", None)
         self.VELOCITY  = self.FEATURE_MAP.get("groundspeed", None)
-<<<<<<< HEAD
-=======
         self.DISTANCE  = self.FEATURE_MAP.get("distance", None)
         self.BEARING   = self.FEATURE_MAP.get("bearing", None)
->>>>>>> master
         CTX["FG"] = self
 
     T  = TypeVar('T')
@@ -191,8 +185,6 @@ class FeatureGetter:
     def velocity(self, slf:np.ndarray = None, axis:int=-1) -> np.ndarray:
         if not(isinstance(slf, np.ndarray)): return self.VELOCITY
         return slf.take(self.VELOCITY, axis)
-<<<<<<< HEAD
-=======
     
     # |====================================================================================================================
     # | DISTANCE GETTER
@@ -230,7 +222,6 @@ class FeatureGetter:
         if not(isinstance(slf, np.ndarray)): return self.BEARING
         return slf.take(self.BEARING, axis)
     
->>>>>>> master
 
     # |====================================================================================================================
     # | GENERIC GETTER
@@ -283,10 +274,7 @@ class FeatureGetter:
 
 FG_spoofing = FeatureGetter()
 FG_flooding = FeatureGetter()
-<<<<<<< HEAD
-=======
 FG_generator = FeatureGetter()
->>>>>>> master
 FG_replay = FeatureGetter()
 FG_separator = FeatureGetter()
 FG_interp = FeatureGetter()

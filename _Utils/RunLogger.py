@@ -168,9 +168,6 @@ class RunLogger:
         if (file is not None):
             self.__load__(file)
         if (host is not None):
-<<<<<<< HEAD
-            self.__check_host__(host, port)
-=======
             try:
                 self.__check_host__(host, port)
             except Exception as e:
@@ -179,7 +176,6 @@ class RunLogger:
                 self.is_server = False
                 self.host = None
                 self.port = None
->>>>>>> master
         
         
 

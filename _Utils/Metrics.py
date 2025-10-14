@@ -109,11 +109,7 @@ def plot_confusion_matrix(confusion_matrix:np.ndarray, path:str, label_names:"li
     plt.xlabel('Predictions', fontsize=18)
     plt.ylabel('Actuals', fontsize=18)
     plt.xticks(range(len(label_names)), label_names, fontsize=14)
-<<<<<<< HEAD
-    plt.yticks(range(len(label_names)), label_names, fontsize=14, rotation=90)
-=======
     plt.yticks(range(len(label_names)), label_names, fontsize=14, rotation=90, va='center')
->>>>>>> master
     plt.gca().xaxis.tick_bottom()
     plt.title('Accuracy ' + str(round(acc*100, 1))+"%", fontsize=18)
     plt.savefig(path)

@@ -176,18 +176,6 @@ class StandardScaler3D:
 
     def transform(self, X:np.float64_3d) -> np.float64_3d:
 
-<<<<<<< HEAD
-            X = X.copy()
-
-            for b in range(len(X)):
-                for f in range(len(X[b][0])):
-                    if (self.stds[f] == 0):
-                        X[b][:, f] = 0
-                    else:
-                        X[b][:, f] = (X[b][:, f] - self.means[f]) / self.stds[f]
-
-            return X
-=======
         X = X.copy()
 
         for b in range(len(X)):
@@ -198,23 +186,12 @@ class StandardScaler3D:
                     X[b][:, f] = (X[b][:, f] - self.means[f]) / self.stds[f]
 
         return X
->>>>>>> master
 
     def fit_transform(self, X:np.float64_3d) -> np.float64_3d:
         return self.fit(X).transform(X)
 
     def inverse_transform(self, X:np.float64_3d) -> np.float64_3d:
 
-<<<<<<< HEAD
-            X = X.copy()
-
-            # check if is numpy array
-            for b in range(len(X)):
-                for f in range(len(X[b][0])):
-                    X[b][:, f] = X[b][:, f] * self.stds[f] + self.means[f]
-
-            return X
-=======
         X = X.copy()
 
         # check if is numpy array
@@ -223,7 +200,6 @@ class StandardScaler3D:
                 X[b][:, f] = X[b][:, f] * self.stds[f] + self.means[f]
 
         return X
->>>>>>> master
 
     def is_fitted(self) -> bool:
         return self.__is_fitted__

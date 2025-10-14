@@ -54,18 +54,9 @@ class DataLoader(AbstractDataLoader):
         self.CTX = CTX
         self.PAD = None
 
-<<<<<<< HEAD
-        Scaler3D = U.getScaler(self.CTX["SCALER"], dims=3)
-        Scaler2D = U.getScaler(self.CTX["SCALER"], dims=2)
-
-        self.xScaler:StandardScaler3D = Scaler3D()
-        if (self.CTX["ADD_TAKE_OFF_CONTEXT"]): self.xTakeOffScaler:StandardScaler3D = Scaler3D()
-        if (self.CTX["ADD_AIRPORT_CONTEXT"]): self.xAirportScaler = Scaler2D()
-=======
         self.xScaler:StandardScaler3D = U.getScaler(self.CTX["SCALER"], dims=3)
         if (self.CTX["ADD_TAKE_OFF_CONTEXT"]): self.xTakeOffScaler:StandardScaler3D = U.getScaler(self.CTX["SCALER"], dims=3)
         if (self.CTX["ADD_AIRPORT_CONTEXT"]): self.xAirportScaler = U.getScaler(self.CTX["SCALER"], dims=2)
->>>>>>> master
         self.yScaler = SparceLabelBinarizer(self.CTX["USED_LABELS"])
 
         training = (CTX["EPOCHS"] and path != "")

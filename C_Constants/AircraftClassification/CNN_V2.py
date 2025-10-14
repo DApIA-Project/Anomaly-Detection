@@ -1,7 +1,7 @@
 
 LEARNING_RATE = 0.0002
 EPOCHS = 80
-BATCH_SIZE = 128
+BATCH_SIZE = 64
 NB_BATCH = 32
 
 
@@ -22,14 +22,14 @@ MODEL_PADDING = "same"
 # "nan" fill with nan (as the model "know" what is a nan value)
 INPUT_PADDING = "nan"
 
-DYNAMIC_LABEL_RATIO=True
+DYNAMIC_LABEL_RATIO=False
 
 LAYERS = 2
 DROPOUT = 0.1
 UNITS = 128
 RESIDUAL = 1
 
-ACTIVATION = "softmax"
+ACTIVATION = "sigmoid"
 
 
 ADD_TAKE_OFF_CONTEXT = False

@@ -1,5 +1,5 @@
 # ML
-pip install tensorflow==2.8.0
+pip install tensorflow==2.20.0
 pip install keras
 
 # [optional] for using PyTorch instead of TensorFlow

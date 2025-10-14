@@ -21,11 +21,7 @@ class Model(AbstactModel):
         self.CTX = CTX
 
 
-<<<<<<< HEAD
-=======
-    @tf.function
->>>>>>> master
-    def predict(self, x, training=False):
+    def predict(self, x):
         y = np.zeros((len(x), 2))
         # print(x[0, :])
         
@@ -37,19 +33,11 @@ class Model(AbstactModel):
         return np.mean(np.sqrt((y_[:, 0] - y[:, 0]) ** 2 + (y_[:, 1] - y[:, 1]) ** 2))
 
 
-<<<<<<< HEAD
-=======
-    @tf.function
->>>>>>> master
-    def compute_loss(self, x, y, taining=False):
-        y_ = self.predict(x, training=taining)
+    def compute_loss(self, x, y):
+        y_ = self.predict(x)
         return self.loss(y_, y), y_
     
 
-<<<<<<< HEAD
-=======
-    @tf.function
->>>>>>> master
     def training_step(self, x, y):
         prntC(C.INFO, "No need to train the model")
         return 0, y
@@ -71,12 +59,8 @@ class Model(AbstactModel):
 
 
 debug = False
-<<<<<<< HEAD
-def predict_next_pts(x, y, t, h):
-=======
 @tf.function
     def predict_next_pts(x, y, t, h):
->>>>>>> master
     
     t0 = t[0]
     t, t0 = t - t0, 0

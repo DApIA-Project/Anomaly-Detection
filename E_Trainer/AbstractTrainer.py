@@ -1,9 +1,5 @@
 
-<<<<<<< HEAD
-
-=======
 from _Utils.os_wrapper import os
->>>>>>> master
 
 import pandas as pd
 from numpy_typing import np, ax
@@ -53,8 +49,6 @@ class Trainer:
     def __init__(self, CTX:dict, model:"type[Model]"):
 
         pass
-<<<<<<< HEAD
-=======
     
     
     
@@ -63,7 +57,6 @@ class Trainer:
         
         
         
->>>>>>> master
 
     def viz_model(self, filename:str):
         try:

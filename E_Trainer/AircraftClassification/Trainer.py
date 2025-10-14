@@ -8,11 +8,7 @@
 from   _Utils.os_wrapper import os
 import pandas as pd
 import matplotlib.pyplot as plt
-<<<<<<< HEAD
-from   matplotlib.backends.backend_pdf import PdfPages
-=======
 from sklearn import metrics
->>>>>>> master
 
 from   B_Model.AbstractModel import Model as _Model_
 from   D_DataLoader.AircraftClassification.DataLoader import DataLoader
@@ -32,10 +28,7 @@ import _Utils.Metrics as Metrics
 from   _Utils.ProgressBar import ProgressBar
 from   _Utils.save import write, load
 from   _Utils.ADSB_Streamer import streamer
-<<<<<<< HEAD
-=======
 from   _Utils.Metrics import accuracy
->>>>>>> master
 
 
 # |====================================================================================================================
@@ -46,13 +39,8 @@ from   _Utils.Metrics import accuracy
 PBM_NAME = os.path.dirname(os.path.abspath(__file__)).split("/")[-1]+"/"
 ARTIFACTS = "./_Artifacts/"
 
-<<<<<<< HEAD
-TRAIN_FOLDER = "./A_Dataset/AircraftClassification/Train/"
-EVAL_FOLDER = "./A_Dataset/AircraftClassification/Eval/"
-=======
 TRAIN_FOLDER = "./A_Dataset/V1/Train/"
-EVAL_FOLDER = "./A_Dataset/V1/Eval/"
->>>>>>> master
+EVAL_FOLDER = "./A_Dataset/DEMO/"
 
 H_TRAIN_LOSS = 0
 H_TEST_LOSS = 1
@@ -152,8 +140,6 @@ class Trainer(AbstractTrainer):
 
         write(self.ARTIFACTS+"/pad", self.dl.PAD)
         
-        print(self.model.get_variables())
-
 
 
     def load(self, path:str=None) -> None:
@@ -387,19 +373,14 @@ class Trainer(AbstractTrainer):
                 all_y_ = self.dl.prediction_cache.append(x_[i]["icao24"], x_[i]["tag"], y_[i])
             else:
                 all_y_ = self.dl.prediction_cache.get(x_[i]["icao24"], x_[i]["tag"])
-<<<<<<< HEAD
-            # use nth max method
-            l = min(len(all_y_), 20)
-=======
             if (all_y_ is None):
                 continue
             
             # use nth max method
             l = min(len(all_y_), self.CTX["LOSS_MOVING_AVERAGE"])
->>>>>>> master
-            if (l > 0):
+            if (l >= 16):
                 confidence = Metrics.confidence(all_y_)
-                # TODO performance improvment with already sorted list
+                # TODO performance improvment with already sorted confidence list
                 y_agg[i] = np.nanmean(all_y_[np.argsort(confidence)[-l:]], axis=0)
 
         return y_, y_agg
@@ -428,7 +409,7 @@ class Trainer(AbstractTrainer):
 
         # load all ressources needed for the batch
         files_df, max_lenght = [], 0
-        y, y_ = [], []
+        y, y_, y_agg_ = [], [], []
         for f in range(len(files)):
 
             df = U.read_trajectory(files[f])
@@ -443,11 +424,12 @@ class Trainer(AbstractTrainer):
 
             y.append(l)
             y_.append(np.zeros((len(df), self.CTX["LABELS_OUT"]), dtype=np.float64))
+            y_agg_.append(np.zeros((len(df), self.CTX["LABELS_OUT"]), dtype=np.float64))
 
             max_lenght = max(max_lenght, len(df))
 
         y = self.dl.yScaler.transform(y)
-        return files_df, max_lenght, y, y_
+        return files_df, max_lenght, y, y_, y_agg_
 
 
     def __next_msgs__(self, dfs:"list[pd.DataFrame]", y:np.ndarray, t:int)-> "tuple[list[dict[str:float]], list[int]]":
@@ -470,8 +452,7 @@ class Trainer(AbstractTrainer):
 
         BAR.reset(max=len(self.__eval_files__))
 
-        dfs, max_len, y, y_ = self.__gen_eval_batch__(self.__eval_files__)
-
+        dfs, max_len, y, y_, y_agg_ = self.__gen_eval_batch__(self.__eval_files__)
 
         CHRONO.start()
         NB_MESSAGE = 0
@@ -480,9 +461,10 @@ class Trainer(AbstractTrainer):
             NB_MESSAGE += len(x)
 
             for i in range(len(x)): streamer.add(x[i])
-            yt_, _ = self.predict(x)
+            yt_, yt_agg_ = self.predict(x)
             for i in range(len(files)):
                 y_[files[i]][t] = yt_[i]
+                y_agg_[files[i]][t] = yt_agg_[i]
 
             # Show progression :
             BAR.update((t+1) / max_len * len(self.__eval_files__), f"remaining files: {len(files)}")
@@ -491,15 +473,11 @@ class Trainer(AbstractTrainer):
         
         print("TOTAL NUM OF MESSAGES : ", NB_MESSAGE)
 
-<<<<<<< HEAD
-        acc = self.__eval_stats__(y, y_)
-        return {"ACCURACY": round(acc*100, 2), "TIME": round(CHRONO.get_time_s(),1)}
-=======
-        acc, _, precision, recall, f1, roc_auc = self.__eval_stats__(y, y_)
+        acc, _, accuracy_score, precision, recall, f1 = self.__eval_stats__(y, y_, y_agg_)
         return {"ACCURACY": round(acc*100, 2), "TIME": round(CHRONO.get_time_s(),1), 
+                "ACCURACY_SCORE": round(accuracy_score*100,2),
                 "PRECISION": round(precision*100,2), "RECALL": round(recall*100,2),
-                "F1_SCORE": round(f1*100,2), "ROC_AUC": round(roc_auc*100,2)}
->>>>>>> master
+                "F1_SCORE": round(f1*100,2)}
 
 
 # |====================================================================================================================
@@ -524,14 +502,9 @@ class Trainer(AbstractTrainer):
         return agg_mean, agg_max, agg_count, agg_nth_max
 
 
-    def __eval_stats__(self, y:np.float64_2d[ax.sample, ax.label], y_:"list[np.float64_2d[ax.time, ax.label]]") -> None:
+    def __eval_stats__(self, y:np.float64_2d[ax.sample, ax.label], y_:"list[np.float64_2d[ax.time, ax.label]]", y_agg:"list[np.float64_2d[ax.time, ax.label]]") -> None:
         OUT = np.ndarray((len(y), self.CTX["LABELS_OUT"]), dtype=np.float64)
         agg_mean, agg_max, agg_count, agg_nth_max = OUT.copy(), OUT.copy(), OUT.copy(), OUT.copy()
-<<<<<<< HEAD
-
-        for f in range(len(self.__eval_files__)):
-            agg_mean[f], agg_max[f], agg_count[f], agg_nth_max[f] = self.__compute_prediction__(y_[f])
-=======
         
         per_message_correct = 0
         total_messages = 0
@@ -543,7 +516,6 @@ class Trainer(AbstractTrainer):
             
             agg_mean[f], agg_max[f], agg_count[f], agg_nth_max[f] = self.__compute_prediction__(y_[f])
         acc_per_messages = per_message_correct / total_messages
->>>>>>> master
 
         methods = ["mean", "max", "count", "nth_max"]
         prediction_methods = [agg_mean, agg_max, agg_count, agg_nth_max]
@@ -555,17 +527,10 @@ class Trainer(AbstractTrainer):
         for i in range(len(methods)):
             prntC(C.INFO, "with", methods[i], " aggregation, accuracy : ", round(accuracy_per_method[i] * 100, 2))
         prntC(C.INFO, "Best method is :", methods[best_method])
-<<<<<<< HEAD
-
-        confusion_matrix = Metrics.confusion_matrix(y, prediction_methods[best_method])
-        prntC(confusion_matrix)
-
-=======
         
         
-        trues_label = np.argmax(y, axis=1)
-        preds_label = np.argmax(prediction_methods[best_method], axis=1)
-        
+        trues_label = np.concatenate([[np.argmax(y[f])] * len(y_[f]) for f in range(len(y))])
+        preds_label = np.concatenate([np.argmax(y_agg[f], axis=-1) for f in range(len(y))])
         
         confusion_matrix = Metrics.confusion_matrix(y, prediction_methods[best_method])
         
@@ -573,12 +538,8 @@ class Trainer(AbstractTrainer):
         precision = metrics.precision_score(trues_label, preds_label, average='macro')
         recall = metrics.recall_score(trues_label, preds_label, average='macro')
         f1 = metrics.f1_score(trues_label, preds_label, average='macro')
-        roc_auc = metrics.roc_auc_score(y, prediction_methods[best_method], average='macro', multi_class='ovo')
         
         
-        print(accuracy_per_method[best_method], accuracy_score)
-        print(precision, recall, f1, roc_auc)
->>>>>>> master
 
         labels = [self.CTX["LABEL_NAMES"][i] for i in self.CTX["USED_LABELS"]]
         Metrics.plot_confusion_matrix(confusion_matrix,
@@ -593,9 +554,5 @@ class Trainer(AbstractTrainer):
                       " - True label :", self.CTX["LABEL_NAMES"][self.CTX["USED_LABELS"][true]],
                       " - Predicted :",  self.CTX["LABEL_NAMES"][self.CTX["USED_LABELS"][pred]])
         
-<<<<<<< HEAD
-        return accuracy_per_method[best_method]
-=======
-        return accuracy_per_method[best_method], acc_per_messages, precision, recall, f1, roc_auc
->>>>>>> master
+        return accuracy_per_method[best_method], acc_per_messages, accuracy_score, precision, recall, f1
 

@@ -154,5 +154,3 @@ def test_new_trajectory_on_flooding(streamer:Streamer)->None:
 
     assert len(streamer.trajectories) == 1
     assert len(df) == 1
-
-# TODO check cache system
